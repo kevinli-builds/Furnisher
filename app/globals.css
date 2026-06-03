@@ -138,30 +138,89 @@ body {
   background: #f6e7e3;
 }
 
-/* ── Inspector bar ───────────────────────────────────────────── */
-.inspector {
-  display: none;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 10px 22px;
+/* ── Settings / format panel (slides over the furniture panel) ─ */
+.settings {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
   background: var(--panel);
+  border-left: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  animation: slideIn 0.16s ease;
+}
+@keyframes slideIn {
+  from {
+    transform: translateX(14px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 18px;
   border-bottom: 1px solid var(--line);
 }
-.inspector.show {
-  display: flex;
-}
-.ins-label {
+.settings-title {
   font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.settings-x {
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 7px;
+  border-radius: 7px;
+  line-height: 1;
+}
+.settings-x:hover {
+  background: #f1ebe0;
+  color: var(--ink);
+}
+.settings-body {
+  padding: 18px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.sect {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sect-label {
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--muted);
 }
-.ins-meta {
-  font-size: 13px;
+.sect-note {
+  font-size: 12.5px;
   color: var(--muted);
-  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+}
+.seg.full {
+  display: flex;
+}
+.seg.full .seg-btn {
+  flex: 1;
+  text-align: center;
+}
+.full-btn {
+  width: 100%;
+  margin-top: 2px;
 }
 
 /* ── Workspace ───────────────────────────────────────────────── */
@@ -186,6 +245,8 @@ body {
   border: 1px solid var(--line-strong);
   border-radius: 14px;
   touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 .canvas.mode-room {
   cursor: crosshair;
@@ -199,10 +260,15 @@ body {
   text-align: center;
 }
 
-/* ── Right panel ─────────────────────────────────────────────── */
-.panel {
+/* ── Right column (furniture panel + settings overlay) ───────── */
+.right {
+  position: relative;
   width: 300px;
   flex-shrink: 0;
+}
+.panel {
+  width: 100%;
+  height: 100%;
   background: var(--panel);
   border-left: 1px solid var(--line);
   padding: 18px;
@@ -239,11 +305,6 @@ body {
 }
 .field:focus {
   border-color: var(--accent);
-}
-.field.inline {
-  width: auto;
-  min-width: 140px;
-  padding: 7px 10px;
 }
 .dim-row {
   display: flex;
@@ -286,29 +347,26 @@ body {
   color: var(--muted);
   line-height: 1.55;
 }
-.item {
-  border: 1px solid var(--line);
-  border-radius: 11px;
-  overflow: hidden;
-}
-.item.active {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
-}
 .item-head {
   display: flex;
   align-items: center;
   gap: 10px;
   width: 100%;
   background: transparent;
-  border: none;
+  border: 1px solid var(--line);
+  border-radius: 11px;
   padding: 11px 12px;
   cursor: pointer;
   text-align: left;
   font: inherit;
+  color: inherit;
 }
 .item-head:hover {
   background: #f5efe4;
+}
+.item-row.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
 }
 .dot {
   width: 14px;
@@ -331,30 +389,20 @@ body {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.item-edit {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 0 12px 12px;
-}
-.item-actions {
-  display: flex;
-  gap: 8px;
-}
-.item-actions .btn-ghost {
-  flex: 1;
-}
-
 /* ── Small screens ───────────────────────────────────────────── */
 @media (max-width: 760px) {
   .workspace {
     flex-direction: column;
   }
-  .panel {
+  .right {
     width: 100%;
+    height: 45vh;
+    flex-shrink: 0;
+  }
+  .panel,
+  .settings {
     border-left: none;
     border-top: 1px solid var(--line);
-    max-height: 45vh;
   }
   .brand .tag {
     display: none;

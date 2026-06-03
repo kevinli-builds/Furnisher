@@ -1,9 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import type { Plan, Selection, Rotation } from '../lib/types'
+import type { Plan, Selection } from '../lib/types'
 import { uid, snap } from '../lib/geometry'
-import { inputUnit, toCm, fromCm, formatSize } from '../lib/units'
+import { inputUnit, toCm, formatSize } from '../lib/units'
+import { SWATCHES } from '../lib/palette'
 
 interface Props {
   plan: Plan
@@ -11,8 +12,6 @@ interface Props {
   sel: Selection
   setSel: (s: Selection) => void
 }
-
-const SWATCHES = ['#d8c8a4', '#b9c2a0', '#d3a87f', '#c79a86', '#bcb482', '#a8b1aa']
 
 export default function FurniturePanel({ plan, setPlan, sel, setSel }: Props) {
   const { units } = plan
@@ -48,18 +47,6 @@ export default function FurniturePanel({ plan, setPlan, sel, setSel }: Props) {
     }))
     setSel({ type: 'furniture', id })
     setName('')
-  }
-
-  function update(id: string, patch: Partial<{ name: string; w: number; h: number; rotation: Rotation; color: string }>) {
-    setPlan((pl) => ({
-      ...pl,
-      furniture: pl.furniture.map((f) => (f.id === id ? { ...f, ...patch } : f)),
-    }))
-  }
-
-  function remove(id: string) {
-    setPlan((pl) => ({ ...pl, furniture: pl.furniture.filter((f) => f.id !== id) }))
-    if (sel?.type === 'furniture' && sel.id === id) setSel(null)
   }
 
   return (
@@ -106,59 +93,15 @@ export default function FurniturePanel({ plan, setPlan, sel, setSel }: Props) {
         {plan.furniture.map((f) => {
           const active = sel?.type === 'furniture' && sel.id === f.id
           return (
-            <div key={f.id} className={`item${active ? ' active' : ''}`}>
-              <button className="item-head" onClick={() => setSel(active ? null : { type: 'furniture', id: f.id })}>
-                <span className="dot" style={{ background: f.color }} />
-                <span className="item-name">{f.name}</span>
-                <span className="item-size">{formatSize(f.w, f.h, units)}</span>
-              </button>
-
-              {active && (
-                <div className="item-edit">
-                  <input className="field" value={f.name} onChange={(e) => update(f.id, { name: e.target.value })} />
-                  <div className="dim-row">
-                    <label className="dim">
-                      <span>W ({u})</span>
-                      <input
-                        className="field"
-                        inputMode="decimal"
-                        defaultValue={fromCm(f.w, units)}
-                        onChange={(e) => update(f.id, { w: snap(toCm(parseFloat(e.target.value) || f.w, units)) })}
-                      />
-                    </label>
-                    <label className="dim">
-                      <span>D ({u})</span>
-                      <input
-                        className="field"
-                        inputMode="decimal"
-                        defaultValue={fromCm(f.h, units)}
-                        onChange={(e) => update(f.id, { h: snap(toCm(parseFloat(e.target.value) || f.h, units)) })}
-                      />
-                    </label>
-                  </div>
-                  <div className="swatches">
-                    {SWATCHES.map((s) => (
-                      <button
-                        key={s}
-                        type="button"
-                        className={`swatch${f.color === s ? ' on' : ''}`}
-                        style={{ background: s }}
-                        onClick={() => update(f.id, { color: s })}
-                        aria-label={`colour ${s}`}
-                      />
-                    ))}
-                  </div>
-                  <div className="item-actions">
-                    <button className="btn-ghost" onClick={() => update(f.id, { rotation: ((f.rotation + 90) % 360) as Rotation })}>
-                      ⟳ Rotate
-                    </button>
-                    <button className="btn-ghost danger" onClick={() => remove(f.id)}>
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+            <button
+              key={f.id}
+              className={`item-head item-row${active ? ' active' : ''}`}
+              onClick={() => setSel(active ? null : { type: 'furniture', id: f.id })}
+            >
+              <span className="dot" style={{ background: f.color }} />
+              <span className="item-name">{f.name}</span>
+              <span className="item-size">{formatSize(f.w, f.h, units)}</span>
+            </button>
           )
         })}
       </div>

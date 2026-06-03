@@ -1,14 +1,15 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Plan, Mode, Selection, Door } from '../lib/types'
-import { snap, clamp, uid, GRID_MINOR, GRID_MAJOR } from '../lib/geometry'
+import { snap, clamp, uid, snapDoorToWalls, GRID_MINOR, GRID_MAJOR } from '../lib/geometry'
 import { formatSize } from '../lib/units'
 
 interface Props {
   plan: Plan
   setPlan: React.Dispatch<React.SetStateAction<Plan>>
   mode: Mode
+  setMode: (m: Mode) => void
   sel: Selection
   setSel: (s: Selection) => void
 }
@@ -22,10 +23,20 @@ type Drag =
 
 const MIN_ROOM = 50 // cm
 
-export default function Canvas({ plan, setPlan, mode, sel, setSel }: Props) {
+export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Props) {
   const svgRef = useRef<SVGSVGElement>(null)
   const drag = useRef<Drag>(null)
   const [draft, setDraft] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
+  const [hoverRoom, setHoverRoom] = useState<string | null>(null)
+  // Preview of where a door will land while in Add-door mode.
+  const [doorGhost, setDoorGhost] = useState<{ x: number; y: number; orientation: 'h' | 'v' } | null>(null)
+
+  const DOOR_LEN = 80
+
+  // Drop any stale placement preview when leaving Add-door mode.
+  useEffect(() => {
+    if (mode !== 'door') setDoorGhost(null)
+  }, [mode])
 
   const { width, height, units, viewMode } = plan
   const schematic = viewMode === 'schematic'
@@ -43,8 +54,38 @@ export default function Canvas({ plan, setPlan, mode, sel, setSel }: Props) {
     svgRef.current?.setPointerCapture(e.pointerId)
   }
 
+  // In Add-door mode, intercept the press at the SVG level (capture phase) so a
+  // click anywhere — including on top of a room, e.g. a wall shared by two
+  // rooms — places a door rather than selecting/dragging whatever is underneath.
+  function onDownCapture(e: React.PointerEvent) {
+    if (mode !== 'door') return
+    e.stopPropagation()
+    placeDoor(toCm(e))
+  }
+
+  function placeDoor(p: { x: number; y: number }) {
+    const hit = snapDoorToWalls(p.x, p.y, DOOR_LEN, plan.rooms)
+    const d: Door = hit
+      ? { id: uid(), x: hit.x, y: hit.y, length: DOOR_LEN, orientation: hit.orientation, swing: 1 }
+      : {
+          // No rooms to snap to — fall back to a free-placed door.
+          id: uid(),
+          x: snap(clamp(p.x, 0, width - DOOR_LEN)),
+          y: snap(clamp(p.y, 0, height)),
+          length: DOOR_LEN,
+          orientation: 'h',
+          swing: 1,
+        }
+    setPlan((pl) => ({ ...pl, doors: [...pl.doors, d] }))
+    setSel({ type: 'door', id: d.id })
+    setDoorGhost(null)
+    // People place doors one at a time — drop back to Select after each.
+    setMode('select')
+  }
+
   // ── Background ────────────────────────────────────────────────
   function onBgDown(e: React.PointerEvent) {
+    if (mode === 'door') return // handled by onDownCapture
     const p = toCm(e)
     if (mode === 'room') {
       const x = snap(clamp(p.x, 0, width))
@@ -52,17 +93,6 @@ export default function Canvas({ plan, setPlan, mode, sel, setSel }: Props) {
       drag.current = { kind: 'draw', ox: x, oy: y }
       setDraft({ x, y, w: 0, h: 0 })
       capture(e)
-    } else if (mode === 'door') {
-      const d: Door = {
-        id: uid(),
-        x: snap(clamp(p.x, 0, width - 80)),
-        y: snap(clamp(p.y, 0, height)),
-        length: 80,
-        orientation: 'h',
-        swing: 1,
-      }
-      setPlan((pl) => ({ ...pl, doors: [...pl.doors, d] }))
-      setSel({ type: 'door', id: d.id })
     } else {
       setSel(null)
     }
@@ -108,8 +138,13 @@ export default function Canvas({ plan, setPlan, mode, sel, setSel }: Props) {
   // ── Move / resize ─────────────────────────────────────────────
   function onMove(e: React.PointerEvent) {
     const d = drag.current
-    if (!d) return
     const p = toCm(e)
+
+    // Not dragging: in door mode, preview where the door would snap.
+    if (!d) {
+      if (mode === 'door') setDoorGhost(snapDoorToWalls(p.x, p.y, DOOR_LEN, plan.rooms))
+      return
+    }
 
     if (d.kind === 'draw') {
       const x = Math.min(d.ox, snap(p.x))
@@ -150,11 +185,14 @@ export default function Canvas({ plan, setPlan, mode, sel, setSel }: Props) {
     } else if (d.kind === 'move-door') {
       setPlan((pl) => ({
         ...pl,
-        doors: pl.doors.map((dd) =>
-          dd.id === d.id
-            ? { ...dd, x: clamp(snap(d.ox + dx), 0, width), y: clamp(snap(d.oy + dy), 0, height) }
-            : dd,
-        ),
+        doors: pl.doors.map((dd) => {
+          if (dd.id !== d.id) return dd
+          // Glue the door to whichever wall the cursor is nearest.
+          const hit = snapDoorToWalls(p.x, p.y, dd.length, pl.rooms)
+          if (hit) return { ...dd, x: hit.x, y: hit.y, orientation: hit.orientation }
+          // Fallback (no rooms): plain free move.
+          return { ...dd, x: clamp(snap(d.ox + dx), 0, width), y: clamp(snap(d.oy + dy), 0, height) }
+        }),
       }))
     }
   }
@@ -183,8 +221,39 @@ export default function Canvas({ plan, setPlan, mode, sel, setSel }: Props) {
   const hLines: number[] = []
   for (let y = 0; y <= height; y += GRID_MINOR) hLines.push(y)
 
-  const fontMain = 22
-  const fontDim = 16
+  const fontDim = 16 // furniture labels
+  const roomName = 15 // smaller, subtler room labels
+  const roomDim = 12
+
+  // Is there clear space just above this room to float its label outside?
+  // If the room is tucked against the top edge or another room sits directly
+  // above it (e.g. fully surrounded), we fall back to labelling inside.
+  function spaceAbove(r: { id: string; x: number; y: number; w: number; h: number }): boolean {
+    if (r.y < 70) return false
+    return !plan.rooms.some(
+      (o) => o.id !== r.id && o.x < r.x + r.w && o.x + o.w > r.x && o.y < r.y && o.y + o.h >= r.y - 2,
+    )
+  }
+
+  // Door symbol paths (leaf line + swing arc) + far jamb endpoint.
+  function doorGeom(x: number, y: number, length: number, orientation: 'h' | 'v', swing: number) {
+    if (orientation === 'h') {
+      const ty = y - length * swing
+      return {
+        leaf: `M ${x} ${y} L ${x} ${ty}`,
+        arc: `M ${x} ${ty} A ${length} ${length} 0 0 ${swing > 0 ? 0 : 1} ${x + length} ${y}`,
+        x2: x + length,
+        y2: y,
+      }
+    }
+    const tx = x + length * swing
+    return {
+      leaf: `M ${x} ${y} L ${tx} ${y}`,
+      arc: `M ${tx} ${y} A ${length} ${length} 0 0 ${swing > 0 ? 1 : 0} ${x} ${y + length}`,
+      x2: x,
+      y2: y + length,
+    }
+  }
 
   return (
     <svg
@@ -192,8 +261,10 @@ export default function Canvas({ plan, setPlan, mode, sel, setSel }: Props) {
       className={`canvas mode-${mode}`}
       viewBox={`0 0 ${width} ${height}`}
       preserveAspectRatio="xMidYMid meet"
+      onPointerDownCapture={onDownCapture}
       onPointerMove={onMove}
       onPointerUp={onUp}
+      onPointerLeave={() => setDoorGhost(null)}
     >
       {/* Backdrop */}
       <rect x={0} y={0} width={width} height={height} fill="#fdfbf7" onPointerDown={onBgDown} />
@@ -229,8 +300,14 @@ export default function Canvas({ plan, setPlan, mode, sel, setSel }: Props) {
       {/* Rooms */}
       {plan.rooms.map((r) => {
         const active = sel?.type === 'room' && sel.id === r.id
+        // Labels stay hidden until you hover the room (or it's selected).
+        const showLabel = active || hoverRoom === r.id
+        const above = spaceAbove(r)
+        // Two stacked lines: name on top, dimensions below.
+        const dimY = above ? r.y - 7 : r.y + roomName + roomDim + 12
+        const nameY = above ? r.y - 7 - (roomDim + 3) : r.y + roomName + 6
         return (
-          <g key={r.id}>
+          <g key={r.id} onPointerEnter={() => setHoverRoom(r.id)} onPointerLeave={() => setHoverRoom((h) => (h === r.id ? null : h))}>
             <rect
               x={r.x}
               y={r.y}
@@ -243,12 +320,16 @@ export default function Canvas({ plan, setPlan, mode, sel, setSel }: Props) {
               style={{ cursor: 'move' }}
               onPointerDown={(e) => onRoomDown(e, r.id)}
             />
-            <text x={r.x + 12} y={r.y + fontMain + 6} fontSize={fontMain} fill="#2f2a22" fontWeight={600} pointerEvents="none">
-              {r.name}
-            </text>
-            <text x={r.x + 12} y={r.y + fontMain + fontDim + 12} fontSize={fontDim} fill="#9a9082" pointerEvents="none">
-              {formatSize(r.w, r.h, units)}
-            </text>
+            {showLabel && (
+              <>
+                <text x={r.x + 10} y={nameY} fontSize={roomName} fill="#8a7e6b" fontWeight={500} pointerEvents="none">
+                  {r.name}
+                </text>
+                <text x={r.x + 10} y={dimY} fontSize={roomDim} fill="#a89c88" pointerEvents="none">
+                  {formatSize(r.w, r.h, units)}
+                </text>
+              </>
+            )}
             {active && (
               <rect
                 x={r.x + r.w - 14}
@@ -269,18 +350,7 @@ export default function Canvas({ plan, setPlan, mode, sel, setSel }: Props) {
       {plan.doors.map((d) => {
         const active = sel?.type === 'door' && sel.id === d.id
         const color = active ? '#b5714e' : '#6b5f4f'
-        // Leaf tip + arc end depending on orientation/swing.
-        let leaf: string
-        let arc: string
-        if (d.orientation === 'h') {
-          const ty = d.y - d.length * d.swing
-          leaf = `M ${d.x} ${d.y} L ${d.x} ${ty}`
-          arc = `M ${d.x} ${ty} A ${d.length} ${d.length} 0 0 ${d.swing > 0 ? 0 : 1} ${d.x + d.length} ${d.y}`
-        } else {
-          const tx = d.x + d.length * d.swing
-          leaf = `M ${d.x} ${d.y} L ${tx} ${d.y}`
-          arc = `M ${tx} ${d.y} A ${d.length} ${d.length} 0 0 ${d.swing > 0 ? 1 : 0} ${d.x} ${d.y + d.length}`
-        }
+        const { leaf, arc } = doorGeom(d.x, d.y, d.length, d.orientation, d.swing)
         return (
           <g key={d.id} style={{ cursor: 'move' }} onPointerDown={(e) => onDoorDown(e, d.id)}>
             {/* Opening jamb line */}
@@ -301,6 +371,27 @@ export default function Canvas({ plan, setPlan, mode, sel, setSel }: Props) {
           </g>
         )
       })}
+
+      {/* Door placement ghost (Add-door hover preview) */}
+      {mode === 'door' && doorGhost && (() => {
+        const g = doorGeom(doorGhost.x, doorGhost.y, DOOR_LEN, doorGhost.orientation, 1)
+        return (
+          <g pointerEvents="none">
+            <line
+              x1={doorGhost.x}
+              y1={doorGhost.y}
+              x2={g.x2}
+              y2={g.y2}
+              stroke="#b5714e"
+              strokeWidth={6}
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+            />
+            <path d={g.leaf} stroke="#b5714e" strokeWidth={3} vectorEffect="non-scaling-stroke" fill="none" opacity={0.7} />
+            <path d={g.arc} stroke="#b5714e" strokeWidth={1.5} strokeDasharray="4 3" vectorEffect="non-scaling-stroke" fill="none" opacity={0.5} />
+          </g>
+        )
+      })()}
 
       {/* Furniture */}
       {plan.furniture.map((f) => {
