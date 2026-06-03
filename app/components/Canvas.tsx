@@ -2,7 +2,8 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Plan, Mode, Selection, SelItem, Door } from '../lib/types'
-import { snap, clamp, uid, snapDoorToWalls } from '../lib/geometry'
+import { snap, clamp, uid, snapDoorToWalls, overlaps, gridStep, MIN_ROOM, MIN_SCALE, MAX_SCALE, type Box } from '../lib/geometry'
+import { DOOR_LEN, swingForCursor, doorBox, doorGeom } from '../lib/door'
 import { formatSize } from '../lib/units'
 import { furnitureType } from '../lib/furniture'
 import FurnitureGlyph from './FurnitureGlyph'
@@ -31,46 +32,6 @@ interface View {
   x: number
   y: number
   scale: number // pixels per cm (0 = not yet initialised)
-}
-
-const MIN_ROOM = 50
-const DOOR_LEN = 80
-const SWING_DEADZONE = 25
-const MIN_SCALE = 0.05
-const MAX_SCALE = 6
-
-function swingForCursor(orientation: 'h' | 'v', wall: number, cursor: { x: number; y: number }, prev: 1 | -1): 1 | -1 {
-  if (orientation === 'h') {
-    const dy = cursor.y - wall
-    if (dy <= -SWING_DEADZONE) return 1
-    if (dy >= SWING_DEADZONE) return -1
-  } else {
-    const dx = cursor.x - wall
-    if (dx >= SWING_DEADZONE) return 1
-    if (dx <= -SWING_DEADZONE) return -1
-  }
-  return prev
-}
-
-function gridStep(scale: number): number {
-  const steps = [10, 25, 50, 100, 200, 500, 1000, 2000, 5000]
-  for (const s of steps) if (s * scale >= 16) return s
-  return 10000
-}
-
-interface Box {
-  x: number
-  y: number
-  w: number
-  h: number
-}
-function overlaps(a: Box, b: Box): boolean {
-  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
-}
-function doorBox(d: Door): Box {
-  return d.orientation === 'h'
-    ? { x: d.x, y: d.y - 3, w: d.length, h: 6 }
-    : { x: d.x - 3, y: d.y, w: 6, h: d.length }
 }
 
 export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Props) {
@@ -542,24 +503,6 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
 
   function spaceAbove(r: { id: string; x: number; y: number; w: number; h: number }): boolean {
     return !plan.rooms.some((o) => o.id !== r.id && o.x < r.x + r.w && o.x + o.w > r.x && o.y < r.y && o.y + o.h >= r.y - 2)
-  }
-
-  function doorGeom(x: number, y: number, length: number, orientation: 'h' | 'v', swing: number, hinge: number) {
-    const ax = x
-    const ay = y
-    const bx = orientation === 'h' ? x + length : x
-    const by = orientation === 'h' ? y : y + length
-    const hx = hinge > 0 ? ax : bx
-    const hy = hinge > 0 ? ay : by
-    const jx = hinge > 0 ? bx : ax
-    const jy = hinge > 0 ? by : ay
-    const nx = orientation === 'h' ? 0 : swing
-    const ny = orientation === 'h' ? -swing : 0
-    const tx = hx + nx * length
-    const ty = hy + ny * length
-    const cross = (tx - hx) * (jy - hy) - (ty - hy) * (jx - hx)
-    const sweep = cross > 0 ? 1 : 0
-    return { leaf: `M ${hx} ${hy} L ${tx} ${ty}`, arc: `M ${tx} ${ty} A ${length} ${length} 0 0 ${sweep} ${jx} ${jy}`, hx, hy, ax, ay, bx, by }
   }
 
   const bgCursor = spaceHeld ? 'grab' : mode === 'room' ? 'crosshair' : mode === 'door' ? 'copy' : 'default'

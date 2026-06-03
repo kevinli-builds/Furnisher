@@ -6,12 +6,34 @@ export const SNAP = 10 // snap increment (cm)
 export const GRID_MINOR = 50 // light grid line every 50 cm
 export const GRID_MAJOR = 100 // heavier line every 1 m
 
+export const MIN_ROOM = 50 // smallest room/marker side (cm)
+export const MIN_SCALE = 0.05 // zoom bounds (pixels per cm)
+export const MAX_SCALE = 6
+
 export function snap(v: number, step = SNAP): number {
   return Math.round(v / step) * step
 }
 
 export function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v))
+}
+
+// Axis-aligned box + overlap test (used for marquee hit-testing).
+export interface Box {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+export function overlaps(a: Box, b: Box): boolean {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
+}
+
+// Adaptive grid spacing (cm) so cells stay a sensible on-screen size at any zoom.
+export function gridStep(scale: number): number {
+  const steps = [10, 25, 50, 100, 200, 500, 1000, 2000, 5000]
+  for (const s of steps) if (s * scale >= 16) return s
+  return 10000
 }
 
 export function uid(): string {
