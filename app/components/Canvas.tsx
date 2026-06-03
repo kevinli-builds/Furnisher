@@ -221,7 +221,6 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
   const hLines: number[] = []
   for (let y = 0; y <= height; y += GRID_MINOR) hLines.push(y)
 
-  const fontDim = 16 // furniture labels
   const roomName = 15 // smaller, subtler room labels
   const roomDim = 12
 
@@ -300,8 +299,8 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
       {/* Rooms */}
       {plan.rooms.map((r) => {
         const active = sel?.type === 'room' && sel.id === r.id
-        // Labels stay hidden until you hover the room (or it's selected).
-        const showLabel = active || hoverRoom === r.id
+        // Shown always, or only on hover/selection, per the plan setting.
+        const showLabel = plan.roomLabels === 'always' || active || hoverRoom === r.id
         const above = spaceAbove(r)
         // Two stacked lines: name on top, dimensions below.
         const dimY = above ? r.y - 7 : r.y + roomName + roomDim + 12
@@ -422,10 +421,10 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
             {schematic && (
               <rect x={f.x + 6} y={f.y + 6} width={12} height={12} rx={2} fill={f.color} stroke="rgba(0,0,0,0.12)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
             )}
-            <text x={cx} y={cy - 2} fontSize={fontDim} fill="#2f2a22" fontWeight={600} textAnchor="middle" pointerEvents="none">
+            <text x={cx} y={cy - 1} fontSize={13} fill="#8a7e6b" fontWeight={500} textAnchor="middle" pointerEvents="none">
               {f.name}
             </text>
-            <text x={cx} y={cy + fontDim} fontSize={fontDim - 3} fill={schematic ? '#9a9082' : '#6b5f4f'} textAnchor="middle" pointerEvents="none">
+            <text x={cx} y={cy + 13} fontSize={11} fill="#a89c88" textAnchor="middle" pointerEvents="none">
               {formatSize(f.w, f.h, units)}
             </text>
           </g>

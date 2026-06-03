@@ -10,6 +10,9 @@ export type Mode = 'select' | 'room' | 'door'
 //   sim       → colour-filled furniture + door swings (a real simulator)
 export type ViewMode = 'schematic' | 'sim'
 
+// When room name labels are shown.
+export type RoomLabels = 'always' | 'hover'
+
 export interface Room {
   id: string
   name: string
@@ -44,6 +47,7 @@ export interface Furniture {
 export interface Plan {
   units: Units
   viewMode: ViewMode
+  roomLabels: RoomLabels
   width: number // overall canvas extent (cm)
   height: number
   rooms: Room[]

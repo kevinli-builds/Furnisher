@@ -96,6 +96,11 @@ body {
   background: var(--accent);
   color: #fff;
 }
+.seg-btn:disabled {
+  opacity: 0.38;
+  cursor: default;
+  color: var(--muted);
+}
 .seg-btn.solo {
   border: 1px solid var(--line-strong);
   border-radius: 9px;
