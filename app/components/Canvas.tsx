@@ -472,7 +472,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
   }
 
   // ── Grid lines ────────────────────────────────────────────────
-  const minor = gridStep(scale)
+  const minor = gridStep(scale, units)
   const major = minor * 4
   const left = view.scale ? view.x : 0
   const top = view.scale ? view.y : 0

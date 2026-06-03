@@ -32,7 +32,8 @@ export interface Door {
   hinge: 1 | -1 // which end of the opening the hinge is on
 }
 
-export type Rotation = 0 | 90 | 180 | 270
+// Degrees clockwise. Free rotation (not limited to 90° steps).
+export type Rotation = number
 
 import type { FurnitureType } from './furniture'
 

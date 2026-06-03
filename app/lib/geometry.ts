@@ -1,6 +1,6 @@
 // Grid + snapping helpers. Everything is in centimetres.
 
-import type { Room } from './types'
+import type { Room, Units } from './types'
 
 export const SNAP = 10 // snap increment (cm)
 export const GRID_MINOR = 50 // light grid line every 50 cm
@@ -30,10 +30,15 @@ export function overlaps(a: Box, b: Box): boolean {
 }
 
 // Adaptive grid spacing (cm) so cells stay a sensible on-screen size at any zoom.
-export function gridStep(scale: number): number {
-  const steps = [10, 25, 50, 100, 200, 500, 1000, 2000, 5000]
+// Imperial steps are foot-based (so cells read as 1 ft); metric stays in cm.
+const FT = 30.48
+export function gridStep(scale: number, units: Units): number {
+  const steps =
+    units === 'imperial'
+      ? [0.5 * FT, FT, 2 * FT, 5 * FT, 10 * FT, 25 * FT, 50 * FT, 100 * FT]
+      : [10, 25, 50, 100, 200, 500, 1000, 2000, 5000]
   for (const s of steps) if (s * scale >= 16) return s
-  return 10000
+  return steps[steps.length - 1] * 2
 }
 
 export function uid(): string {

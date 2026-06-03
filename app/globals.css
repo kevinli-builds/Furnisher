@@ -627,6 +627,24 @@ textarea.field {
 .swatch.on {
   border-color: var(--accent);
 }
+.swatch-custom {
+  padding: 0;
+  background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red);
+  cursor: pointer;
+}
+.swatch-custom::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.swatch-custom::-webkit-color-swatch {
+  border: none;
+  border-radius: 5px;
+}
+
+.slider {
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
 
 /* ── Furniture list ──────────────────────────────────────────── */
 .list {

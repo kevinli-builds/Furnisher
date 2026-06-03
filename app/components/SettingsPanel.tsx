@@ -148,14 +148,23 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
               </div>
             </section>
             <section className="sect">
-              <label className="sect-label">Rotation</label>
+              <label className="sect-label">Rotation · {Math.round(((stair.rotation % 360) + 360) % 360)}°</label>
               <div className="seg full">
                 {ROTATIONS.map((r) => (
-                  <button key={r} className={`seg-btn${stair.rotation === r ? ' on' : ''}`} onClick={() => patchStair({ rotation: r })}>
+                  <button key={r} className={`seg-btn${Math.round(((stair.rotation % 360) + 360) % 360) === r ? ' on' : ''}`} onClick={() => patchStair({ rotation: r })}>
                     {r}°
                   </button>
                 ))}
               </div>
+              <input
+                type="range"
+                className="slider"
+                min={0}
+                max={359}
+                step={1}
+                value={Math.round(((stair.rotation % 360) + 360) % 360)}
+                onChange={(e) => patchStair({ rotation: Number(e.target.value) })}
+              />
             </section>
           </>
         )}
@@ -182,18 +191,27 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
         {furn && (
           <>
             <section className="sect">
-              <label className="sect-label">Rotation</label>
+              <label className="sect-label">Rotation · {Math.round(((furn.rotation % 360) + 360) % 360)}°</label>
               <div className="seg full">
                 {ROTATIONS.map((r) => (
                   <button
                     key={r}
-                    className={`seg-btn${furn.rotation === r ? ' on' : ''}`}
+                    className={`seg-btn${Math.round(((furn.rotation % 360) + 360) % 360) === r ? ' on' : ''}`}
                     onClick={() => patchFurn({ rotation: r })}
                   >
                     {r}°
                   </button>
                 ))}
               </div>
+              <input
+                type="range"
+                className="slider"
+                min={0}
+                max={359}
+                step={1}
+                value={Math.round(((furn.rotation % 360) + 360) % 360)}
+                onChange={(e) => patchFurn({ rotation: Number(e.target.value) })}
+              />
             </section>
             <section className="sect">
               <label className="sect-label">Colour</label>
@@ -208,6 +226,13 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
                     aria-label={`colour ${s}`}
                   />
                 ))}
+                <input
+                  type="color"
+                  className="swatch swatch-custom"
+                  value={furn.color}
+                  onChange={(e) => patchFurn({ color: e.target.value })}
+                  title="Custom colour"
+                />
               </div>
             </section>
           </>

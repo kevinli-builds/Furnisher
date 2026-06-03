@@ -15,7 +15,9 @@ interface Props {
 // the piece's footprint (with padding). Strokes are non-scaling so they stay
 // crisp at any zoom or footprint size.
 export default function FurnitureGlyph({ type, x, y, w, h, color }: Props) {
-  const pad = 0.82
+  // Fill the footprint (the icons are drawn with a little internal margin, so a
+  // pad slightly over 1 lets them reach the edges and spill a touch).
+  const pad = 1.08
   const sx = (w * pad) / 100
   const sy = (h * pad) / 100
   const tx = x + (w * (1 - pad)) / 2

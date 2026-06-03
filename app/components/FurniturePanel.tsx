@@ -94,6 +94,7 @@ export default function FurniturePanel({ plan, setPlan, sel, setSel }: Props) {
               aria-label={`colour ${s}`}
             />
           ))}
+          <input type="color" className="swatch swatch-custom" value={color} onChange={(e) => setColor(e.target.value)} title="Custom colour" />
         </div>
         <button className="btn" onClick={add}>
           Add piece
