@@ -48,7 +48,7 @@ export default function FurniturePanel({ plan, setPlan, sel, setSel }: Props) {
         { id, name: name.trim() || FURNITURE_META[type].label, type, x: snap(100 + offset), y: snap(100 + offset), w: wCm, h: hCm, rotation: 0, color },
       ],
     }))
-    setSel({ type: 'furniture', id })
+    setSel([{ type: 'furniture', id }])
   }
 
   return (
@@ -103,12 +103,13 @@ export default function FurniturePanel({ plan, setPlan, sel, setSel }: Props) {
       <div className="list">
         {plan.furniture.length === 0 && <p className="empty">No furniture yet. Add a piece above, then drag it onto the plan.</p>}
         {plan.furniture.map((f) => {
-          const active = sel?.type === 'furniture' && sel.id === f.id
+          const active = sel.some((s) => s.type === 'furniture' && s.id === f.id)
+          const only = active && sel.length === 1
           return (
             <button
               key={f.id}
               className={`item-head item-row${active ? ' active' : ''}`}
-              onClick={() => setSel(active ? null : { type: 'furniture', id: f.id })}
+              onClick={() => setSel(only ? [] : [{ type: 'furniture', id: f.id }])}
             >
               <span className="dot" style={{ background: f.color }} />
               <span className="item-name">{f.name}</span>

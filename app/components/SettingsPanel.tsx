@@ -1,6 +1,6 @@
 'use client'
 
-import type { Plan, Selection, Rotation } from '../lib/types'
+import type { Plan, Selection, SelItem, Rotation } from '../lib/types'
 import { snap } from '../lib/geometry'
 import { inputUnit, toCm, fromCm, formatLength } from '../lib/units'
 import { SWATCHES } from '../lib/palette'
@@ -9,7 +9,7 @@ import { FURNITURE_TYPES, FURNITURE_META, furnitureType, type FurnitureType } fr
 interface Props {
   plan: Plan
   setPlan: React.Dispatch<React.SetStateAction<Plan>>
-  sel: NonNullable<Selection>
+  sel: SelItem
   setSel: (s: Selection) => void
 }
 
@@ -37,7 +37,7 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
   }
 
   function close() {
-    setSel(null)
+    setSel([])
   }
 
   function remove() {
@@ -46,7 +46,7 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
       if (sel.type === 'door') return { ...p, doors: p.doors.filter((d) => d.id !== sel.id) }
       return { ...p, furniture: p.furniture.filter((f) => f.id !== sel.id) }
     })
-    setSel(null)
+    setSel([])
   }
 
   // size input → snapped cm (with a sensible floor)

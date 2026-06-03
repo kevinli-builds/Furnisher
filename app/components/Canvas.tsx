@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { Plan, Mode, Selection, Door } from '../lib/types'
+import type { Plan, Mode, Selection, SelItem, Door } from '../lib/types'
 import { snap, clamp, uid, snapDoorToWalls } from '../lib/geometry'
 import { formatSize } from '../lib/units'
 import { furnitureType } from '../lib/furniture'
@@ -16,46 +16,62 @@ interface Props {
   setSel: (s: Selection) => void
 }
 
+type OrigPos = { t: 'room' | 'door' | 'furniture'; id: string; x: number; y: number }
+
 type Drag =
   | { kind: 'draw'; ox: number; oy: number }
-  | { kind: 'pan'; cx0: number; cy0: number; vx0: number; vy0: number; moved: boolean }
+  | { kind: 'marquee'; ox: number; oy: number }
+  | { kind: 'pan'; cx0: number; cy0: number; vx0: number; vy0: number }
+  | { kind: 'move-sel'; sx: number; sy: number; orig: OrigPos[]; click: SelItem; moved: boolean }
   | { kind: 'move-room' | 'resize-room'; id: string; sx: number; sy: number; ox: number; oy: number; ow: number; oh: number }
   | { kind: 'move-furniture'; id: string; sx: number; sy: number; ox: number; oy: number }
   | { kind: 'move-door'; id: string; sx: number; sy: number; ox: number; oy: number }
   | null
 
 interface View {
-  x: number // cm at the left edge of the viewport
-  y: number // cm at the top edge
+  x: number
+  y: number
   scale: number // pixels per cm (0 = not yet initialised)
 }
 
-const MIN_ROOM = 50 // cm
+const MIN_ROOM = 50
 const DOOR_LEN = 80
-const SWING_DEADZONE = 25 // cm — cursor must be this far off the wall to flip swing
+const SWING_DEADZONE = 25
 const MIN_SCALE = 0.05
 const MAX_SCALE = 6
 
-// Which way the door should swing given where the cursor is relative to its wall.
-// Within the deadzone of the wall line, keep the previous swing (avoids flicker).
 function swingForCursor(orientation: 'h' | 'v', wall: number, cursor: { x: number; y: number }, prev: 1 | -1): 1 | -1 {
   if (orientation === 'h') {
     const dy = cursor.y - wall
-    if (dy <= -SWING_DEADZONE) return 1 // cursor above the wall → swing up
-    if (dy >= SWING_DEADZONE) return -1 // below → swing down
+    if (dy <= -SWING_DEADZONE) return 1
+    if (dy >= SWING_DEADZONE) return -1
   } else {
     const dx = cursor.x - wall
-    if (dx >= SWING_DEADZONE) return 1 // cursor right of the wall → swing right
-    if (dx <= -SWING_DEADZONE) return -1 // left → swing left
+    if (dx >= SWING_DEADZONE) return 1
+    if (dx <= -SWING_DEADZONE) return -1
   }
   return prev
 }
 
-// Adaptive grid spacing (cm) so cells stay a sensible size on screen at any zoom.
 function gridStep(scale: number): number {
   const steps = [10, 25, 50, 100, 200, 500, 1000, 2000, 5000]
   for (const s of steps) if (s * scale >= 16) return s
   return 10000
+}
+
+interface Box {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+function overlaps(a: Box, b: Box): boolean {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
+}
+function doorBox(d: Door): Box {
+  return d.orientation === 'h'
+    ? { x: d.x, y: d.y - 3, w: d.length, h: 6 }
+    : { x: d.x - 3, y: d.y, w: 6, h: d.length }
 }
 
 export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Props) {
@@ -63,6 +79,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
   const svgRef = useRef<SVGSVGElement>(null)
   const drag = useRef<Drag>(null)
   const [draft, setDraft] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
+  const [marquee, setMarquee] = useState<Box | null>(null)
   const [hoverRoom, setHoverRoom] = useState<string | null>(null)
   const [doorGhost, setDoorGhost] = useState<{ x: number; y: number; orientation: 'h' | 'v'; swing: 1 | -1 } | null>(null)
 
@@ -74,33 +91,55 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
     setViewState(v)
   }
 
+  const spaceRef = useRef(false)
+  const [spaceHeld, setSpaceHeld] = useState(false)
+
   const { viewMode, units } = plan
   const schematic = viewMode === 'schematic'
+
+  const inSel = (type: SelItem['type'], id: string) => sel.some((s) => s.type === type && s.id === id)
 
   // ── Viewport sizing ───────────────────────────────────────────
   useLayoutEffect(() => {
     const el = hostRef.current
     if (!el) return
-    const ro = new ResizeObserver(() => {
-      setSize({ cw: el.clientWidth, ch: el.clientHeight })
-    })
+    const ro = new ResizeObserver(() => setSize({ cw: el.clientWidth, ch: el.clientHeight }))
     ro.observe(el)
     setSize({ cw: el.clientWidth, ch: el.clientHeight })
     return () => ro.disconnect()
   }, [])
 
-  // Bounding box of all content (fallback to the default plan extent).
+  // Space-bar pans (held). Ignore while typing in a field.
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.code !== 'Space') return
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      spaceRef.current = true
+      setSpaceHeld(true)
+      e.preventDefault()
+    }
+    const up = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        spaceRef.current = false
+        setSpaceHeld(false)
+      }
+    }
+    window.addEventListener('keydown', down)
+    window.addEventListener('keyup', up)
+    return () => {
+      window.removeEventListener('keydown', down)
+      window.removeEventListener('keyup', up)
+    }
+  }, [])
+
   function contentBounds() {
     const xs: number[] = []
     const ys: number[] = []
     const xe: number[] = []
     const ye: number[] = []
-    for (const r of plan.rooms) {
-      xs.push(r.x), ys.push(r.y), xe.push(r.x + r.w), ye.push(r.y + r.h)
-    }
-    for (const f of plan.furniture) {
-      xs.push(f.x), ys.push(f.y), xe.push(f.x + f.w), ye.push(f.y + f.h)
-    }
+    for (const r of plan.rooms) xs.push(r.x), ys.push(r.y), xe.push(r.x + r.w), ye.push(r.y + r.h)
+    for (const f of plan.furniture) xs.push(f.x), ys.push(f.y), xe.push(f.x + f.w), ye.push(f.y + f.h)
     if (!xs.length) return { x: 0, y: 0, w: plan.width, h: plan.height }
     const x = Math.min(...xs)
     const y = Math.min(...ys)
@@ -113,12 +152,9 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
     const b = contentBounds()
     const pad = 1.15
     const sc = clamp(Math.min(cw / (b.w * pad), ch / (b.h * pad)), MIN_SCALE, MAX_SCALE)
-    const vw = cw / sc
-    const vh = ch / sc
-    setView({ x: b.x + b.w / 2 - vw / 2, y: b.y + b.h / 2 - vh / 2, scale: sc })
+    setView({ x: b.x + b.w / 2 - cw / sc / 2, y: b.y + b.h / 2 - ch / sc / 2, scale: sc })
   }
 
-  // Initialise the view once we know the container size.
   useEffect(() => {
     if (size.cw > 0 && viewRef.current.scale === 0) fitView()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -128,7 +164,6 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
   const vw = size.cw ? size.cw / scale : plan.width
   const vh = size.ch ? size.ch / scale : plan.height
 
-  // ── Coordinate conversion ─────────────────────────────────────
   function toCm(e: { clientX: number; clientY: number }): { x: number; y: number } {
     const svg = svgRef.current!
     const ctm = svg.getScreenCTM()
@@ -163,7 +198,6 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
     setView({ x: cxcm - size.cw / s2 / 2, y: cycm - size.ch / s2 / 2, scale: s2 })
   }
 
-  // Wheel needs a non-passive listener to call preventDefault.
   useEffect(() => {
     const svg = svgRef.current
     if (!svg) return
@@ -176,11 +210,18 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [size])
 
-  // ── Door placement (capture phase, so clicks on rooms still work) ─
+  // ── Capture phase: pan (space / middle mouse) or door placement ─
   function onDownCapture(e: React.PointerEvent) {
-    if (mode !== 'door') return
-    e.stopPropagation()
-    placeDoor(toCm(e))
+    if (spaceRef.current || e.button === 1) {
+      e.stopPropagation()
+      drag.current = { kind: 'pan', cx0: e.clientX, cy0: e.clientY, vx0: viewRef.current.x, vy0: viewRef.current.y }
+      capture(e)
+      return
+    }
+    if (mode === 'door') {
+      e.stopPropagation()
+      placeDoor(toCm(e))
+    }
   }
 
   function placeDoor(p: { x: number; y: number }) {
@@ -197,35 +238,72 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
         }
       : { id: uid(), x: snap(p.x), y: snap(p.y), length: DOOR_LEN, orientation: 'h', swing: 1, hinge: 1 }
     setPlan((pl) => ({ ...pl, doors: [...pl.doors, d] }))
-    setSel({ type: 'door', id: d.id })
+    setSel([{ type: 'door', id: d.id }])
     setDoorGhost(null)
     setMode('select')
   }
 
-  // ── Background: draw a room, or pan/deselect ──────────────────
+  // ── Background: draw a room, or marquee-select ────────────────
   function onBgDown(e: React.PointerEvent) {
-    if (mode === 'door') return // handled by onDownCapture
+    if (mode === 'door') return // capture handles it
+    const p = toCm(e)
     if (mode === 'room') {
-      const p = toCm(e)
-      const x = snap(p.x)
-      const y = snap(p.y)
-      drag.current = { kind: 'draw', ox: x, oy: y }
-      setDraft({ x, y, w: 0, h: 0 })
-      capture(e)
+      drag.current = { kind: 'draw', ox: snap(p.x), oy: snap(p.y) }
+      setDraft({ x: snap(p.x), y: snap(p.y), w: 0, h: 0 })
     } else {
-      drag.current = { kind: 'pan', cx0: e.clientX, cy0: e.clientY, vx0: viewRef.current.x, vy0: viewRef.current.y, moved: false }
-      capture(e)
+      drag.current = { kind: 'marquee', ox: p.x, oy: p.y }
+      setMarquee({ x: p.x, y: p.y, w: 0, h: 0 })
     }
+    capture(e)
   }
 
-  // ── Object pointer-downs ──────────────────────────────────────
-  function onRoomDown(e: React.PointerEvent, id: string) {
-    e.stopPropagation()
-    const r = plan.rooms.find((r) => r.id === id)!
+  // ── Selecting / moving objects ────────────────────────────────
+  function toggle(item: SelItem) {
+    setSel(inSel(item.type, item.id) ? sel.filter((s) => !(s.type === item.type && s.id === item.id)) : [...sel, item])
+  }
+
+  function startGroupMove(e: React.PointerEvent, click: SelItem) {
     const p = toCm(e)
-    drag.current = { kind: 'move-room', id, sx: p.x, sy: p.y, ox: r.x, oy: r.y, ow: r.w, oh: r.h }
-    setSel({ type: 'room', id })
+    const orig: OrigPos[] = []
+    for (const s of sel) {
+      if (s.type === 'room') {
+        const r = plan.rooms.find((r) => r.id === s.id)
+        if (r) orig.push({ t: 'room', id: s.id, x: r.x, y: r.y })
+      } else if (s.type === 'door') {
+        const dd = plan.doors.find((d) => d.id === s.id)
+        if (dd) orig.push({ t: 'door', id: s.id, x: dd.x, y: dd.y })
+      } else {
+        const f = plan.furniture.find((f) => f.id === s.id)
+        if (f) orig.push({ t: 'furniture', id: s.id, x: f.x, y: f.y })
+      }
+    }
+    drag.current = { kind: 'move-sel', sx: p.x, sy: p.y, orig, click, moved: false }
     capture(e)
+  }
+
+  // Common entry for a left-press on an object: shift toggles; pressing a
+  // member of a multi-selection moves the group; otherwise select just it.
+  function onObjDown(e: React.PointerEvent, item: SelItem, startSingle: () => void) {
+    e.stopPropagation()
+    if (e.shiftKey) {
+      toggle(item)
+      return
+    }
+    if (inSel(item.type, item.id) && sel.length > 1) {
+      startGroupMove(e, item)
+      return
+    }
+    setSel([item])
+    startSingle()
+  }
+
+  function onRoomDown(e: React.PointerEvent, id: string) {
+    onObjDown(e, { type: 'room', id }, () => {
+      const r = plan.rooms.find((r) => r.id === id)!
+      const p = toCm(e)
+      drag.current = { kind: 'move-room', id, sx: p.x, sy: p.y, ox: r.x, oy: r.y, ow: r.w, oh: r.h }
+      capture(e)
+    })
   }
 
   function onRoomResize(e: React.PointerEvent, id: string) {
@@ -233,29 +311,29 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
     const r = plan.rooms.find((r) => r.id === id)!
     const p = toCm(e)
     drag.current = { kind: 'resize-room', id, sx: p.x, sy: p.y, ox: r.x, oy: r.y, ow: r.w, oh: r.h }
-    setSel({ type: 'room', id })
+    setSel([{ type: 'room', id }])
     capture(e)
   }
 
   function onFurnDown(e: React.PointerEvent, id: string) {
-    e.stopPropagation()
-    const f = plan.furniture.find((f) => f.id === id)!
-    const p = toCm(e)
-    drag.current = { kind: 'move-furniture', id, sx: p.x, sy: p.y, ox: f.x, oy: f.y }
-    setSel({ type: 'furniture', id })
-    capture(e)
+    onObjDown(e, { type: 'furniture', id }, () => {
+      const f = plan.furniture.find((f) => f.id === id)!
+      const p = toCm(e)
+      drag.current = { kind: 'move-furniture', id, sx: p.x, sy: p.y, ox: f.x, oy: f.y }
+      capture(e)
+    })
   }
 
   function onDoorDown(e: React.PointerEvent, id: string) {
-    e.stopPropagation()
-    const d = plan.doors.find((d) => d.id === id)!
-    const p = toCm(e)
-    drag.current = { kind: 'move-door', id, sx: p.x, sy: p.y, ox: d.x, oy: d.y }
-    setSel({ type: 'door', id })
-    capture(e)
+    onObjDown(e, { type: 'door', id }, () => {
+      const dd = plan.doors.find((d) => d.id === id)!
+      const p = toCm(e)
+      drag.current = { kind: 'move-door', id, sx: p.x, sy: p.y, ox: dd.x, oy: dd.y }
+      capture(e)
+    })
   }
 
-  // ── Move / resize / pan ───────────────────────────────────────
+  // ── Move / resize / pan / marquee ─────────────────────────────
   function onMove(e: React.PointerEvent) {
     const d = drag.current
     if (!d) {
@@ -264,12 +342,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
         const hit = snapDoorToWalls(p.x, p.y, DOOR_LEN, plan.rooms)
         setDoorGhost(
           hit
-            ? {
-                x: hit.x,
-                y: hit.y,
-                orientation: hit.orientation,
-                swing: swingForCursor(hit.orientation, hit.orientation === 'h' ? hit.y : hit.x, p, doorGhost?.swing ?? 1),
-              }
+            ? { x: hit.x, y: hit.y, orientation: hit.orientation, swing: swingForCursor(hit.orientation, hit.orientation === 'h' ? hit.y : hit.x, p, doorGhost?.swing ?? 1) }
             : null,
         )
       }
@@ -278,7 +351,6 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
 
     if (d.kind === 'pan') {
       const sc = viewRef.current.scale || scale
-      if (Math.abs(e.clientX - d.cx0) + Math.abs(e.clientY - d.cy0) > 3) d.moved = true
       setView({ x: d.vx0 - (e.clientX - d.cx0) / sc, y: d.vy0 - (e.clientY - d.cy0) / sc, scale: sc })
       return
     }
@@ -286,12 +358,34 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
     const p = toCm(e)
 
     if (d.kind === 'draw') {
-      setDraft({
-        x: Math.min(d.ox, snap(p.x)),
-        y: Math.min(d.oy, snap(p.y)),
-        w: Math.abs(snap(p.x) - d.ox),
-        h: Math.abs(snap(p.y) - d.oy),
-      })
+      setDraft({ x: Math.min(d.ox, snap(p.x)), y: Math.min(d.oy, snap(p.y)), w: Math.abs(snap(p.x) - d.ox), h: Math.abs(snap(p.y) - d.oy) })
+      return
+    }
+
+    if (d.kind === 'marquee') {
+      setMarquee({ x: Math.min(d.ox, p.x), y: Math.min(d.oy, p.y), w: Math.abs(p.x - d.ox), h: Math.abs(p.y - d.oy) })
+      return
+    }
+
+    if (d.kind === 'move-sel') {
+      const dx = snap(p.x - d.sx)
+      const dy = snap(p.y - d.sy)
+      if (dx !== 0 || dy !== 0) d.moved = true
+      setPlan((pl) => ({
+        ...pl,
+        rooms: pl.rooms.map((r) => {
+          const o = d.orig.find((x) => x.t === 'room' && x.id === r.id)
+          return o ? { ...r, x: o.x + dx, y: o.y + dy } : r
+        }),
+        furniture: pl.furniture.map((f) => {
+          const o = d.orig.find((x) => x.t === 'furniture' && x.id === f.id)
+          return o ? { ...f, x: o.x + dx, y: o.y + dy } : f
+        }),
+        doors: pl.doors.map((dd) => {
+          const o = d.orig.find((x) => x.t === 'door' && x.id === dd.id)
+          return o ? { ...dd, x: o.x + dx, y: o.y + dy } : dd
+        }),
+      }))
       return
     }
 
@@ -299,17 +393,13 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
     const dy = p.y - d.sy
 
     if (d.kind === 'move-room') {
-      const nx = snap(d.ox + dx)
-      const ny = snap(d.oy + dy)
-      setPlan((pl) => ({ ...pl, rooms: pl.rooms.map((r) => (r.id === d.id ? { ...r, x: nx, y: ny } : r)) }))
+      setPlan((pl) => ({ ...pl, rooms: pl.rooms.map((r) => (r.id === d.id ? { ...r, x: snap(d.ox + dx), y: snap(d.oy + dy) } : r)) }))
     } else if (d.kind === 'resize-room') {
       const nw = Math.max(MIN_ROOM, snap(d.ow + dx))
       const nh = Math.max(MIN_ROOM, snap(d.oh + dy))
       setPlan((pl) => ({ ...pl, rooms: pl.rooms.map((r) => (r.id === d.id ? { ...r, w: nw, h: nh } : r)) }))
     } else if (d.kind === 'move-furniture') {
-      const nx = snap(d.ox + dx)
-      const ny = snap(d.oy + dy)
-      setPlan((pl) => ({ ...pl, furniture: pl.furniture.map((f) => (f.id === d.id ? { ...f, x: nx, y: ny } : f)) }))
+      setPlan((pl) => ({ ...pl, furniture: pl.furniture.map((f) => (f.id === d.id ? { ...f, x: snap(d.ox + dx), y: snap(d.oy + dy) } : f)) }))
     } else if (d.kind === 'move-door') {
       setPlan((pl) => ({
         ...pl,
@@ -328,24 +418,43 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
 
   function onUp(e: React.PointerEvent) {
     const d = drag.current
-    if (d?.kind === 'draw' && draft) {
-      if (draft.w >= MIN_ROOM && draft.h >= MIN_ROOM) {
+    // Recompute the final rect from the event (don't depend on React state,
+    // which can lag a fast drag).
+    if (d?.kind === 'draw') {
+      const p = toCm(e)
+      const x = Math.min(d.ox, snap(p.x))
+      const y = Math.min(d.oy, snap(p.y))
+      const w = Math.abs(snap(p.x) - d.ox)
+      const h = Math.abs(snap(p.y) - d.oy)
+      if (w >= MIN_ROOM && h >= MIN_ROOM) {
         const id = uid()
         const n = plan.rooms.length + 1
-        setPlan((pl) => ({
-          ...pl,
-          rooms: [...pl.rooms, { id, name: `Room ${n}`, x: draft.x, y: draft.y, w: draft.w, h: draft.h }],
-        }))
-        setSel({ type: 'room', id })
+        setPlan((pl) => ({ ...pl, rooms: [...pl.rooms, { id, name: `Room ${n}`, x, y, w, h }] }))
+        setSel([{ type: 'room', id }])
       }
       setDraft(null)
+    } else if (d?.kind === 'marquee') {
+      const p = toCm(e)
+      const box: Box = { x: Math.min(d.ox, p.x), y: Math.min(d.oy, p.y), w: Math.abs(p.x - d.ox), h: Math.abs(p.y - d.oy) }
+      if (box.w < 5 && box.h < 5) {
+        setSel([]) // a plain click on empty space clears the selection
+      } else {
+        const hits: SelItem[] = []
+        for (const r of plan.rooms) if (overlaps(box, { x: r.x, y: r.y, w: r.w, h: r.h })) hits.push({ type: 'room', id: r.id })
+        for (const f of plan.furniture) if (overlaps(box, { x: f.x, y: f.y, w: f.w, h: f.h })) hits.push({ type: 'furniture', id: f.id })
+        for (const dd of plan.doors) if (overlaps(box, doorBox(dd))) hits.push({ type: 'door', id: dd.id })
+        setSel(hits)
+      }
+      setMarquee(null)
+    } else if (d?.kind === 'move-sel' && !d.moved) {
+      // Pressed (without dragging) a member of a multi-selection → narrow to it.
+      setSel([d.click])
     }
-    if (d?.kind === 'pan' && !d.moved) setSel(null)
     drag.current = null
     svgRef.current?.releasePointerCapture(e.pointerId)
   }
 
-  // ── Grid lines across the visible region ──────────────────────
+  // ── Grid lines ────────────────────────────────────────────────
   const minor = gridStep(scale)
   const major = minor * 4
   const left = view.scale ? view.x : 0
@@ -362,13 +471,9 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
   const roomDim = 12
 
   function spaceAbove(r: { id: string; x: number; y: number; w: number; h: number }): boolean {
-    return !plan.rooms.some(
-      (o) => o.id !== r.id && o.x < r.x + r.w && o.x + o.w > r.x && o.y < r.y && o.y + o.h >= r.y - 2,
-    )
+    return !plan.rooms.some((o) => o.id !== r.id && o.x < r.x + r.w && o.x + o.w > r.x && o.y < r.y && o.y + o.h >= r.y - 2)
   }
 
-  // Door symbol: leaf line from the hinge + swing arc to the far jamb.
-  // swing = which side of the wall it opens; hinge = which end the hinge is on.
   function doorGeom(x: number, y: number, length: number, orientation: 'h' | 'v', swing: number, hinge: number) {
     const ax = x
     const ay = y
@@ -384,19 +489,10 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
     const ty = hy + ny * length
     const cross = (tx - hx) * (jy - hy) - (ty - hy) * (jx - hx)
     const sweep = cross > 0 ? 1 : 0
-    return {
-      leaf: `M ${hx} ${hy} L ${tx} ${ty}`,
-      arc: `M ${tx} ${ty} A ${length} ${length} 0 0 ${sweep} ${jx} ${jy}`,
-      hx,
-      hy,
-      ax,
-      ay,
-      bx,
-      by,
-    }
+    return { leaf: `M ${hx} ${hy} L ${tx} ${ty}`, arc: `M ${tx} ${ty} A ${length} ${length} 0 0 ${sweep} ${jx} ${jy}`, hx, hy, ax, ay, bx, by }
   }
 
-  const bgCursor = mode === 'room' ? 'crosshair' : mode === 'door' ? 'copy' : 'grab'
+  const bgCursor = spaceHeld ? 'grab' : mode === 'room' ? 'crosshair' : mode === 'door' ? 'copy' : 'default'
 
   return (
     <div className="canvas-host" ref={hostRef}>
@@ -405,12 +501,12 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
         className="canvas"
         viewBox={`${left} ${top} ${vw} ${vh}`}
         preserveAspectRatio="xMidYMid meet"
+        style={spaceHeld ? { cursor: 'grab' } : undefined}
         onPointerDownCapture={onDownCapture}
         onPointerMove={onMove}
         onPointerUp={onUp}
         onPointerLeave={() => setDoorGhost(null)}
       >
-        {/* Backdrop covering the visible region */}
         <rect x={left} y={top} width={vw} height={vh} fill="#fdfbf7" style={{ cursor: bgCursor }} onPointerDown={onBgDown} />
 
         {/* Grid */}
@@ -427,7 +523,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
 
         {/* Rooms */}
         {plan.rooms.map((r) => {
-          const active = sel?.type === 'room' && sel.id === r.id
+          const active = inSel('room', r.id)
           const showLabel = plan.roomLabels === 'always' || active || hoverRoom === r.id
           const above = spaceAbove(r)
           const dimY = above ? r.y - 7 : r.y + roomName + roomDim + 12
@@ -456,25 +552,16 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
                   </text>
                 </>
               )}
-              {active && (
-                <rect
-                  x={r.x + r.w - 14}
-                  y={r.y + r.h - 14}
-                  width={28}
-                  height={28}
-                  fill="#b5714e"
-                  rx={3}
-                  style={{ cursor: 'nwse-resize' }}
-                  onPointerDown={(e) => onRoomResize(e, r.id)}
-                />
+              {active && sel.length === 1 && (
+                <rect x={r.x + r.w - 14} y={r.y + r.h - 14} width={28} height={28} fill="#b5714e" rx={3} style={{ cursor: 'nwse-resize' }} onPointerDown={(e) => onRoomResize(e, r.id)} />
               )}
             </g>
           )
         })}
 
-        {/* Doors — swing arc shown in both modes */}
+        {/* Doors */}
         {plan.doors.map((d) => {
-          const active = sel?.type === 'door' && sel.id === d.id
+          const active = inSel('door', d.id)
           const color = active ? '#b5714e' : '#6b5f4f'
           const g = doorGeom(d.x, d.y, d.length, d.orientation, d.swing, d.hinge ?? 1)
           return (
@@ -501,39 +588,17 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
 
         {/* Furniture */}
         {plan.furniture.map((f) => {
-          const active = sel?.type === 'furniture' && sel.id === f.id
+          const active = inSel('furniture', f.id)
           const cx = f.x + f.w / 2
           const cy = f.y + f.h / 2
           const t = furnitureType(f.type)
           return (
             <g key={f.id} transform={`rotate(${f.rotation} ${cx} ${cy})`} style={{ cursor: 'move' }} onPointerDown={(e) => onFurnDown(e, f.id)}>
               {schematic ? (
-                <rect
-                  x={f.x}
-                  y={f.y}
-                  width={f.w}
-                  height={f.h}
-                  rx={6}
-                  fill={f.color}
-                  fillOpacity={0.85}
-                  stroke={active ? '#b5714e' : '#7a6e5b'}
-                  strokeWidth={active ? 3 : 1.5}
-                  vectorEffect="non-scaling-stroke"
-                />
+                <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={6} fill={f.color} fillOpacity={0.85} stroke={active ? '#b5714e' : '#7a6e5b'} strokeWidth={active ? 3 : 1.5} vectorEffect="non-scaling-stroke" />
               ) : (
                 <>
-                  <rect
-                    x={f.x}
-                    y={f.y}
-                    width={f.w}
-                    height={f.h}
-                    rx={6}
-                    fill={f.color}
-                    fillOpacity={0.16}
-                    stroke={active ? '#b5714e' : '#cabfa9'}
-                    strokeWidth={active ? 3 : 1.2}
-                    vectorEffect="non-scaling-stroke"
-                  />
+                  <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={6} fill={f.color} fillOpacity={0.16} stroke={active ? '#b5714e' : '#cabfa9'} strokeWidth={active ? 3 : 1.2} vectorEffect="non-scaling-stroke" />
                   <FurnitureGlyph type={t} x={f.x} y={f.y} w={f.w} h={f.h} color={f.color} />
                 </>
               )}
@@ -547,9 +612,14 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
           )
         })}
 
-        {/* Draft room being drawn */}
+        {/* Draft room */}
         {draft && (
           <rect x={draft.x} y={draft.y} width={draft.w} height={draft.h} fill="rgba(181,113,78,0.09)" stroke="#b5714e" strokeWidth={2} strokeDasharray="6 4" vectorEffect="non-scaling-stroke" pointerEvents="none" />
+        )}
+
+        {/* Marquee selection box */}
+        {marquee && (
+          <rect x={marquee.x} y={marquee.y} width={marquee.w} height={marquee.h} fill="rgba(181,113,78,0.07)" stroke="#b5714e" strokeWidth={1} strokeDasharray="4 3" vectorEffect="non-scaling-stroke" pointerEvents="none" />
         )}
       </svg>
 

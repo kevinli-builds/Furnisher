@@ -60,6 +60,10 @@ export interface Plan {
   furniture: Furniture[]
 }
 
-export type Selection =
-  | { type: 'room' | 'door' | 'furniture'; id: string }
-  | null
+export interface SelItem {
+  type: 'room' | 'door' | 'furniture'
+  id: string
+}
+
+// Multi-selection: an empty array means nothing is selected.
+export type Selection = SelItem[]

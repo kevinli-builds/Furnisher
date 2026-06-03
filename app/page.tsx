@@ -14,7 +14,7 @@ import ViewOptionsMenu from './components/ViewOptionsMenu'
 export default function Page() {
   const { plan, setPlan, undo, redo, replace, canUndo, canRedo } = usePlanHistory(defaultPlan())
   const [mode, setMode] = useState<Mode>('select')
-  const [sel, setSel] = useState<Selection>(null)
+  const [sel, setSel] = useState<Selection>([])
   const [mounted, setMounted] = useState(false)
   const [importMode, setImportMode] = useState<'blueprint' | 'furniture' | null>(null)
 
@@ -50,15 +50,16 @@ export default function Page() {
         return
       }
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (typing || !sel) return
+        if (typing || sel.length === 0) return
         e.preventDefault()
-        const cur = sel
-        setPlan((p) => {
-          if (cur.type === 'room') return { ...p, rooms: p.rooms.filter((r) => r.id !== cur.id) }
-          if (cur.type === 'door') return { ...p, doors: p.doors.filter((d) => d.id !== cur.id) }
-          return { ...p, furniture: p.furniture.filter((f) => f.id !== cur.id) }
-        })
-        setSel(null)
+        const has = (t: string, id: string) => sel.some((s) => s.type === t && s.id === id)
+        setPlan((p) => ({
+          ...p,
+          rooms: p.rooms.filter((r) => !has('room', r.id)),
+          doors: p.doors.filter((d) => !has('door', d.id)),
+          furniture: p.furniture.filter((f) => !has('furniture', f.id)),
+        }))
+        setSel([])
       }
     }
     window.addEventListener('keydown', onKey)
@@ -113,7 +114,7 @@ export default function Page() {
             onClick={() => {
               if (confirm('Reset the plan? This clears all rooms, doors and furniture.')) {
                 replace(defaultPlan())
-                setSel(null)
+                setSel([])
               }
             }}
           >
@@ -124,7 +125,7 @@ export default function Page() {
             plan={plan}
             onLoadPlan={(p) => {
               replace(p)
-              setSel(null)
+              setSel([])
             }}
           />
         </div>
@@ -136,13 +137,13 @@ export default function Page() {
           <p className="hint">
             {mode === 'room' && 'Click and drag on the grid to draw a room.'}
             {mode === 'door' && "Click a room's wall to place a door — it snaps onto the border. Drag to slide it along."}
-            {mode === 'select' && 'Click to select, drag to move. Delete removes a selection. Each grid square is 50 cm.'}
+            {mode === 'select' && 'Drag empty space to box-select · Shift-click to add · Space or middle-mouse drag to pan · Delete removes selection.'}
           </p>
         </div>
 
         <div className="right">
           <FurniturePanel plan={plan} setPlan={setPlan} sel={sel} setSel={setSel} />
-          {sel && <SettingsPanel key={`${sel.type}-${sel.id}`} plan={plan} setPlan={setPlan} sel={sel} setSel={setSel} />}
+          {sel.length === 1 && <SettingsPanel key={`${sel[0].type}-${sel[0].id}`} plan={plan} setPlan={setPlan} sel={sel[0]} setSel={setSel} />}
         </div>
       </main>
 
