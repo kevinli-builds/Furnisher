@@ -4,8 +4,8 @@ Plan your apartment layout and furniture before you move in. Think Sims build
 mode, pared down: drag rooms onto a grid, drop in doors, and place furniture at
 real-world dimensions to see how it all fits.
 
-- **Stack:** Next.js 16 + React 19 + TypeScript, hand-written CSS, no runtime deps.
-- **Storage:** your plan is saved to the browser's `localStorage` (no account, no backend).
+- **Stack:** Next.js 16 + React 19 + TypeScript, hand-written CSS; Supabase for optional auth + cloud sync.
+- **Storage:** plans save to the browser's `localStorage` by default — no account required. Optionally sign in with Google to save and sync multiple plans to the cloud, scoped per-user with row-level security. See [`SUPABASE_SETUP.md`](./SUPABASE_SETUP.md).
 - **Units:** everything is stored internally in centimetres; the ft/in ⇄ m/cm
   toggle is display-only.
 - **Hosting:** static export — deploys to Vercel (or any static host) out of the box.
@@ -38,4 +38,3 @@ Each grid square is 50 cm. Positions snap to 10 cm.
 
 - Import a blueprint from a listing (image trace / floor-plan parse).
 - Import furniture (with dimensions) from product pages.
-- Multiple saved plans.
