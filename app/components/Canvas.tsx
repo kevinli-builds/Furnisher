@@ -635,8 +635,8 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
                 width={r.w}
                 height={r.h}
                 fill={active ? 'rgba(181,113,78,0.06)' : 'rgba(74,65,54,0.02)'}
-                stroke={active ? '#b5714e' : '#8a7c66'}
-                strokeWidth={active ? 3 : 2}
+                stroke={active ? '#b5714e' : '#b3a78f'}
+                strokeWidth={active ? 3 : 1.75}
                 vectorEffect="non-scaling-stroke"
                 style={{ cursor: 'move' }}
                 onPointerDown={(e) => onRoomDown(e, r.id)}
