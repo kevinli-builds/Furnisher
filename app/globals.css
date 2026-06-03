@@ -593,6 +593,11 @@ select.field {
 .field:focus {
   border-color: var(--accent);
 }
+textarea.field {
+  resize: vertical;
+  min-height: 84px;
+  line-height: 1.5;
+}
 .dim-row {
   display: flex;
   gap: 10px;

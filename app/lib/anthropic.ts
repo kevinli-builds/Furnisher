@@ -167,6 +167,19 @@ export async function readFurnitureFromUrl(url: string): Promise<FurnitureResult
   return normalizeFurniture(parseJson<Partial<FurnitureResult>>(text))
 }
 
+// ── Furniture from pasted text (description + dimensions) ─────
+export async function readFurnitureFromText(text: string): Promise<FurnitureResult> {
+  const system = [
+    'You convert a furniture description into a structured record with a real-world footprint in CENTIMETRES.',
+    'Use any dimensions in the text (convert inches to cm if needed). If depth is missing, estimate it from the item type.',
+    `Choose the closest "type" from this list: ${FURNITURE_TYPES.join(', ')}.`,
+    'w = width (cm), h = depth / front-to-back (cm). Use a concise name.',
+    'Return ONLY JSON, no prose: {"name":string,"type":string,"w":number,"h":number}.',
+  ].join(' ')
+  const out = await callClaude(system, [{ type: 'text', text: `Furniture details:\n${text}` }], 400)
+  return normalizeFurniture(parseJson<Partial<FurnitureResult>>(out))
+}
+
 function normalizeFurniture(raw: Partial<FurnitureResult>): FurnitureResult {
   return {
     name: String(raw.name ?? 'Furniture').slice(0, 60),

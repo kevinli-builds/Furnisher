@@ -12,6 +12,7 @@ import {
   readBlueprint,
   readFurniture,
   readFurnitureFromUrl,
+  readFurnitureFromText,
   type ImageInput,
   type BlueprintResult,
   type FurnitureResult,
@@ -32,8 +33,9 @@ export default function ImportModal({ mode, setPlan, onClose }: Props) {
   const [keySaved, setKeySaved] = useState(hasApiKey())
   const [editingKey, setEditingKey] = useState(!hasApiKey())
   const [img, setImg] = useState<Picked | null>(null)
-  const [furnMethod, setFurnMethod] = useState<'link' | 'photo'>('link')
+  const [furnMethod, setFurnMethod] = useState<'link' | 'photo' | 'text'>('link')
   const [url, setUrl] = useState('')
+  const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [blueprint, setBlueprint] = useState<BlueprintResult | null>(null)
@@ -64,7 +66,8 @@ export default function ImportModal({ mode, setPlan, onClose }: Props) {
   }
 
   const useUrl = mode === 'furniture' && furnMethod === 'link'
-  const canRun = useUrl ? url.trim().length > 0 : !!img
+  const useText = mode === 'furniture' && furnMethod === 'text'
+  const canRun = useUrl ? url.trim().length > 0 : useText ? text.trim().length > 0 : !!img
 
   async function run() {
     if (!canRun) return
@@ -73,6 +76,7 @@ export default function ImportModal({ mode, setPlan, onClose }: Props) {
     try {
       if (mode === 'blueprint') setBlueprint(await readBlueprint(img!))
       else if (useUrl) setFurniture(await readFurnitureFromUrl(url.trim()))
+      else if (useText) setFurniture(await readFurnitureFromText(text.trim()))
       else setFurniture(await readFurniture(img!))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.')
@@ -183,11 +187,20 @@ export default function ImportModal({ mode, setPlan, onClose }: Props) {
                   <button className={`seg-btn${furnMethod === 'photo' ? ' on' : ''}`} onClick={() => setFurnMethod('photo')}>
                     From photo
                   </button>
+                  <button className={`seg-btn${furnMethod === 'text' ? ' on' : ''}`} onClick={() => setFurnMethod('text')}>
+                    From text
+                  </button>
                 </div>
               )}
 
               <label className="sect-label">
-                {mode === 'blueprint' ? 'Floor-plan image' : useUrl ? 'Product link' : 'Furniture photo'}
+                {mode === 'blueprint'
+                  ? 'Floor-plan image'
+                  : useUrl
+                    ? 'Product link'
+                    : useText
+                      ? 'Description & dimensions'
+                      : 'Furniture photo'}
               </label>
 
               {useUrl ? (
@@ -198,6 +211,14 @@ export default function ImportModal({ mode, setPlan, onClose }: Props) {
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && run()}
+                />
+              ) : useText ? (
+                <textarea
+                  className="field"
+                  rows={4}
+                  placeholder={'e.g. West Elm Andes sofa, 86" wide × 40" deep\nor: round oak dining table, 120 cm diameter'}
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
                 />
               ) : (
                 <>
@@ -214,8 +235,19 @@ export default function ImportModal({ mode, setPlan, onClose }: Props) {
               <button className="btn" onClick={run} disabled={!canRun || busy}>
                 {busy ? 'Reading with Claude…' : 'Read with Claude'}
               </button>
-              {useUrl && <p className="sect-note">Some retailers block automated reads — if a link fails, try “From photo”.</p>}
+              {useUrl && !error && <p className="sect-note">Some retailers block automated reads — if a link fails, paste the details instead.</p>}
               {error && <p className="modal-error">{error}</p>}
+              {error && useUrl && (
+                <button
+                  className="link-x"
+                  onClick={() => {
+                    setError('')
+                    setFurnMethod('text')
+                  }}
+                >
+                  Paste the description &amp; dimensions instead →
+                </button>
+              )}
             </section>
           )}
 
