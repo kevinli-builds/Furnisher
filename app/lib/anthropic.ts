@@ -30,18 +30,27 @@ interface ContentBlock {
   [k: string]: unknown
 }
 
-async function callClaude(system: string, content: ContentBlock[], maxTokens: number): Promise<string> {
+async function callClaude(
+  system: string,
+  content: ContentBlock[],
+  maxTokens: number,
+  opts?: { tools?: unknown[]; beta?: string },
+): Promise<string> {
   const key = getApiKey()
   if (!key) throw new Error('Add your Anthropic API key first.')
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+    'x-api-key': key,
+    'anthropic-version': '2023-06-01',
+    'anthropic-dangerous-direct-browser-access': 'true',
+  }
+  if (opts?.beta) headers['anthropic-beta'] = opts.beta
+  const body: Record<string, unknown> = { model: MODEL, max_tokens: maxTokens, system, messages: [{ role: 'user', content }] }
+  if (opts?.tools) body.tools = opts.tools
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({ model: MODEL, max_tokens: maxTokens, system, messages: [{ role: 'user', content }] }),
+    headers,
+    body: JSON.stringify(body),
   })
   if (!res.ok) {
     let msg = `Claude request failed (${res.status})`
@@ -136,9 +145,31 @@ export async function readFurniture(img: ImageInput): Promise<FurnitureResult> {
     'Return ONLY JSON, no prose: {"name":string,"type":string,"w":number,"h":number} where w = width (cm), h = depth (cm).',
   ].join(' ')
   const text = await callClaude(system, [imageBlock(img), { type: 'text', text: 'Identify this furniture and its footprint.' }], 400)
-  const raw = parseJson<Partial<FurnitureResult>>(text)
+  return normalizeFurniture(parseJson<Partial<FurnitureResult>>(text))
+}
+
+// ── Furniture from a product URL (Amazon, Wayfair, IKEA, …) ────
+// Claude fetches the page server-side via the web_fetch tool — no browser CORS.
+export async function readFurnitureFromUrl(url: string): Promise<FurnitureResult> {
+  const system = [
+    'You read a furniture product page and estimate its real-world footprint in CENTIMETRES.',
+    'Use the web_fetch tool to read the given URL. Prefer dimensions stated on the page (convert inches to cm if needed).',
+    `Choose the closest "type" from this list: ${FURNITURE_TYPES.join(', ')}.`,
+    'w = width (cm), h = depth / front-to-back (cm). Use a concise product name.',
+    'Return ONLY JSON, no prose: {"name":string,"type":string,"w":number,"h":number}.',
+  ].join(' ')
+  const text = await callClaude(
+    system,
+    [{ type: 'text', text: `Read this furniture product page and extract its footprint:\n${url}` }],
+    900,
+    { tools: [{ type: 'web_fetch_20250910', name: 'web_fetch', max_uses: 5 }], beta: 'web-fetch-2025-09-10' },
+  )
+  return normalizeFurniture(parseJson<Partial<FurnitureResult>>(text))
+}
+
+function normalizeFurniture(raw: Partial<FurnitureResult>): FurnitureResult {
   return {
-    name: String(raw.name ?? 'Furniture'),
+    name: String(raw.name ?? 'Furniture').slice(0, 60),
     type: furnitureType(raw.type as string | undefined),
     w: Math.max(10, Math.round(Number(raw.w) || 60)),
     h: Math.max(10, Math.round(Number(raw.h) || 60)),

@@ -11,6 +11,7 @@ import {
   hasApiKey,
   readBlueprint,
   readFurniture,
+  readFurnitureFromUrl,
   type ImageInput,
   type BlueprintResult,
   type FurnitureResult,
@@ -31,6 +32,8 @@ export default function ImportModal({ mode, setPlan, onClose }: Props) {
   const [keySaved, setKeySaved] = useState(hasApiKey())
   const [editingKey, setEditingKey] = useState(!hasApiKey())
   const [img, setImg] = useState<Picked | null>(null)
+  const [furnMethod, setFurnMethod] = useState<'link' | 'photo'>('link')
+  const [url, setUrl] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [blueprint, setBlueprint] = useState<BlueprintResult | null>(null)
@@ -60,13 +63,17 @@ export default function ImportModal({ mode, setPlan, onClose }: Props) {
     reader.readAsDataURL(file)
   }
 
+  const useUrl = mode === 'furniture' && furnMethod === 'link'
+  const canRun = useUrl ? url.trim().length > 0 : !!img
+
   async function run() {
-    if (!img) return
+    if (!canRun) return
     setBusy(true)
     setError('')
     try {
-      if (mode === 'blueprint') setBlueprint(await readBlueprint(img))
-      else setFurniture(await readFurniture(img))
+      if (mode === 'blueprint') setBlueprint(await readBlueprint(img!))
+      else if (useUrl) setFurniture(await readFurnitureFromUrl(url.trim()))
+      else setFurniture(await readFurniture(img!))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.')
     } finally {
@@ -165,22 +172,49 @@ export default function ImportModal({ mode, setPlan, onClose }: Props) {
             </p>
           )}
 
-          {/* Image picker */}
+          {/* Source picker */}
           {keySaved && !editingKey && (
             <section className="sect">
-              <label className="sect-label">
-                {mode === 'blueprint' ? 'Floor-plan image' : 'Furniture photo'}
-              </label>
-              <input className="field" type="file" accept="image/*" onChange={onFile} />
-              {img && (
-                <div className="img-preview">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={img.url} alt="upload preview" />
+              {mode === 'furniture' && (
+                <div className="seg full">
+                  <button className={`seg-btn${furnMethod === 'link' ? ' on' : ''}`} onClick={() => setFurnMethod('link')}>
+                    From link
+                  </button>
+                  <button className={`seg-btn${furnMethod === 'photo' ? ' on' : ''}`} onClick={() => setFurnMethod('photo')}>
+                    From photo
+                  </button>
                 </div>
               )}
-              <button className="btn" onClick={run} disabled={!img || busy}>
+
+              <label className="sect-label">
+                {mode === 'blueprint' ? 'Floor-plan image' : useUrl ? 'Product link' : 'Furniture photo'}
+              </label>
+
+              {useUrl ? (
+                <input
+                  className="field"
+                  type="url"
+                  placeholder="https://www.wayfair.com/…  or  amazon.com/…"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && run()}
+                />
+              ) : (
+                <>
+                  <input className="field" type="file" accept="image/*" onChange={onFile} />
+                  {img && (
+                    <div className="img-preview">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={img.url} alt="upload preview" />
+                    </div>
+                  )}
+                </>
+              )}
+
+              <button className="btn" onClick={run} disabled={!canRun || busy}>
                 {busy ? 'Reading with Claude…' : 'Read with Claude'}
               </button>
+              {useUrl && <p className="sect-note">Some retailers block automated reads — if a link fails, try “From photo”.</p>}
               {error && <p className="modal-error">{error}</p>}
             </section>
           )}
