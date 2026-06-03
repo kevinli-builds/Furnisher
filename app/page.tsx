@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import type { Plan, Mode, Selection } from './lib/types'
 import { loadPlan, savePlan, defaultPlan } from './lib/storage'
 import { usePlanHistory } from './lib/usePlanHistory'
+import { uid, snap } from './lib/geometry'
 import Canvas from './components/Canvas'
 import FurniturePanel from './components/FurniturePanel'
 import SettingsPanel from './components/SettingsPanel'
@@ -58,6 +59,8 @@ export default function Page() {
           rooms: p.rooms.filter((r) => !has('room', r.id)),
           doors: p.doors.filter((d) => !has('door', d.id)),
           furniture: p.furniture.filter((f) => !has('furniture', f.id)),
+          markers: p.markers.filter((m) => !has('marker', m.id)),
+          stairs: p.stairs.filter((s) => !has('stair', s.id)),
         }))
         setSel([])
       }
@@ -65,6 +68,30 @@ export default function Page() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [sel, undo, redo, setPlan])
+
+  // Add a linked entry+exit stair pair near the centre of existing content.
+  function addStairs() {
+    const xs: number[] = []
+    const ys: number[] = []
+    const xe: number[] = []
+    const ye: number[] = []
+    const push = (x: number, y: number, w: number, h: number) => {
+      xs.push(x), ys.push(y), xe.push(x + w), ye.push(y + h)
+    }
+    plan.rooms.forEach((r) => push(r.x, r.y, r.w, r.h))
+    plan.furniture.forEach((f) => push(f.x, f.y, f.w, f.h))
+    plan.markers.forEach((m) => push(m.x, m.y, m.w, m.h))
+    plan.stairs.forEach((s) => push(s.x, s.y, s.w, s.h))
+    const cx = xs.length ? (Math.min(...xs) + Math.max(...xe)) / 2 : plan.width / 2
+    const cy = ys.length ? (Math.min(...ys) + Math.max(...ye)) / 2 : plan.height / 2
+    const link = uid()
+    const sw = 120
+    const sh = 240
+    const entry = { id: uid(), link, role: 'entry' as const, x: snap(cx - sw - 40), y: snap(cy - sh / 2), w: sw, h: sh, rotation: 0 as const }
+    const exit = { id: uid(), link, role: 'exit' as const, x: snap(cx + 40), y: snap(cy - sh / 2), w: sw, h: sh, rotation: 0 as const }
+    setPlan((p) => ({ ...p, stairs: [...p.stairs, entry, exit] }))
+    setSel([{ type: 'stair', id: entry.id }])
+  }
 
   if (!mounted) return <div className="boot" />
 
@@ -87,7 +114,14 @@ export default function Page() {
             <button className={`seg-btn${mode === 'door' ? ' on' : ''}`} onClick={() => setMode('door')}>
               ⌐ Add door
             </button>
+            <button className={`seg-btn${mode === 'marker' ? ' on' : ''}`} onClick={() => setMode('marker')} title="Draw a labelled box, e.g. to frame a floor">
+              ▢ Marker
+            </button>
           </div>
+
+          <button className="seg-btn solo" onClick={addStairs} title="Add a linked entry + exit stair pair">
+            ⟚ Stairs
+          </button>
 
           <div className="seg">
             <button className="seg-btn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)">
@@ -136,6 +170,7 @@ export default function Page() {
           <Canvas plan={plan} setPlan={setPlan} mode={mode} setMode={setMode} sel={sel} setSel={setSel} />
           <p className="hint">
             {mode === 'room' && 'Click and drag on the grid to draw a room.'}
+            {mode === 'marker' && 'Click and drag to draw a labelled box — handy for framing each floor.'}
             {mode === 'door' && "Click a room's wall to place a door — it snaps onto the border. Drag to slide it along."}
             {mode === 'select' && 'Drag empty space to box-select · Shift-click to add · Space or middle-mouse drag to pan · Delete removes selection.'}
           </p>

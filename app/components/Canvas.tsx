@@ -16,16 +16,15 @@ interface Props {
   setSel: (s: Selection) => void
 }
 
-type OrigPos = { t: 'room' | 'door' | 'furniture'; id: string; x: number; y: number }
+type OrigPos = { t: 'room' | 'door' | 'furniture' | 'marker' | 'stair'; id: string; x: number; y: number }
 
 type Drag =
-  | { kind: 'draw'; ox: number; oy: number }
+  | { kind: 'draw'; ox: number; oy: number; what: 'room' | 'marker' }
   | { kind: 'marquee'; ox: number; oy: number }
   | { kind: 'pan'; cx0: number; cy0: number; vx0: number; vy0: number }
   | { kind: 'move-sel'; sx: number; sy: number; orig: OrigPos[]; click: SelItem; moved: boolean }
-  | { kind: 'move-room' | 'resize-room'; id: string; sx: number; sy: number; ox: number; oy: number; ow: number; oh: number }
-  | { kind: 'move-furniture'; id: string; sx: number; sy: number; ox: number; oy: number }
-  | { kind: 'move-door'; id: string; sx: number; sy: number; ox: number; oy: number }
+  | { kind: 'move-room' | 'resize-room' | 'resize-marker'; id: string; sx: number; sy: number; ox: number; oy: number; ow: number; oh: number }
+  | { kind: 'move-furniture' | 'move-door' | 'move-marker' | 'move-stair'; id: string; sx: number; sy: number; ox: number; oy: number }
   | null
 
 interface View {
@@ -140,6 +139,8 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
     const ye: number[] = []
     for (const r of plan.rooms) xs.push(r.x), ys.push(r.y), xe.push(r.x + r.w), ye.push(r.y + r.h)
     for (const f of plan.furniture) xs.push(f.x), ys.push(f.y), xe.push(f.x + f.w), ye.push(f.y + f.h)
+    for (const m of plan.markers) xs.push(m.x), ys.push(m.y), xe.push(m.x + m.w), ye.push(m.y + m.h)
+    for (const s of plan.stairs) xs.push(s.x), ys.push(s.y), xe.push(s.x + s.w), ye.push(s.y + s.h)
     if (!xs.length) return { x: 0, y: 0, w: plan.width, h: plan.height }
     const x = Math.min(...xs)
     const y = Math.min(...ys)
@@ -247,8 +248,8 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
   function onBgDown(e: React.PointerEvent) {
     if (mode === 'door') return // capture handles it
     const p = toCm(e)
-    if (mode === 'room') {
-      drag.current = { kind: 'draw', ox: snap(p.x), oy: snap(p.y) }
+    if (mode === 'room' || mode === 'marker') {
+      drag.current = { kind: 'draw', ox: snap(p.x), oy: snap(p.y), what: mode === 'marker' ? 'marker' : 'room' }
       setDraft({ x: snap(p.x), y: snap(p.y), w: 0, h: 0 })
     } else {
       drag.current = { kind: 'marquee', ox: p.x, oy: p.y }
@@ -272,9 +273,15 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
       } else if (s.type === 'door') {
         const dd = plan.doors.find((d) => d.id === s.id)
         if (dd) orig.push({ t: 'door', id: s.id, x: dd.x, y: dd.y })
-      } else {
+      } else if (s.type === 'furniture') {
         const f = plan.furniture.find((f) => f.id === s.id)
         if (f) orig.push({ t: 'furniture', id: s.id, x: f.x, y: f.y })
+      } else if (s.type === 'marker') {
+        const m = plan.markers.find((m) => m.id === s.id)
+        if (m) orig.push({ t: 'marker', id: s.id, x: m.x, y: m.y })
+      } else {
+        const st = plan.stairs.find((st) => st.id === s.id)
+        if (st) orig.push({ t: 'stair', id: s.id, x: st.x, y: st.y })
       }
     }
     drag.current = { kind: 'move-sel', sx: p.x, sy: p.y, orig, click, moved: false }
@@ -333,6 +340,33 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
     })
   }
 
+  function onMarkerDown(e: React.PointerEvent, id: string) {
+    onObjDown(e, { type: 'marker', id }, () => {
+      const m = plan.markers.find((m) => m.id === id)!
+      const p = toCm(e)
+      drag.current = { kind: 'move-marker', id, sx: p.x, sy: p.y, ox: m.x, oy: m.y }
+      capture(e)
+    })
+  }
+
+  function onMarkerResize(e: React.PointerEvent, id: string) {
+    e.stopPropagation()
+    const m = plan.markers.find((m) => m.id === id)!
+    const p = toCm(e)
+    drag.current = { kind: 'resize-marker', id, sx: p.x, sy: p.y, ox: m.x, oy: m.y, ow: m.w, oh: m.h }
+    setSel([{ type: 'marker', id }])
+    capture(e)
+  }
+
+  function onStairDown(e: React.PointerEvent, id: string) {
+    onObjDown(e, { type: 'stair', id }, () => {
+      const st = plan.stairs.find((s) => s.id === id)!
+      const p = toCm(e)
+      drag.current = { kind: 'move-stair', id, sx: p.x, sy: p.y, ox: st.x, oy: st.y }
+      capture(e)
+    })
+  }
+
   // ── Move / resize / pan / marquee ─────────────────────────────
   function onMove(e: React.PointerEvent) {
     const d = drag.current
@@ -385,6 +419,14 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
           const o = d.orig.find((x) => x.t === 'door' && x.id === dd.id)
           return o ? { ...dd, x: o.x + dx, y: o.y + dy } : dd
         }),
+        markers: pl.markers.map((m) => {
+          const o = d.orig.find((x) => x.t === 'marker' && x.id === m.id)
+          return o ? { ...m, x: o.x + dx, y: o.y + dy } : m
+        }),
+        stairs: pl.stairs.map((st) => {
+          const o = d.orig.find((x) => x.t === 'stair' && x.id === st.id)
+          return o ? { ...st, x: o.x + dx, y: o.y + dy } : st
+        }),
       }))
       return
     }
@@ -413,6 +455,14 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
           return { ...dd, x: snap(d.ox + dx), y: snap(d.oy + dy) }
         }),
       }))
+    } else if (d.kind === 'move-marker') {
+      setPlan((pl) => ({ ...pl, markers: pl.markers.map((m) => (m.id === d.id ? { ...m, x: snap(d.ox + dx), y: snap(d.oy + dy) } : m)) }))
+    } else if (d.kind === 'resize-marker') {
+      const nw = Math.max(MIN_ROOM, snap(d.ow + dx))
+      const nh = Math.max(MIN_ROOM, snap(d.oh + dy))
+      setPlan((pl) => ({ ...pl, markers: pl.markers.map((m) => (m.id === d.id ? { ...m, w: nw, h: nh } : m)) }))
+    } else if (d.kind === 'move-stair') {
+      setPlan((pl) => ({ ...pl, stairs: pl.stairs.map((s) => (s.id === d.id ? { ...s, x: snap(d.ox + dx), y: snap(d.oy + dy) } : s)) }))
     }
   }
 
@@ -428,9 +478,13 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
       const h = Math.abs(snap(p.y) - d.oy)
       if (w >= MIN_ROOM && h >= MIN_ROOM) {
         const id = uid()
-        const n = plan.rooms.length + 1
-        setPlan((pl) => ({ ...pl, rooms: [...pl.rooms, { id, name: `Room ${n}`, x, y, w, h }] }))
-        setSel([{ type: 'room', id }])
+        if (d.what === 'marker') {
+          setPlan((pl) => ({ ...pl, markers: [...pl.markers, { id, name: `Floor ${pl.markers.length + 1}`, x, y, w, h }] }))
+          setSel([{ type: 'marker', id }])
+        } else {
+          setPlan((pl) => ({ ...pl, rooms: [...pl.rooms, { id, name: `Room ${pl.rooms.length + 1}`, x, y, w, h }] }))
+          setSel([{ type: 'room', id }])
+        }
       }
       setDraft(null)
     } else if (d?.kind === 'marquee') {
@@ -440,8 +494,10 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
         setSel([]) // a plain click on empty space clears the selection
       } else {
         const hits: SelItem[] = []
+        for (const m of plan.markers) if (overlaps(box, { x: m.x, y: m.y, w: m.w, h: m.h })) hits.push({ type: 'marker', id: m.id })
         for (const r of plan.rooms) if (overlaps(box, { x: r.x, y: r.y, w: r.w, h: r.h })) hits.push({ type: 'room', id: r.id })
         for (const f of plan.furniture) if (overlaps(box, { x: f.x, y: f.y, w: f.w, h: f.h })) hits.push({ type: 'furniture', id: f.id })
+        for (const s of plan.stairs) if (overlaps(box, { x: s.x, y: s.y, w: s.w, h: s.h })) hits.push({ type: 'stair', id: s.id })
         for (const dd of plan.doors) if (overlaps(box, doorBox(dd))) hits.push({ type: 'door', id: dd.id })
         setSel(hits)
       }
@@ -469,6 +525,20 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
 
   const roomName = 15
   const roomDim = 12
+
+  // Pair up stairs by link to draw the floor-transition connector.
+  const stairLinks = new Map<string, { entry?: { x: number; y: number; w: number; h: number }; exit?: { x: number; y: number; w: number; h: number } }>()
+  for (const s of plan.stairs) {
+    const g = stairLinks.get(s.link) ?? {}
+    g[s.role] = s
+    stairLinks.set(s.link, g)
+  }
+  const connectors: { ex: number; ey: number; xx: number; xy: number }[] = []
+  for (const g of stairLinks.values()) {
+    if (g.entry && g.exit) {
+      connectors.push({ ex: g.entry.x + g.entry.w / 2, ey: g.entry.y + g.entry.h / 2, xx: g.exit.x + g.exit.w / 2, xy: g.exit.y + g.exit.h / 2 })
+    }
+  }
 
   function spaceAbove(r: { id: string; x: number; y: number; w: number; h: number }): boolean {
     return !plan.rooms.some((o) => o.id !== r.id && o.x < r.x + r.w && o.x + o.w > r.x && o.y < r.y && o.y + o.h >= r.y - 2)
@@ -521,6 +591,35 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
           </g>
         )}
 
+        {/* Markers (floor frames) — behind everything else */}
+        {plan.markers.map((m) => {
+          const active = inSel('marker', m.id)
+          return (
+            <g key={m.id}>
+              <rect
+                x={m.x}
+                y={m.y}
+                width={m.w}
+                height={m.h}
+                rx={10}
+                fill="rgba(140,124,96,0.04)"
+                stroke={active ? '#b5714e' : '#c9bca6'}
+                strokeWidth={active ? 2.5 : 1.5}
+                strokeDasharray="10 6"
+                vectorEffect="non-scaling-stroke"
+                style={{ cursor: 'move' }}
+                onPointerDown={(e) => onMarkerDown(e, m.id)}
+              />
+              <text x={m.x + 12} y={m.y + 24} fontSize={18} fill="#b3a488" fontWeight={700} pointerEvents="none">
+                {m.name}
+              </text>
+              {active && sel.length === 1 && (
+                <rect x={m.x + m.w - 14} y={m.y + m.h - 14} width={28} height={28} fill="#b5714e" rx={3} style={{ cursor: 'nwse-resize' }} onPointerDown={(e) => onMarkerResize(e, m.id)} />
+              )}
+            </g>
+          )
+        })}
+
         {/* Rooms */}
         {plan.rooms.map((r) => {
           const active = inSel('room', r.id)
@@ -536,7 +635,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
                 width={r.w}
                 height={r.h}
                 fill={active ? 'rgba(181,113,78,0.06)' : 'rgba(74,65,54,0.02)'}
-                stroke={active ? '#b5714e' : '#4a4136'}
+                stroke={active ? '#b5714e' : '#8a7c66'}
                 strokeWidth={active ? 3 : 2}
                 vectorEffect="non-scaling-stroke"
                 style={{ cursor: 'move' }}
@@ -607,6 +706,42 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
               </text>
               <text x={cx} y={cy + 13} fontSize={11} fill="#a89c88" textAnchor="middle" pointerEvents="none">
                 {formatSize(f.w, f.h, units)}
+              </text>
+            </g>
+          )
+        })}
+
+        {/* Stair transition connectors (entry ↔ exit) */}
+        {connectors.map((c, i) => (
+          <g key={`c${i}`} pointerEvents="none">
+            <line x1={c.ex} y1={c.ey} x2={c.xx} y2={c.xy} stroke="#c4a98f" strokeWidth={1.5} strokeDasharray="9 7" vectorEffect="non-scaling-stroke" />
+            <circle cx={c.ex} cy={c.ey} r={4} fill="#c4a98f" vectorEffect="non-scaling-stroke" />
+            <circle cx={c.xx} cy={c.xy} r={4} fill="#c4a98f" vectorEffect="non-scaling-stroke" />
+          </g>
+        ))}
+
+        {/* Stairs */}
+        {plan.stairs.map((s) => {
+          const active = inSel('stair', s.id)
+          const cx = s.x + s.w / 2
+          const cy = s.y + s.h / 2
+          const n = Math.max(3, Math.min(12, Math.round(s.h / 35)))
+          const steps = []
+          for (let i = 1; i < n; i++) {
+            const yy = s.y + (s.h * i) / n
+            steps.push(<line key={i} x1={s.x + 6} y1={yy} x2={s.x + s.w - 6} y2={yy} stroke="#9a8c74" strokeWidth={1} vectorEffect="non-scaling-stroke" />)
+          }
+          const up = s.role === 'entry'
+          const base = up ? s.y + 20 : s.y + s.h - 20
+          const tip = up ? s.y + 7 : s.y + s.h - 7
+          const arrow = `M ${cx - 7} ${base} L ${cx + 7} ${base} L ${cx} ${tip} Z`
+          return (
+            <g key={s.id} transform={`rotate(${s.rotation} ${cx} ${cy})`} style={{ cursor: 'move' }} onPointerDown={(e) => onStairDown(e, s.id)}>
+              <rect x={s.x} y={s.y} width={s.w} height={s.h} rx={4} fill="#efe7d8" fillOpacity={0.9} stroke={active ? '#b5714e' : '#b3a488'} strokeWidth={active ? 3 : 1.5} vectorEffect="non-scaling-stroke" />
+              {steps}
+              <path d={arrow} fill="#8a7c66" stroke="none" pointerEvents="none" />
+              <text x={cx} y={cy + 4} fontSize={12} fill="#8a7e6b" fontWeight={600} textAnchor="middle" pointerEvents="none">
+                {up ? 'Entry' : 'Exit'}
               </text>
             </g>
           )

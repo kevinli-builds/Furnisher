@@ -3,7 +3,7 @@
 // imperial/metric toggle is display-only — it never mutates stored values.
 
 export type Units = 'imperial' | 'metric'
-export type Mode = 'select' | 'room' | 'door'
+export type Mode = 'select' | 'room' | 'door' | 'marker'
 
 // How the plan is drawn:
 //   schematic → flat "box + sticky-note" outlines, text only (most minimal)
@@ -48,6 +48,31 @@ export interface Furniture {
   color: string
 }
 
+// A labelled box drawn behind everything — e.g. to frame a floor.
+export interface Marker {
+  id: string
+  name: string
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+export type StairRole = 'entry' | 'exit'
+
+// Stairs come as an entry+exit pair sharing a `link`; a dashed line is drawn
+// between the two to show the transition between floors laid out on one grid.
+export interface Stair {
+  id: string
+  link: string
+  role: StairRole
+  x: number
+  y: number
+  w: number
+  h: number
+  rotation: Rotation
+}
+
 export interface Plan {
   units: Units
   viewMode: ViewMode
@@ -58,10 +83,12 @@ export interface Plan {
   rooms: Room[]
   doors: Door[]
   furniture: Furniture[]
+  markers: Marker[]
+  stairs: Stair[]
 }
 
 export interface SelItem {
-  type: 'room' | 'door' | 'furniture'
+  type: 'room' | 'door' | 'furniture' | 'marker' | 'stair'
   id: string
 }
 
