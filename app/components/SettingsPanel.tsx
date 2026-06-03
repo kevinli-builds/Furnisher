@@ -238,20 +238,36 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
           </>
         )}
 
-        {/* Door controls — orientation is set by the wall it snaps to. */}
+        {/* Opening controls — orientation is set by the wall it snaps to. */}
         {door && (
           <>
             <section className="sect">
-              <label className="sect-label">Swing &amp; hinge</label>
-              <div className="dim-row">
-                <button className="btn-ghost" onClick={() => patchDoor({ swing: (door.swing * -1) as 1 | -1 })}>
-                  ⤡ Flip swing
+              <label className="sect-label">Opening</label>
+              <div className="seg full">
+                <button className={`seg-btn${(door.type ?? 'swing') === 'swing' ? ' on' : ''}`} onClick={() => patchDoor({ type: 'swing' })}>
+                  Swing
                 </button>
-                <button className="btn-ghost" onClick={() => patchDoor({ hinge: ((door.hinge ?? 1) * -1) as 1 | -1 })}>
-                  ⇄ Flip hinge
+                <button className={`seg-btn${door.type === 'sliding' ? ' on' : ''}`} onClick={() => patchDoor({ type: 'sliding' })}>
+                  Sliding
+                </button>
+                <button className={`seg-btn${door.type === 'window' ? ' on' : ''}`} onClick={() => patchDoor({ type: 'window' })}>
+                  Window
                 </button>
               </div>
             </section>
+            {(door.type ?? 'swing') === 'swing' && (
+              <section className="sect">
+                <label className="sect-label">Swing &amp; hinge</label>
+                <div className="dim-row">
+                  <button className="btn-ghost" onClick={() => patchDoor({ swing: (door.swing * -1) as 1 | -1 })}>
+                    ⤡ Flip swing
+                  </button>
+                  <button className="btn-ghost" onClick={() => patchDoor({ hinge: ((door.hinge ?? 1) * -1) as 1 | -1 })}>
+                    ⇄ Flip hinge
+                  </button>
+                </div>
+              </section>
+            )}
             <section className="sect">
               <label className="sect-label">Width ({u})</label>
               <input
@@ -262,6 +278,21 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
               />
             </section>
           </>
+        )}
+
+        {/* Marker style */}
+        {marker && (
+          <section className="sect">
+            <label className="sect-label">Style</label>
+            <div className="seg full">
+              <button className={`seg-btn${(marker.style ?? 'frame') === 'frame' ? ' on' : ''}`} onClick={() => patchMarker({ style: 'frame' })}>
+                Frame
+              </button>
+              <button className={`seg-btn${marker.style === 'closet' ? ' on' : ''}`} onClick={() => patchMarker({ style: 'closet' })}>
+                Closet
+              </button>
+            </div>
+          </section>
         )}
 
         {/* Position (read-only — drag on the plan to move) */}

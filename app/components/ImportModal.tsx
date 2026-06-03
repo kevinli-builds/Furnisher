@@ -111,6 +111,7 @@ export default function ImportModal({ mode, setPlan, onClose }: Props) {
       const rooms = blueprint.rooms.map((r) => ({ id: uid(), name: r.name, x: r.x + dx, y: r.y + dy, w: r.w, h: r.h }))
       const doors = blueprint.doors.map((d) => ({
         id: uid(),
+        type: 'swing' as const,
         x: d.x + dx,
         y: d.y + dy,
         length: d.length,

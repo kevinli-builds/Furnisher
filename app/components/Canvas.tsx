@@ -41,7 +41,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
   const [draft, setDraft] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   const [marquee, setMarquee] = useState<Box | null>(null)
   const [hoverRoom, setHoverRoom] = useState<string | null>(null)
-  const [doorGhost, setDoorGhost] = useState<{ x: number; y: number; orientation: 'h' | 'v'; swing: 1 | -1 } | null>(null)
+  const [doorGhost, setDoorGhost] = useState<{ x: number; y: number; orientation: 'h' | 'v'; swing: 1 | -1; type: 'swing' | 'window' } | null>(null)
 
   const [size, setSize] = useState({ cw: 0, ch: 0 })
   const [view, setViewState] = useState<View>({ x: 0, y: 0, scale: 0 })
@@ -180,17 +180,18 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
       capture(e)
       return
     }
-    if (mode === 'door') {
+    if (mode === 'door' || mode === 'window') {
       e.stopPropagation()
-      placeDoor(toCm(e))
+      placeDoor(toCm(e), mode === 'window' ? 'window' : 'swing')
     }
   }
 
-  function placeDoor(p: { x: number; y: number }) {
+  function placeDoor(p: { x: number; y: number }, type: 'swing' | 'window') {
     const hit = snapDoorToWalls(p.x, p.y, DOOR_LEN, plan.rooms)
     const d: Door = hit
       ? {
           id: uid(),
+          type,
           x: hit.x,
           y: hit.y,
           length: DOOR_LEN,
@@ -198,7 +199,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
           swing: swingForCursor(hit.orientation, hit.orientation === 'h' ? hit.y : hit.x, p, doorGhost?.swing ?? 1),
           hinge: 1,
         }
-      : { id: uid(), x: snap(p.x), y: snap(p.y), length: DOOR_LEN, orientation: 'h', swing: 1, hinge: 1 }
+      : { id: uid(), type, x: snap(p.x), y: snap(p.y), length: DOOR_LEN, orientation: 'h', swing: 1, hinge: 1 }
     setPlan((pl) => ({ ...pl, doors: [...pl.doors, d] }))
     setSel([{ type: 'door', id: d.id }])
     setDoorGhost(null)
@@ -207,7 +208,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
 
   // ── Background: draw a room, or marquee-select ────────────────
   function onBgDown(e: React.PointerEvent) {
-    if (mode === 'door') return // capture handles it
+    if (mode === 'door' || mode === 'window') return // capture handles it
     const p = toCm(e)
     if (mode === 'room' || mode === 'marker') {
       drag.current = { kind: 'draw', ox: snap(p.x), oy: snap(p.y), what: mode === 'marker' ? 'marker' : 'room' }
@@ -332,12 +333,18 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
   function onMove(e: React.PointerEvent) {
     const d = drag.current
     if (!d) {
-      if (mode === 'door') {
+      if (mode === 'door' || mode === 'window') {
         const p = toCm(e)
         const hit = snapDoorToWalls(p.x, p.y, DOOR_LEN, plan.rooms)
         setDoorGhost(
           hit
-            ? { x: hit.x, y: hit.y, orientation: hit.orientation, swing: swingForCursor(hit.orientation, hit.orientation === 'h' ? hit.y : hit.x, p, doorGhost?.swing ?? 1) }
+            ? {
+                x: hit.x,
+                y: hit.y,
+                orientation: hit.orientation,
+                swing: swingForCursor(hit.orientation, hit.orientation === 'h' ? hit.y : hit.x, p, doorGhost?.swing ?? 1),
+                type: mode === 'window' ? 'window' : 'swing',
+              }
             : null,
         )
       }
@@ -440,7 +447,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
       if (w >= MIN_ROOM && h >= MIN_ROOM) {
         const id = uid()
         if (d.what === 'marker') {
-          setPlan((pl) => ({ ...pl, markers: [...pl.markers, { id, name: `Floor ${pl.markers.length + 1}`, x, y, w, h }] }))
+          setPlan((pl) => ({ ...pl, markers: [...pl.markers, { id, name: `Floor ${pl.markers.length + 1}`, style: 'frame', x, y, w, h }] }))
           setSel([{ type: 'marker', id }])
         } else {
           setPlan((pl) => ({ ...pl, rooms: [...pl.rooms, { id, name: `Room ${pl.rooms.length + 1}`, x, y, w, h }] }))
@@ -482,7 +489,10 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
   for (let x = Math.floor(left / minor) * minor; x <= right; x += minor) vLines.push(x)
   const hLines: number[] = []
   for (let y = Math.floor(top / minor) * minor; y <= bottom; y += minor) hLines.push(y)
-  const isMajor = (v: number) => Math.abs(v % major) < 0.5
+  const isMajor = (v: number) => {
+    const m = ((v % major) + major) % major
+    return m < 0.5 || major - m < 0.5
+  }
 
   const roomName = 15
   const roomDim = 12
@@ -505,7 +515,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
     return !plan.rooms.some((o) => o.id !== r.id && o.x < r.x + r.w && o.x + o.w > r.x && o.y < r.y && o.y + o.h >= r.y - 2)
   }
 
-  const bgCursor = spaceHeld ? 'grab' : mode === 'room' ? 'crosshair' : mode === 'door' ? 'copy' : 'default'
+  const bgCursor = spaceHeld ? 'grab' : mode === 'room' || mode === 'marker' ? 'crosshair' : mode === 'door' || mode === 'window' ? 'copy' : 'default'
 
   return (
     <div className="canvas-host" ref={hostRef}>
@@ -520,6 +530,12 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
         onPointerUp={onUp}
         onPointerLeave={() => setDoorGhost(null)}
       >
+        <defs>
+          <pattern id="closet-hatch" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="14" stroke="#b3a78f" strokeWidth="1.4" />
+          </pattern>
+        </defs>
+
         <rect x={left} y={top} width={vw} height={vh} fill="#fdfbf7" style={{ cursor: bgCursor }} onPointerDown={onBgDown} />
 
         {/* Grid */}
@@ -534,9 +550,10 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
           </g>
         )}
 
-        {/* Markers (floor frames) — behind everything else */}
+        {/* Markers — floor frames (dashed) or closets (diagonal hatch) */}
         {plan.markers.map((m) => {
           const active = inSel('marker', m.id)
+          const closet = (m.style ?? 'frame') === 'closet'
           return (
             <g key={m.id}>
               <rect
@@ -544,16 +561,17 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
                 y={m.y}
                 width={m.w}
                 height={m.h}
-                rx={10}
-                fill="rgba(140,124,96,0.04)"
+                rx={closet ? 4 : 10}
+                fill={closet ? 'url(#closet-hatch)' : 'rgba(140,124,96,0.04)'}
+                fillOpacity={closet ? 0.55 : 1}
                 stroke={active ? '#b5714e' : '#c9bca6'}
                 strokeWidth={active ? 2.5 : 1.5}
-                strokeDasharray="10 6"
+                strokeDasharray={closet ? undefined : '10 6'}
                 vectorEffect="non-scaling-stroke"
                 style={{ cursor: 'move' }}
                 onPointerDown={(e) => onMarkerDown(e, m.id)}
               />
-              <text x={m.x + 12} y={m.y + 24} fontSize={18} fill="#b3a488" fontWeight={700} pointerEvents="none">
+              <text x={m.x + 12} y={m.y + 22} fontSize={closet ? 14 : 18} fill="#b3a488" fontWeight={700} pointerEvents="none">
                 {m.name}
               </text>
               {active && sel.length === 1 && (
@@ -601,29 +619,79 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
           )
         })}
 
-        {/* Doors */}
+        {/* Doors / windows */}
         {plan.doors.map((d) => {
           const active = inSel('door', d.id)
           const color = active ? '#b5714e' : '#6b5f4f'
-          const g = doorGeom(d.x, d.y, d.length, d.orientation, d.swing, d.hinge ?? 1)
+          const type = d.type ?? 'swing'
+          const horiz = d.orientation === 'h'
+          const ex = horiz ? d.x + d.length : d.x
+          const ey = horiz ? d.y : d.y + d.length
           return (
             <g key={d.id} style={{ cursor: 'move' }} onPointerDown={(e) => onDoorDown(e, d.id)}>
-              <line x1={g.ax} y1={g.ay} x2={g.bx} y2={g.by} stroke="#fdfbf7" strokeWidth={6} vectorEffect="non-scaling-stroke" />
-              <path d={g.leaf} stroke={color} strokeWidth={3} vectorEffect="non-scaling-stroke" fill="none" />
-              <path d={g.arc} stroke={color} strokeWidth={1.5} strokeDasharray="4 3" vectorEffect="non-scaling-stroke" fill="none" />
-              {active && <circle cx={g.hx} cy={g.hy} r={6} fill="#b5714e" vectorEffect="non-scaling-stroke" />}
+              {/* white wall gap */}
+              <line x1={d.x} y1={d.y} x2={ex} y2={ey} stroke="#fdfbf7" strokeWidth={6} vectorEffect="non-scaling-stroke" />
+              {type === 'swing' && (() => {
+                const g = doorGeom(d.x, d.y, d.length, d.orientation, d.swing, d.hinge ?? 1)
+                return (
+                  <>
+                    <path d={g.leaf} stroke={color} strokeWidth={3} vectorEffect="non-scaling-stroke" fill="none" />
+                    <path d={g.arc} stroke={color} strokeWidth={1.5} strokeDasharray="4 3" vectorEffect="non-scaling-stroke" fill="none" />
+                    {active && <circle cx={g.hx} cy={g.hy} r={6} fill="#b5714e" vectorEffect="non-scaling-stroke" />}
+                  </>
+                )
+              })()}
+              {type === 'sliding' && (horiz ? (
+                <>
+                  <line x1={d.x} y1={d.y - 3} x2={d.x + d.length * 0.6} y2={d.y - 3} stroke={color} strokeWidth={3} vectorEffect="non-scaling-stroke" />
+                  <line x1={d.x + d.length * 0.4} y1={d.y + 3} x2={ex} y2={d.y + 3} stroke={color} strokeWidth={3} vectorEffect="non-scaling-stroke" />
+                </>
+              ) : (
+                <>
+                  <line x1={d.x - 3} y1={d.y} x2={d.x - 3} y2={d.y + d.length * 0.6} stroke={color} strokeWidth={3} vectorEffect="non-scaling-stroke" />
+                  <line x1={d.x + 3} y1={d.y + d.length * 0.4} x2={d.x + 3} y2={ey} stroke={color} strokeWidth={3} vectorEffect="non-scaling-stroke" />
+                </>
+              ))}
+              {type === 'window' && (horiz ? (
+                <>
+                  <line x1={d.x} y1={d.y - 2} x2={ex} y2={d.y - 2} stroke={color} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+                  <line x1={d.x} y1={d.y + 2} x2={ex} y2={d.y + 2} stroke={color} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+                </>
+              ) : (
+                <>
+                  <line x1={d.x - 2} y1={d.y} x2={d.x - 2} y2={ey} stroke={color} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+                  <line x1={d.x + 2} y1={d.y} x2={d.x + 2} y2={ey} stroke={color} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+                </>
+              ))}
             </g>
           )
         })}
 
         {/* Door placement ghost */}
-        {mode === 'door' && doorGhost && (() => {
+        {(mode === 'door' || mode === 'window') && doorGhost && (() => {
           const g = doorGeom(doorGhost.x, doorGhost.y, DOOR_LEN, doorGhost.orientation, doorGhost.swing, 1)
+          const horiz = doorGhost.orientation === 'h'
           return (
-            <g pointerEvents="none">
+            <g pointerEvents="none" opacity={0.65}>
               <line x1={g.ax} y1={g.ay} x2={g.bx} y2={g.by} stroke="#b5714e" strokeWidth={6} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-              <path d={g.leaf} stroke="#b5714e" strokeWidth={3} vectorEffect="non-scaling-stroke" fill="none" opacity={0.7} />
-              <path d={g.arc} stroke="#b5714e" strokeWidth={1.5} strokeDasharray="4 3" vectorEffect="non-scaling-stroke" fill="none" opacity={0.5} />
+              {doorGhost.type === 'window' ? (
+                horiz ? (
+                  <>
+                    <line x1={g.ax} y1={g.ay - 2} x2={g.bx} y2={g.by - 2} stroke="#b5714e" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+                    <line x1={g.ax} y1={g.ay + 2} x2={g.bx} y2={g.by + 2} stroke="#b5714e" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+                  </>
+                ) : (
+                  <>
+                    <line x1={g.ax - 2} y1={g.ay} x2={g.bx - 2} y2={g.by} stroke="#b5714e" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+                    <line x1={g.ax + 2} y1={g.ay} x2={g.bx + 2} y2={g.by} stroke="#b5714e" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+                  </>
+                )
+              ) : (
+                <>
+                  <path d={g.leaf} stroke="#b5714e" strokeWidth={3} vectorEffect="non-scaling-stroke" fill="none" />
+                  <path d={g.arc} stroke="#b5714e" strokeWidth={1.5} strokeDasharray="4 3" vectorEffect="non-scaling-stroke" fill="none" />
+                </>
+              )}
             </g>
           )
         })()}

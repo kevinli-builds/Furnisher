@@ -3,7 +3,7 @@
 // imperial/metric toggle is display-only — it never mutates stored values.
 
 export type Units = 'imperial' | 'metric'
-export type Mode = 'select' | 'room' | 'door' | 'marker'
+export type Mode = 'select' | 'room' | 'door' | 'window' | 'marker'
 
 // How the plan is drawn:
 //   schematic → flat "box + sticky-note" outlines, text only (most minimal)
@@ -22,14 +22,18 @@ export interface Room {
   h: number
 }
 
+// A wall opening: a swinging door, a sliding door, or a window.
+export type OpeningType = 'swing' | 'sliding' | 'window'
+
 export interface Door {
   id: string
+  type: OpeningType
   x: number // top-left corner of the opening span (cm)
   y: number
   length: number // opening width (cm)
-  orientation: 'h' | 'v' // wall the door sits on: horizontal or vertical
-  swing: 1 | -1 // which side of the wall the leaf opens toward
-  hinge: 1 | -1 // which end of the opening the hinge is on
+  orientation: 'h' | 'v' // wall the opening sits on: horizontal or vertical
+  swing: 1 | -1 // (swing doors) which side of the wall the leaf opens toward
+  hinge: 1 | -1 // (swing doors) which end of the opening the hinge is on
 }
 
 // Degrees clockwise. Free rotation (not limited to 90° steps).
@@ -49,10 +53,13 @@ export interface Furniture {
   color: string
 }
 
-// A labelled box drawn behind everything — e.g. to frame a floor.
+// A labelled box drawn behind everything — e.g. to frame a floor (frame) or to
+// indicate a closet (closet = diagonal-hatched shading).
+export type MarkerStyle = 'frame' | 'closet'
 export interface Marker {
   id: string
   name: string
+  style: MarkerStyle
   x: number
   y: number
   w: number

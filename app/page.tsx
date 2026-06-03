@@ -114,7 +114,10 @@ export default function Page() {
             <button className={`seg-btn${mode === 'door' ? ' on' : ''}`} onClick={() => setMode('door')}>
               ⌐ Add door
             </button>
-            <button className={`seg-btn${mode === 'marker' ? ' on' : ''}`} onClick={() => setMode('marker')} title="Draw a labelled box, e.g. to frame a floor">
+            <button className={`seg-btn${mode === 'window' ? ' on' : ''}`} onClick={() => setMode('window')} title="Place a window on a wall">
+              ⊟ Window
+            </button>
+            <button className={`seg-btn${mode === 'marker' ? ' on' : ''}`} onClick={() => setMode('marker')} title="Draw a labelled box, e.g. to frame a floor or a closet">
               ▢ Marker
             </button>
           </div>
@@ -171,7 +174,8 @@ export default function Page() {
           <p className="hint">
             {mode === 'room' && 'Click and drag on the grid to draw a room.'}
             {mode === 'marker' && 'Click and drag to draw a labelled box — handy for framing each floor.'}
-            {mode === 'door' && "Click a room's wall to place a door — it snaps onto the border. Drag to slide it along."}
+            {mode === 'door' && "Click a room's wall to place a door — it snaps onto the border. Drag to slide it along. (Switch to sliding in its settings.)"}
+            {mode === 'window' && "Click a room's wall to place a window — it snaps onto the border."}
             {mode === 'select' && 'Drag empty space to box-select · Shift-click to add · Space or middle-mouse drag to pan · Delete removes selection.'}
           </p>
         </div>
