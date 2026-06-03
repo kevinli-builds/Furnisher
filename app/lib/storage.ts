@@ -7,6 +7,7 @@ export function defaultPlan(): Plan {
     units: 'imperial',
     viewMode: 'sim',
     roomLabels: 'hover',
+    showGrid: true,
     width: 1200, // 12 m ≈ 39 ft
     height: 900, // 9 m  ≈ 29 ft
     rooms: [
@@ -29,6 +30,7 @@ export function loadPlan(): Plan {
       units: parsed.units === 'metric' ? 'metric' : 'imperial',
       viewMode: parsed.viewMode === 'schematic' ? 'schematic' : 'sim',
       roomLabels: parsed.roomLabels === 'always' ? 'always' : 'hover',
+      showGrid: parsed.showGrid !== false,
       width: parsed.width || 1200,
       height: parsed.height || 900,
       rooms: parsed.rooms ?? [],

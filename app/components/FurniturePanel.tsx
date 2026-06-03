@@ -3,8 +3,9 @@
 import { useState } from 'react'
 import type { Plan, Selection } from '../lib/types'
 import { uid, snap } from '../lib/geometry'
-import { inputUnit, toCm, formatSize } from '../lib/units'
+import { inputUnit, toCm, fromCm, formatSize } from '../lib/units'
 import { SWATCHES } from '../lib/palette'
+import { FURNITURE_TYPES, FURNITURE_META, type FurnitureType } from '../lib/furniture'
 
 interface Props {
   plan: Plan
@@ -17,36 +18,37 @@ export default function FurniturePanel({ plan, setPlan, sel, setSel }: Props) {
   const { units } = plan
   const u = inputUnit(units)
 
-  const [name, setName] = useState('')
-  const [w, setW] = useState(units === 'metric' ? '90' : '36')
-  const [d, setD] = useState(units === 'metric' ? '90' : '36')
+  const [type, setType] = useState<FurnitureType>('sofa')
+  const [name, setName] = useState(FURNITURE_META.sofa.label)
+  const [w, setW] = useState(String(fromCm(FURNITURE_META.sofa.w, units)))
+  const [d, setD] = useState(String(fromCm(FURNITURE_META.sofa.h, units)))
   const [color, setColor] = useState(SWATCHES[0])
+
+  // Picking a type prefills its typical size + name (unless you've renamed it).
+  function pickType(t: FurnitureType) {
+    setType(t)
+    setW(String(fromCm(FURNITURE_META[t].w, units)))
+    setD(String(fromCm(FURNITURE_META[t].h, units)))
+    setName((cur) => {
+      const wasLabel = (FURNITURE_TYPES as readonly string[]).some((k) => FURNITURE_META[k as FurnitureType].label === cur.trim())
+      return cur.trim() === '' || wasLabel ? FURNITURE_META[t].label : cur
+    })
+  }
 
   function add() {
     const wCm = snap(toCm(parseFloat(w) || 0, units))
     const hCm = snap(toCm(parseFloat(d) || 0, units))
     if (wCm < 10 || hCm < 10) return
     const id = uid()
-    // Drop it near the top-left, snapped, nudged so stacked adds don't overlap exactly.
     const offset = (plan.furniture.length % 6) * 30
     setPlan((pl) => ({
       ...pl,
       furniture: [
         ...pl.furniture,
-        {
-          id,
-          name: name.trim() || 'Furniture',
-          x: snap(100 + offset),
-          y: snap(100 + offset),
-          w: wCm,
-          h: hCm,
-          rotation: 0,
-          color,
-        },
+        { id, name: name.trim() || FURNITURE_META[type].label, type, x: snap(100 + offset), y: snap(100 + offset), w: wCm, h: hCm, rotation: 0, color },
       ],
     }))
     setSel({ type: 'furniture', id })
-    setName('')
   }
 
   return (
@@ -54,9 +56,19 @@ export default function FurniturePanel({ plan, setPlan, sel, setSel }: Props) {
       <h2 className="panel-title">Furniture</h2>
 
       <div className="add-form">
+        <label className="dim">
+          <span>Type</span>
+          <select className="field" value={type} onChange={(e) => pickType(e.target.value as FurnitureType)}>
+            {FURNITURE_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {FURNITURE_META[t].label}
+              </option>
+            ))}
+          </select>
+        </label>
         <input
           className="field"
-          placeholder="Name (e.g. Sofa)"
+          placeholder="Name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && add()}

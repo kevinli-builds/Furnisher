@@ -4,6 +4,7 @@ import type { Plan, Selection, Rotation } from '../lib/types'
 import { snap } from '../lib/geometry'
 import { inputUnit, toCm, fromCm, formatLength } from '../lib/units'
 import { SWATCHES } from '../lib/palette'
+import { FURNITURE_TYPES, FURNITURE_META, furnitureType, type FurnitureType } from '../lib/furniture'
 
 interface Props {
   plan: Plan
@@ -114,6 +115,24 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
           </section>
         )}
 
+        {/* Type — furniture */}
+        {furn && (
+          <section className="sect">
+            <label className="sect-label">Type</label>
+            <select
+              className="field"
+              value={furnitureType(furn.type)}
+              onChange={(e) => patchFurn({ type: e.target.value as FurnitureType })}
+            >
+              {FURNITURE_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {FURNITURE_META[t].label}
+                </option>
+              ))}
+            </select>
+          </section>
+        )}
+
         {/* Rotation + colour — furniture */}
         {furn && (
           <>
@@ -153,10 +172,15 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
         {door && (
           <>
             <section className="sect">
-              <label className="sect-label">Swing</label>
-              <button className="btn-ghost" onClick={() => patchDoor({ swing: (door.swing * -1) as 1 | -1 })}>
-                ⟲ Flip swing
-              </button>
+              <label className="sect-label">Swing &amp; hinge</label>
+              <div className="dim-row">
+                <button className="btn-ghost" onClick={() => patchDoor({ swing: (door.swing * -1) as 1 | -1 })}>
+                  ⤡ Flip swing
+                </button>
+                <button className="btn-ghost" onClick={() => patchDoor({ hinge: ((door.hinge ?? 1) * -1) as 1 | -1 })}>
+                  ⇄ Flip hinge
+                </button>
+              </div>
             </section>
             <section className="sect">
               <label className="sect-label">Width ({u})</label>

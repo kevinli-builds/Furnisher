@@ -7,12 +7,16 @@ import { usePlanHistory } from './lib/usePlanHistory'
 import Canvas from './components/Canvas'
 import FurniturePanel from './components/FurniturePanel'
 import SettingsPanel from './components/SettingsPanel'
+import AccountMenu from './components/AccountMenu'
+import ImportModal from './components/ImportModal'
+import ViewOptionsMenu from './components/ViewOptionsMenu'
 
 export default function Page() {
   const { plan, setPlan, undo, redo, replace, canUndo, canRedo } = usePlanHistory(defaultPlan())
   const [mode, setMode] = useState<Mode>('select')
   const [sel, setSel] = useState<Selection>(null)
   const [mounted, setMounted] = useState(false)
+  const [importMode, setImportMode] = useState<'blueprint' | 'furniture' | null>(null)
 
   // Load from localStorage after mount (avoids SSR/hydration mismatch).
   useEffect(() => {
@@ -63,18 +67,6 @@ export default function Page() {
 
   if (!mounted) return <div className="boot" />
 
-  const units = plan.units
-
-  function setUnits(u: Plan['units']) {
-    setPlan((p) => ({ ...p, units: u }))
-  }
-  function setView(v: Plan['viewMode']) {
-    setPlan((p) => ({ ...p, viewMode: v }))
-  }
-  function setRoomLabels(v: Plan['roomLabels']) {
-    setPlan((p) => ({ ...p, roomLabels: v }))
-  }
-
   return (
     <div className="app">
       <header className="topbar">
@@ -105,38 +97,14 @@ export default function Page() {
             </button>
           </div>
 
-          <div className="seg">
-            <button
-              className={`seg-btn${plan.viewMode === 'schematic' ? ' on' : ''}`}
-              onClick={() => setView('schematic')}
-              title="Flat boxes + labels — most minimal"
-            >
-              Schematic
-            </button>
-            <button
-              className={`seg-btn${plan.viewMode === 'sim' ? ' on' : ''}`}
-              onClick={() => setView('sim')}
-              title="Colour-filled furniture + door swings"
-            >
-              Simulator
-            </button>
-          </div>
+          <ViewOptionsMenu plan={plan} setPlan={setPlan} />
 
-          <div className="seg" title="When room names are shown">
-            <button className={`seg-btn${plan.roomLabels === 'always' ? ' on' : ''}`} onClick={() => setRoomLabels('always')}>
-              Names on
+          <div className="seg" title="Read a floor plan or furniture photo with Claude">
+            <button className="seg-btn" onClick={() => setImportMode('blueprint')}>
+              ⌖ Blueprint
             </button>
-            <button className={`seg-btn${plan.roomLabels === 'hover' ? ' on' : ''}`} onClick={() => setRoomLabels('hover')}>
-              On hover
-            </button>
-          </div>
-
-          <div className="seg">
-            <button className={`seg-btn${units === 'imperial' ? ' on' : ''}`} onClick={() => setUnits('imperial')}>
-              ft/in
-            </button>
-            <button className={`seg-btn${units === 'metric' ? ' on' : ''}`} onClick={() => setUnits('metric')}>
-              m/cm
+            <button className="seg-btn" onClick={() => setImportMode('furniture')}>
+              ⌖ Furniture
             </button>
           </div>
 
@@ -151,6 +119,14 @@ export default function Page() {
           >
             Reset
           </button>
+
+          <AccountMenu
+            plan={plan}
+            onLoadPlan={(p) => {
+              replace(p)
+              setSel(null)
+            }}
+          />
         </div>
       </header>
 
@@ -169,6 +145,8 @@ export default function Page() {
           {sel && <SettingsPanel key={`${sel.type}-${sel.id}`} plan={plan} setPlan={setPlan} sel={sel} setSel={setSel} />}
         </div>
       </main>
+
+      {importMode && <ImportModal mode={importMode} setPlan={setPlan} onClose={() => setImportMode(null)} />}
     </div>
   )
 }
