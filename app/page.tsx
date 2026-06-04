@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Plan, Mode, Selection } from './lib/types'
 import { loadPlan, savePlan, defaultPlan } from './lib/storage'
 import { usePlanHistory } from './lib/usePlanHistory'
@@ -18,6 +18,7 @@ export default function Page() {
   const [sel, setSel] = useState<Selection>([])
   const [mounted, setMounted] = useState(false)
   const [importMode, setImportMode] = useState<'blueprint' | 'furniture' | null>(null)
+  const clipboard = useRef<Pick<Plan, 'rooms' | 'doors' | 'furniture' | 'markers' | 'stairs'> | null>(null)
 
   // Load from localStorage after mount (avoids SSR/hydration mismatch).
   useEffect(() => {
@@ -50,6 +51,73 @@ export default function Page() {
         redo()
         return
       }
+
+      // Copy / paste / duplicate of the current selection.
+      const copy = () => {
+        const has = (t: string, id: string) => sel.some((s) => s.type === t && s.id === id)
+        clipboard.current = {
+          rooms: plan.rooms.filter((r) => has('room', r.id)),
+          doors: plan.doors.filter((d) => has('door', d.id)),
+          furniture: plan.furniture.filter((f) => has('furniture', f.id)),
+          markers: plan.markers.filter((m) => has('marker', m.id)),
+          stairs: plan.stairs.filter((s) => has('stair', s.id)),
+        }
+      }
+      const paste = () => {
+        const c = clipboard.current
+        if (!c) return
+        const O = 30 // offset each paste so copies don't sit exactly on top
+        const linkMap = new Map<string, string>()
+        const rooms = c.rooms.map((r) => ({ ...r, id: uid(), x: r.x + O, y: r.y + O }))
+        const furniture = c.furniture.map((f) => ({ ...f, id: uid(), x: f.x + O, y: f.y + O }))
+        const markers = c.markers.map((m) => ({ ...m, id: uid(), x: m.x + O, y: m.y + O }))
+        const doors = c.doors.map((d) => ({ ...d, id: uid(), x: d.x + O, y: d.y + O }))
+        const stairs = c.stairs.map((s) => {
+          let nl = linkMap.get(s.link)
+          if (!nl) {
+            nl = uid()
+            linkMap.set(s.link, nl)
+          }
+          return { ...s, id: uid(), link: nl, x: s.x + O, y: s.y + O }
+        })
+        setPlan((p) => ({
+          ...p,
+          rooms: [...p.rooms, ...rooms],
+          furniture: [...p.furniture, ...furniture],
+          markers: [...p.markers, ...markers],
+          doors: [...p.doors, ...doors],
+          stairs: [...p.stairs, ...stairs],
+        }))
+        setSel([
+          ...rooms.map((r) => ({ type: 'room' as const, id: r.id })),
+          ...furniture.map((f) => ({ type: 'furniture' as const, id: f.id })),
+          ...markers.map((m) => ({ type: 'marker' as const, id: m.id })),
+          ...doors.map((d) => ({ type: 'door' as const, id: d.id })),
+          ...stairs.map((s) => ({ type: 'stair' as const, id: s.id })),
+        ])
+        clipboard.current = { rooms, furniture, markers, doors, stairs } // cascade on repeat paste
+      }
+
+      if (meta && (e.key === 'c' || e.key === 'C')) {
+        if (typing || sel.length === 0) return
+        e.preventDefault()
+        copy()
+        return
+      }
+      if (meta && (e.key === 'v' || e.key === 'V')) {
+        if (typing || !clipboard.current) return
+        e.preventDefault()
+        paste()
+        return
+      }
+      if (meta && (e.key === 'd' || e.key === 'D')) {
+        if (typing || sel.length === 0) return
+        e.preventDefault()
+        copy()
+        paste()
+        return
+      }
+
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (typing || sel.length === 0) return
         e.preventDefault()
@@ -67,7 +135,7 @@ export default function Page() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [sel, undo, redo, setPlan])
+  }, [sel, plan, undo, redo, setPlan])
 
   // Add a linked entry+exit stair pair near the centre of existing content.
   function addStairs() {
