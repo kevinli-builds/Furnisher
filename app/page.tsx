@@ -9,7 +9,6 @@ import { furnitureType } from './lib/furniture'
 import type { FurnTemplate, RoomTemplate } from './lib/types'
 import Canvas from './components/Canvas'
 import InventoryPanel from './components/InventoryPanel'
-import FurniturePanel from './components/FurniturePanel'
 import SettingsPanel from './components/SettingsPanel'
 import AccountMenu from './components/AccountMenu'
 import ImportModal from './components/ImportModal'
@@ -279,10 +278,11 @@ export default function Page() {
           </p>
         </div>
 
-        <div className="right">
-          <FurniturePanel plan={plan} setPlan={setPlan} sel={sel} setSel={setSel} />
-          {sel.length === 1 && <SettingsPanel key={`${sel[0].type}-${sel[0].id}`} plan={plan} setPlan={setPlan} sel={sel[0]} setSel={setSel} />}
-        </div>
+        {sel.length === 1 && (
+          <div className="right">
+            <SettingsPanel key={`${sel[0].type}-${sel[0].id}`} plan={plan} setPlan={setPlan} sel={sel[0]} setSel={setSel} />
+          </div>
+        )}
       </main>
 
       {importMode && <ImportModal mode={importMode} setPlan={setPlan} onClose={() => setImportMode(null)} />}
