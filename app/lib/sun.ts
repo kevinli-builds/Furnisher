@@ -103,11 +103,14 @@ export function windowCones(plan: Plan, sun: Sun | null): LightCone[] {
     const bFarY = farCy - py * farHalf * sign
 
     const room = roomAtPoint(cx + nx * 14, cy + ny * 14, plan.rooms)
+    // Keep a visible floor so low-sun (morning/evening) light still reads,
+    // while still scaling with sun height + how square-on it hits the window.
+    const op = Math.min(0.62, 0.24 + 0.42 * sun.altitude * Math.min(1, facing + 0.2))
     cones.push({
       ax: cx,
       ay: cy,
       r: R,
-      op: 0.5 * sun.altitude * Math.min(1, facing + 0.25),
+      op,
       poly: `${ax},${ay} ${bx},${by} ${bFarX},${bFarY} ${aFarX},${aFarY}`,
       clip: room ? cornersToPoints(roomCorners(room)) : null,
     })
