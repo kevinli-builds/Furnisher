@@ -55,12 +55,71 @@ create policy "delete own plans" on public.projects for delete using (auth.uid()
    - **Site URL**: your production origin (e.g. `https://furnisher.vercel.app`)
    - **Redirect URLs**: add `http://localhost:3002` (dev) and your Vercel origin.
 
-## 4. Run
+## 4. Collaboration (sharing)
+
+Run this once to enable share-links + collaborator sync. It adds a members
+table, a share token, the policies that let collaborators read/edit a shared
+plan, and the `join_project` redemption function:
+
+```sql
+-- share token on each project
+alter table public.projects add column if not exists share_token uuid unique;
+
+-- who can access a project besides its owner
+create table if not exists public.project_members (
+  project_id uuid not null references public.projects (id) on delete cascade,
+  user_id    uuid not null references auth.users (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (project_id, user_id)
+);
+alter table public.project_members enable row level security;
+
+create policy "see relevant memberships" on public.project_members for select
+  using (user_id = auth.uid()
+         or exists (select 1 from public.projects p where p.id = project_id and p.user_id = auth.uid()));
+
+-- membership check (security definer avoids RLS recursion)
+create or replace function public.is_project_member(p uuid)
+  returns boolean language sql security definer set search_path = public as $$
+  select exists (select 1 from public.project_members where project_id = p and user_id = auth.uid());
+$$;
+
+-- collaborators can read + edit shared plans (these OR with the owner policies)
+create policy "members read"   on public.projects for select using (public.is_project_member(id));
+create policy "members update" on public.projects for update using (public.is_project_member(id)) with check (public.is_project_member(id));
+
+-- redeem a share token → become a member; returns the project id
+create or replace function public.join_project(p_token uuid)
+  returns uuid language plpgsql security definer set search_path = public as $$
+declare pid uuid;
+begin
+  select id into pid from public.projects where share_token = p_token;
+  if pid is null then return null; end if;
+  insert into public.project_members (project_id, user_id) values (pid, auth.uid()) on conflict do nothing;
+  return pid;
+end; $$;
+grant execute on function public.join_project(uuid) to authenticated;
+```
+
+Then enable **Realtime** so collaborators' saves stream live:
+
+```sql
+alter publication supabase_realtime add table public.projects;
+```
+
+(or Supabase → **Database → Replication** → add `projects` to `supabase_realtime`.)
+
+How it works in the app: open a cloud plan → it **auto-saves** (debounced) and
+listens for changes. Click the **🔗** next to a plan you own to copy a share
+link (`…/?join=<token>`). Anyone who opens that link while signed in joins as a
+collaborator; everyone editing the same plan syncs, last write wins.
+
+## 5. Run
 
 ```
 npm run dev    # http://localhost:3002
 ```
 
 A "Sign in" button appears top-right once the env vars are set. Sign in, then use
-the **☁ My plans** menu to Save / Save as / open / rename / delete plans.
+the **☁ My plans** menu to Save / Save as / open / rename / delete / share plans.
 If the env vars are absent, the login UI simply stays hidden.

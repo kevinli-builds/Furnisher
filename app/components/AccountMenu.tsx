@@ -3,14 +3,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Plan } from '../lib/types'
 import { defaultPlan } from '../lib/storage'
-import { supabaseEnabled } from '../lib/supabase'
+import { supabase, supabaseEnabled } from '../lib/supabase'
 import { useAuth, signInWithGoogle, signOut } from '../lib/auth'
-import { listProjects, createProject, updateProject, deleteProject, type ProjectRow } from '../lib/projects'
+import {
+  listProjects,
+  createProject,
+  updateProject,
+  deleteProject,
+  enableSharing,
+  joinByToken,
+  getProject,
+  type ProjectRow,
+} from '../lib/projects'
 
 interface Props {
   plan: Plan
   onLoadPlan: (p: Plan) => void
 }
+
+const PENDING_JOIN = 'furnisher.pendingJoin'
 
 export default function AccountMenu({ plan, onLoadPlan }: Props) {
   const { user, ready } = useAuth()
@@ -21,6 +32,12 @@ export default function AccountMenu({ plan, onLoadPlan }: Props) {
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('')
   const wrapRef = useRef<HTMLDivElement>(null)
+
+  // Latest plan, for use inside async callbacks/timeouts without stale closures.
+  const planRef = useRef(plan)
+  planRef.current = plan
+  // Skip the autosave that an applied remote update would otherwise trigger.
+  const skipNextSave = useRef(false)
 
   const refresh = useCallback(async () => {
     try {
@@ -38,6 +55,79 @@ export default function AccountMenu({ plan, onLoadPlan }: Props) {
     }
   }, [user, refresh])
 
+  // Stash a ?join token immediately so it survives the OAuth redirect.
+  useEffect(() => {
+    const t = new URL(window.location.href).searchParams.get('join')
+    if (t) localStorage.setItem(PENDING_JOIN, t)
+  }, [])
+
+  // Once signed in, redeem any pending share token and open that plan.
+  useEffect(() => {
+    if (!user) return
+    const url = new URL(window.location.href)
+    const token = url.searchParams.get('join') || localStorage.getItem(PENDING_JOIN)
+    if (!token) return
+    localStorage.removeItem(PENDING_JOIN)
+    if (url.searchParams.has('join')) {
+      url.searchParams.delete('join')
+      window.history.replaceState({}, '', url.toString())
+    }
+    ;(async () => {
+      try {
+        const pid = await joinByToken(token)
+        if (!pid) {
+          flash('Share link is invalid')
+          return
+        }
+        const row = await getProject(pid)
+        if (row) {
+          skipNextSave.current = true
+          onLoadPlan(row.data)
+          setCurrentId(row.id)
+          setCurrentName(row.name)
+          await refresh()
+          flash('Joined shared plan')
+        }
+      } catch {
+        flash('Could not open shared plan')
+      }
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
+
+  // Autosave the open cloud project (debounced) so collaborators stay in sync.
+  useEffect(() => {
+    if (!user || !currentId) return
+    if (skipNextSave.current) {
+      skipNextSave.current = false
+      return
+    }
+    const t = setTimeout(() => {
+      updateProject(currentId, { data: planRef.current }).catch(() => {})
+    }, 1200)
+    return () => clearTimeout(t)
+  }, [plan, currentId, user])
+
+  // Realtime: apply edits made by collaborators to the open project.
+  useEffect(() => {
+    if (!currentId || !supabase) return
+    const ch = supabase
+      .channel(`proj-${currentId}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'projects', filter: `id=eq.${currentId}` }, (payload) => {
+        const next = (payload.new as { data?: Plan } | null)?.data
+        if (next && JSON.stringify(next) !== JSON.stringify(planRef.current)) {
+          skipNextSave.current = true
+          onLoadPlan(next)
+          flash('Updated by a collaborator')
+        }
+      })
+      .subscribe()
+    return () => {
+      supabase?.removeChannel(ch)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentId])
+
   // Close on outside click.
   useEffect(() => {
     if (!open) return
@@ -50,14 +140,14 @@ export default function AccountMenu({ plan, onLoadPlan }: Props) {
 
   function flash(msg: string) {
     setStatus(msg)
-    setTimeout(() => setStatus(''), 2000)
+    setTimeout(() => setStatus(''), 2500)
   }
 
   if (!supabaseEnabled || !ready) return null
 
   if (!user) {
     return (
-      <button className="seg-btn solo google-btn" onClick={signInWithGoogle} title="Sign in to save projects to the cloud">
+      <button className="seg-btn solo google-btn" onClick={signInWithGoogle} title="Sign in to save & share projects">
         <GoogleG /> Sign in
       </button>
     )
@@ -80,7 +170,7 @@ export default function AccountMenu({ plan, onLoadPlan }: Props) {
       }
       await refresh()
       flash('Saved ✓')
-    } catch (e) {
+    } catch {
       flash('Save failed')
     } finally {
       setBusy(false)
@@ -105,6 +195,7 @@ export default function AccountMenu({ plan, onLoadPlan }: Props) {
   }
 
   function openProject(row: ProjectRow) {
+    skipNextSave.current = true
     onLoadPlan(row.data)
     setCurrentId(row.id)
     setCurrentName(row.name)
@@ -137,6 +228,18 @@ export default function AccountMenu({ plan, onLoadPlan }: Props) {
     await refresh()
   }
 
+  async function share(row: ProjectRow) {
+    try {
+      const token = row.share_token ?? (await enableSharing(row.id))
+      const link = `${window.location.origin}/?join=${token}`
+      await navigator.clipboard.writeText(link)
+      await refresh()
+      flash('Share link copied ✓')
+    } catch {
+      flash('Could not create link')
+    }
+  }
+
   return (
     <div className="account" ref={wrapRef}>
       <button className="seg-btn solo" onClick={() => setOpen((o) => !o)}>
@@ -167,21 +270,38 @@ export default function AccountMenu({ plan, onLoadPlan }: Props) {
 
           <div className="account-list">
             {projects.length === 0 && <p className="empty sm">No saved plans yet.</p>}
-            {projects.map((p) => (
-              <div key={p.id} className={`proj${currentId === p.id ? ' on' : ''}`}>
-                <button className="proj-open" onClick={() => openProject(p)} title="Open">
-                  <span className="proj-name">{p.name}</span>
-                  <span className="proj-date">{new Date(p.updated_at).toLocaleDateString()}</span>
-                </button>
-                <button className="proj-act" onClick={() => rename(p)} title="Rename">
-                  ✎
-                </button>
-                <button className="proj-act danger" onClick={() => remove(p)} title="Delete">
-                  ✕
-                </button>
-              </div>
-            ))}
+            {projects.map((p) => {
+              const owner = p.user_id === user.id
+              return (
+                <div key={p.id} className={`proj${currentId === p.id ? ' on' : ''}`}>
+                  <button className="proj-open" onClick={() => openProject(p)} title="Open">
+                    <span className="proj-name">
+                      {p.name}
+                      {!owner && <span className="proj-tag">shared</span>}
+                      {owner && p.share_token && <span className="proj-tag">shared by you</span>}
+                    </span>
+                    <span className="proj-date">{new Date(p.updated_at).toLocaleDateString()}</span>
+                  </button>
+                  {owner && (
+                    <button className="proj-act" onClick={() => share(p)} title="Copy share link">
+                      🔗
+                    </button>
+                  )}
+                  {owner && (
+                    <button className="proj-act" onClick={() => rename(p)} title="Rename">
+                      ✎
+                    </button>
+                  )}
+                  {owner && (
+                    <button className="proj-act danger" onClick={() => remove(p)} title="Delete">
+                      ✕
+                    </button>
+                  )}
+                </div>
+              )
+            })}
           </div>
+          <p className="inv-hint">Open a plan to auto-save &amp; sync. Share a plan to collaborate (last edit wins).</p>
         </div>
       )}
     </div>
