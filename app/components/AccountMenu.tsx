@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Plan } from '../lib/types'
 import { defaultPlan } from '../lib/storage'
-import { supabase, supabaseEnabled } from '../lib/supabase'
+import { supabaseEnabled } from '../lib/supabase'
 import { useAuth, signInWithGoogle, signOut } from '../lib/auth'
 import {
   listProjects,
@@ -19,12 +19,13 @@ import {
 interface Props {
   plan: Plan
   onLoadPlan: (p: Plan) => void
+  onProjectChange?: (id: string | null) => void
 }
 
 const PENDING_JOIN = 'furnisher.pendingJoin'
 const CURRENT_KEY = 'furnisher.currentProject'
 
-export default function AccountMenu({ plan, onLoadPlan }: Props) {
+export default function AccountMenu({ plan, onLoadPlan, onProjectChange }: Props) {
   const { user, ready } = useAuth()
   const [open, setOpen] = useState(false)
   const [projects, setProjects] = useState<ProjectRow[]>([])
@@ -124,25 +125,8 @@ export default function AccountMenu({ plan, onLoadPlan }: Props) {
     return () => clearTimeout(t)
   }, [plan, currentId, user])
 
-  // Realtime: apply edits made by collaborators to the open project.
-  useEffect(() => {
-    if (!currentId || !supabase) return
-    const ch = supabase
-      .channel(`proj-${currentId}`)
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'projects', filter: `id=eq.${currentId}` }, (payload) => {
-        const next = (payload.new as { data?: Plan } | null)?.data
-        if (next && JSON.stringify(next) !== JSON.stringify(planRef.current)) {
-          skipNextSave.current = true
-          onLoadPlan(next)
-          flash('Updated by a collaborator')
-        }
-      })
-      .subscribe()
-    return () => {
-      supabase?.removeChannel(ch)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentId])
+  // (Live collaborator sync is handled by useCollab via op broadcast; the DB row
+  // is just durability + initial load.)
 
   // Close on outside click.
   useEffect(() => {
@@ -163,6 +147,7 @@ export default function AccountMenu({ plan, onLoadPlan }: Props) {
   function rememberCurrent(id: string | null, name: string) {
     setCurrentId(id)
     setCurrentName(name)
+    onProjectChange?.(id) // drives the live-collaboration channel
     try {
       if (id) localStorage.setItem(CURRENT_KEY, JSON.stringify({ id, name }))
       else localStorage.removeItem(CURRENT_KEY)

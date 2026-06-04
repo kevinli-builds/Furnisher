@@ -7,6 +7,7 @@ import { DOOR_LEN, swingForCursor, doorBox, doorGeom } from '../lib/door'
 import { sunAt, timeTint, formatHour, windowCones, lampGlows } from '../lib/sun'
 import { formatSize } from '../lib/units'
 import { furnitureType } from '../lib/furniture'
+import type { Peer } from '../lib/collab'
 import FurnitureGlyph from './FurnitureGlyph'
 
 interface Props {
@@ -16,6 +17,8 @@ interface Props {
   setMode: (m: Mode) => void
   sel: Selection
   setSel: (s: Selection) => void
+  peers?: Peer[]
+  onPointer?: (x: number, y: number) => void
 }
 
 type OrigPos = { t: 'room' | 'door' | 'furniture' | 'marker' | 'stair'; id: string; x: number; y: number }
@@ -37,7 +40,7 @@ interface View {
   scale: number // pixels per cm (0 = not yet initialised)
 }
 
-export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Props) {
+export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peers = [], onPointer }: Props) {
   const hostRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
   const drag = useRef<Drag>(null)
@@ -432,6 +435,10 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
 
   // ── Move / resize / pan / marquee ─────────────────────────────
   function onMove(e: React.PointerEvent) {
+    if (onPointer) {
+      const c = toCm(e)
+      onPointer(c.x, c.y)
+    }
     const d = drag.current
     if (!d) {
       if (mode === 'door' || mode === 'window') {
@@ -1041,6 +1048,18 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
         {/* Marquee selection box */}
         {marquee && (
           <rect x={marquee.x} y={marquee.y} width={marquee.w} height={marquee.h} fill="rgba(181,113,78,0.07)" stroke="#b5714e" strokeWidth={1} strokeDasharray="4 3" vectorEffect="non-scaling-stroke" pointerEvents="none" />
+        )}
+
+        {/* Collaborator cursors (constant on-screen size via 1/scale) */}
+        {peers.map((pr) =>
+          pr.x == null || pr.y == null ? null : (
+            <g key={pr.id} pointerEvents="none">
+              <circle cx={pr.x} cy={pr.y} r={6 / scale} fill={pr.color} stroke="#fff" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+              <text x={pr.x + 12 / scale} y={pr.y - 8 / scale} fontSize={12 / scale} fill={pr.color} fontWeight={700}>
+                {pr.name}
+              </text>
+            </g>
+          ),
         )}
       </svg>
 

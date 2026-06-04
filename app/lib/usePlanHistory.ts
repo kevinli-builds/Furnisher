@@ -82,9 +82,19 @@ export function usePlanHistory(initial: Plan) {
     [endBurst],
   )
 
+  // Apply a remote (collaborator) change without recording history, so undo
+  // only ever reverts the local user's own actions.
+  const applyRemote = useCallback((arg: Updater) => {
+    const next = typeof arg === 'function' ? (arg as (p: Plan) => Plan)(planRef.current) : arg
+    if (next === planRef.current) return
+    planRef.current = next
+    setState(next)
+  }, [])
+
   return {
     plan,
     setPlan,
+    applyRemote,
     undo,
     redo,
     replace,

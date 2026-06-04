@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Plan, Mode, Selection } from './lib/types'
 import { loadPlan, savePlan, defaultPlan } from './lib/storage'
 import { usePlanHistory } from './lib/usePlanHistory'
+import { useCollab } from './lib/collab'
 import { uid, snap } from './lib/geometry'
 import { furnitureType } from './lib/furniture'
 import type { FurnTemplate, RoomTemplate, MarkerTemplate } from './lib/types'
@@ -15,11 +16,13 @@ import ImportModal from './components/ImportModal'
 import ViewOptionsMenu from './components/ViewOptionsMenu'
 
 export default function Page() {
-  const { plan, setPlan, undo, redo, replace, canUndo, canRedo } = usePlanHistory(defaultPlan())
+  const { plan, setPlan, applyRemote, undo, redo, replace, canUndo, canRedo } = usePlanHistory(defaultPlan())
   const [mode, setMode] = useState<Mode>('select')
   const [sel, setSel] = useState<Selection>([])
   const [mounted, setMounted] = useState(false)
   const [importMode, setImportMode] = useState<'blueprint' | 'furniture' | null>(null)
+  const [collabId, setCollabId] = useState<string | null>(null)
+  const { peers, onPointer } = useCollab(collabId, plan, applyRemote)
   const clipboard = useRef<Pick<Plan, 'rooms' | 'doors' | 'furniture' | 'markers' | 'stairs'> | null>(null)
 
   // Load from localStorage after mount (avoids SSR/hydration mismatch).
@@ -253,6 +256,7 @@ export default function Page() {
               replace(p)
               setSel([])
             }}
+            onProjectChange={setCollabId}
           />
         </div>
       </header>
@@ -273,7 +277,7 @@ export default function Page() {
           <div className="display-fab">
             <ViewOptionsMenu plan={plan} setPlan={setPlan} />
           </div>
-          <Canvas plan={plan} setPlan={setPlan} mode={mode} setMode={setMode} sel={sel} setSel={setSel} />
+          <Canvas plan={plan} setPlan={setPlan} mode={mode} setMode={setMode} sel={sel} setSel={setSel} peers={peers} onPointer={onPointer} />
           <p className="hint">
             {mode === 'room' && 'Click and drag on the grid to draw a room.'}
             {mode === 'marker' && 'Click and drag to draw a labelled box — handy for framing each floor.'}

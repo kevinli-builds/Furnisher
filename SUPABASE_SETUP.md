@@ -129,10 +129,19 @@ create trigger guard_project_owner_cols before update on public.projects
 
 (or Supabase → **Database → Replication** → add `projects` to `supabase_realtime`.)
 
-How it works in the app: open a cloud plan → it **auto-saves** (debounced) and
-listens for changes. Click the **🔗** next to a plan you own to copy a share
-link (`…/?join=<token>`). Anyone who opens that link while signed in joins as a
-collaborator; everyone editing the same plan syncs, last write wins.
+How it works in the app: open a cloud plan → it **auto-saves** (debounced) for
+durability. Live editing is **real-time**: each client broadcasts per-object
+edits over a Supabase Realtime channel (`collab:<projectId>`) and shows
+collaborator **cursors** via Presence — so two people moving different pieces
+see each other instantly without clobbering. Click the **🔗** next to a plan you
+own to copy a share link (`…/?join=<token>`); anyone who opens it while signed
+in joins.
+
+Realtime **broadcast + presence work out of the box** (no extra SQL). The
+channel name embeds the project's UUID (only members can discover it via the
+RLS-protected table). To lock the channel down further, enable **Realtime
+Authorization** (private channels) and add an RLS policy on `realtime.messages`
+restricting `collab:<projectId>` to that project's members — optional hardening.
 
 ## 5. Run
 
