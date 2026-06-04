@@ -13,13 +13,19 @@ export type ViewMode = 'schematic' | 'sim'
 // When room name labels are shown.
 export type RoomLabels = 'always' | 'hover'
 
+export interface Pt {
+  x: number
+  y: number
+}
+
 export interface Room {
   id: string
   name: string
-  x: number
+  x: number // bounding box (kept in sync with points when present)
   y: number
   w: number
   h: number
+  points?: Pt[] // polygon vertices (absolute cm); absent = plain rectangle
 }
 
 // A wall opening: a swinging door, a sliding door, or a window.

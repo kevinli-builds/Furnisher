@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { Plan, Mode, Selection, SelItem, Door } from '../lib/types'
-import { snap, clamp, uid, snapDoorToWalls, overlaps, gridStep, MIN_ROOM, MIN_SCALE, MAX_SCALE, type Box } from '../lib/geometry'
+import type { Plan, Mode, Selection, SelItem, Door, Pt } from '../lib/types'
+import { snap, clamp, uid, snapDoorToWalls, overlaps, gridStep, roomCorners, bboxOf, MIN_ROOM, MIN_SCALE, MAX_SCALE, type Box } from '../lib/geometry'
 import { DOOR_LEN, swingForCursor, doorBox, doorGeom } from '../lib/door'
 import { formatSize } from '../lib/units'
 import { furnitureType } from '../lib/furniture'
@@ -24,7 +24,8 @@ type Drag =
   | { kind: 'marquee'; ox: number; oy: number }
   | { kind: 'pan'; cx0: number; cy0: number; vx0: number; vy0: number }
   | { kind: 'move-sel'; sx: number; sy: number; orig: OrigPos[]; click: SelItem; moved: boolean }
-  | { kind: 'move-room' | 'resize-room' | 'resize-marker'; id: string; sx: number; sy: number; ox: number; oy: number; ow: number; oh: number }
+  | { kind: 'move-room' | 'resize-room' | 'resize-marker'; id: string; sx: number; sy: number; ox: number; oy: number; ow: number; oh: number; pts?: Pt[] }
+  | { kind: 'move-node'; id: string; idx: number; sx: number; sy: number }
   | { kind: 'move-furniture' | 'move-door' | 'move-marker' | 'move-stair'; id: string; sx: number; sy: number; ox: number; oy: number }
   | null
 
@@ -329,7 +330,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
     onObjDown(e, { type: 'room', id }, () => {
       const r = plan.rooms.find((r) => r.id === id)!
       const p = toCm(e)
-      drag.current = { kind: 'move-room', id, sx: p.x, sy: p.y, ox: r.x, oy: r.y, ow: r.w, oh: r.h }
+      drag.current = { kind: 'move-room', id, sx: p.x, sy: p.y, ox: r.x, oy: r.y, ow: r.w, oh: r.h, pts: r.points }
       capture(e)
     })
   }
@@ -341,6 +342,38 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
     drag.current = { kind: 'resize-room', id, sx: p.x, sy: p.y, ox: r.x, oy: r.y, ow: r.w, oh: r.h }
     setSel([{ type: 'room', id }])
     capture(e)
+  }
+
+  // ── Polygon room node editing ─────────────────────────────────
+  function setRoomPoints(id: string, pts: Pt[]) {
+    const bb = bboxOf(pts)
+    setPlan((pl) => ({ ...pl, rooms: pl.rooms.map((r) => (r.id === id ? { ...r, points: pts, ...bb } : r)) }))
+  }
+
+  function onNodeDown(e: React.PointerEvent, id: string, idx: number) {
+    e.stopPropagation()
+    const p = toCm(e)
+    drag.current = { kind: 'move-node', id, idx, sx: p.x, sy: p.y }
+    setSel([{ type: 'room', id }])
+    capture(e)
+  }
+
+  function insertNode(e: React.PointerEvent, id: string, edge: number) {
+    e.stopPropagation()
+    const r = plan.rooms.find((r) => r.id === id)!
+    const pts = roomCorners(r)
+    const a = pts[edge]
+    const b = pts[(edge + 1) % pts.length]
+    const mid = { x: snap((a.x + b.x) / 2), y: snap((a.y + b.y) / 2) }
+    setRoomPoints(id, [...pts.slice(0, edge + 1), mid, ...pts.slice(edge + 1)])
+    setSel([{ type: 'room', id }])
+  }
+
+  function deleteNode(e: React.MouseEvent, id: string, idx: number) {
+    e.stopPropagation()
+    const r = plan.rooms.find((r) => r.id === id)
+    if (!r?.points || r.points.length <= 3) return
+    setRoomPoints(id, r.points.filter((_, i) => i !== idx))
   }
 
   function onFurnDown(e: React.PointerEvent, id: string) {
@@ -462,7 +495,24 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
     const dy = p.y - d.sy
 
     if (d.kind === 'move-room') {
-      setPlan((pl) => ({ ...pl, rooms: pl.rooms.map((r) => (r.id === d.id ? { ...r, x: snap(d.ox + dx), y: snap(d.oy + dy) } : r)) }))
+      const ndx = snap(d.ox + dx) - d.ox
+      const ndy = snap(d.oy + dy) - d.oy
+      if (d.pts) {
+        const np = d.pts.map((pt) => ({ x: pt.x + ndx, y: pt.y + ndy }))
+        const bb = bboxOf(np)
+        setPlan((pl) => ({ ...pl, rooms: pl.rooms.map((r) => (r.id === d.id ? { ...r, points: np, ...bb } : r)) }))
+      } else {
+        setPlan((pl) => ({ ...pl, rooms: pl.rooms.map((r) => (r.id === d.id ? { ...r, x: d.ox + ndx, y: d.oy + ndy } : r)) }))
+      }
+    } else if (d.kind === 'move-node') {
+      setPlan((pl) => ({
+        ...pl,
+        rooms: pl.rooms.map((r) => {
+          if (r.id !== d.id || !r.points) return r
+          const np = r.points.map((pt, i) => (i === d.idx ? { x: snap(p.x), y: snap(p.y) } : pt))
+          return { ...r, points: np, ...bboxOf(np) }
+        }),
+      }))
     } else if (d.kind === 'resize-room') {
       const nw = Math.max(MIN_ROOM, snap(d.ow + dx))
       const nh = Math.max(MIN_ROOM, snap(d.oh + dy))
@@ -650,20 +700,37 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
           const above = spaceAbove(r)
           const dimY = above ? r.y - 7 : r.y + roomName + roomDim + 12
           const nameY = above ? r.y - 7 - (roomDim + 3) : r.y + roomName + 6
+          const corners = roomCorners(r)
+          const isPoly = !!(r.points && r.points.length >= 3)
+          const fill = active ? 'rgba(181,113,78,0.06)' : 'rgba(74,65,54,0.02)'
+          const stroke = active ? '#b5714e' : '#b3a78f'
+          const sw = active ? 3 : 1.75
           return (
             <g key={r.id} onPointerEnter={() => setHoverRoom(r.id)} onPointerLeave={() => setHoverRoom((h) => (h === r.id ? null : h))}>
-              <rect
-                x={r.x}
-                y={r.y}
-                width={r.w}
-                height={r.h}
-                fill={active ? 'rgba(181,113,78,0.06)' : 'rgba(74,65,54,0.02)'}
-                stroke={active ? '#b5714e' : '#b3a78f'}
-                strokeWidth={active ? 3 : 1.75}
-                vectorEffect="non-scaling-stroke"
-                style={{ cursor: 'move' }}
-                onPointerDown={(e) => onRoomDown(e, r.id)}
-              />
+              {isPoly ? (
+                <polygon
+                  points={corners.map((c) => `${c.x},${c.y}`).join(' ')}
+                  fill={fill}
+                  stroke={stroke}
+                  strokeWidth={sw}
+                  vectorEffect="non-scaling-stroke"
+                  style={{ cursor: 'move' }}
+                  onPointerDown={(e) => onRoomDown(e, r.id)}
+                />
+              ) : (
+                <rect
+                  x={r.x}
+                  y={r.y}
+                  width={r.w}
+                  height={r.h}
+                  fill={fill}
+                  stroke={stroke}
+                  strokeWidth={sw}
+                  vectorEffect="non-scaling-stroke"
+                  style={{ cursor: 'move' }}
+                  onPointerDown={(e) => onRoomDown(e, r.id)}
+                />
+              )}
               {showLabel && (
                 <>
                   <text x={r.x + 10} y={nameY} fontSize={roomName} fill="#8a7e6b" fontWeight={500} pointerEvents="none">
@@ -675,7 +742,45 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
                 </>
               )}
               {active && sel.length === 1 && (
-                <rect x={r.x + r.w - 14} y={r.y + r.h - 14} width={28} height={28} fill="#b5714e" rx={3} style={{ cursor: 'nwse-resize' }} onPointerDown={(e) => onRoomResize(e, r.id)} />
+                <>
+                  {/* Edge midpoints: click to insert a corner (reshape) */}
+                  {corners.map((a, i) => {
+                    const b = corners[(i + 1) % corners.length]
+                    return (
+                      <circle
+                        key={`e${i}`}
+                        cx={(a.x + b.x) / 2}
+                        cy={(a.y + b.y) / 2}
+                        r={9}
+                        fill="#fff"
+                        stroke="#b5714e"
+                        strokeWidth={2}
+                        vectorEffect="non-scaling-stroke"
+                        style={{ cursor: 'copy' }}
+                        onPointerDown={(e) => insertNode(e, r.id, i)}
+                      />
+                    )
+                  })}
+                  {/* Vertices (polygon only): drag to move, double-click to delete */}
+                  {isPoly &&
+                    corners.map((c, i) => (
+                      <circle
+                        key={`v${i}`}
+                        cx={c.x}
+                        cy={c.y}
+                        r={11}
+                        fill="#b5714e"
+                        vectorEffect="non-scaling-stroke"
+                        style={{ cursor: 'move' }}
+                        onPointerDown={(e) => onNodeDown(e, r.id, i)}
+                        onDoubleClick={(e) => deleteNode(e, r.id, i)}
+                      />
+                    ))}
+                  {/* Rectangles keep the corner resize handle */}
+                  {!isPoly && (
+                    <rect x={r.x + r.w - 14} y={r.y + r.h - 14} width={28} height={28} fill="#b5714e" rx={3} style={{ cursor: 'nwse-resize' }} onPointerDown={(e) => onRoomResize(e, r.id)} />
+                  )}
+                </>
               )}
             </g>
           )

@@ -1,6 +1,6 @@
 // Grid + snapping helpers. Everything is in centimetres.
 
-import type { Room, Units } from './types'
+import type { Room, Units, Pt } from './types'
 
 export const SNAP = 10 // snap increment (cm)
 export const GRID_MINOR = 50 // light grid line every 50 cm
@@ -46,6 +46,25 @@ export function uid(): string {
   return Math.random().toString(36).slice(2)
 }
 
+// A room's polygon corners: its `points` if it's a polygon, else the 4 rect corners.
+export function roomCorners(r: { x: number; y: number; w: number; h: number; points?: Pt[] }): Pt[] {
+  if (r.points && r.points.length >= 3) return r.points
+  return [
+    { x: r.x, y: r.y },
+    { x: r.x + r.w, y: r.y },
+    { x: r.x + r.w, y: r.y + r.h },
+    { x: r.x, y: r.y + r.h },
+  ]
+}
+
+export function bboxOf(pts: Pt[]): Box {
+  const xs = pts.map((p) => p.x)
+  const ys = pts.map((p) => p.y)
+  const x = Math.min(...xs)
+  const y = Math.min(...ys)
+  return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y }
+}
+
 // Snap a point to the nearest room wall, returning where a door of `length`
 // should sit (its start corner), the wall's orientation, and how far the point
 // was from that wall. Doors are always glued to a border this way — you just
@@ -63,21 +82,26 @@ export function snapDoorToWalls(px: number, py: number, length: number, rooms: R
     if (!best || s.dist < best.dist) best = s
   }
   for (const r of rooms) {
-    const x1 = r.x
-    const x2 = r.x + r.w
-    const y1 = r.y
-    const y2 = r.y + r.h
-    // Horizontal walls (top & bottom): door slides in x, fixed y.
-    for (const wy of [y1, y2]) {
-      const cx = clamp(px, x1, x2)
-      const start = clamp(snap(cx - length / 2), x1, Math.max(x1, x2 - length))
-      consider({ x: start, y: wy, orientation: 'h', dist: Math.hypot(px - cx, py - wy) })
-    }
-    // Vertical walls (left & right): door slides in y, fixed x.
-    for (const wx of [x1, x2]) {
-      const cy = clamp(py, y1, y2)
-      const start = clamp(snap(cy - length / 2), y1, Math.max(y1, y2 - length))
-      consider({ x: wx, y: start, orientation: 'v', dist: Math.hypot(px - wx, py - cy) })
+    const corners = roomCorners(r)
+    for (let i = 0; i < corners.length; i++) {
+      const a = corners[i]
+      const b = corners[(i + 1) % corners.length]
+      if (Math.abs(a.y - b.y) < 0.5) {
+        // Horizontal wall segment at y = a.y, spanning x in [lo, hi].
+        const lo = Math.min(a.x, b.x)
+        const hi = Math.max(a.x, b.x)
+        const cx = clamp(px, lo, hi)
+        const start = clamp(snap(cx - length / 2), lo, Math.max(lo, hi - length))
+        consider({ x: start, y: a.y, orientation: 'h', dist: Math.hypot(px - cx, py - a.y) })
+      } else if (Math.abs(a.x - b.x) < 0.5) {
+        // Vertical wall segment at x = a.x, spanning y in [lo, hi].
+        const lo = Math.min(a.y, b.y)
+        const hi = Math.max(a.y, b.y)
+        const cy = clamp(py, lo, hi)
+        const start = clamp(snap(cy - length / 2), lo, Math.max(lo, hi - length))
+        consider({ x: a.x, y: start, orientation: 'v', dist: Math.hypot(px - a.x, py - cy) })
+      }
+      // Diagonal segments don't attract axis-aligned doors (skipped).
     }
   }
   return best

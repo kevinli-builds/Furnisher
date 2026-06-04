@@ -134,6 +134,26 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
           </section>
         )}
 
+        {/* Room shape */}
+        {room && (
+          <section className="sect">
+            <label className="sect-label">Shape</label>
+            {room.points ? (
+              <>
+                <p className="sect-note">Drag corner dots to reshape · white edge dots add a corner · double-click a corner to remove it.</p>
+                <button
+                  className="btn-ghost"
+                  onClick={() => setPlan((p) => ({ ...p, rooms: p.rooms.map((r) => (r.id === sel.id ? { id: r.id, name: r.name, x: r.x, y: r.y, w: r.w, h: r.h } : r)) }))}
+                >
+                  Reset to rectangle
+                </button>
+              </>
+            ) : (
+              <p className="sect-note">Click a white dot on an edge to add a corner and make a non-square room.</p>
+            )}
+          </section>
+        )}
+
         {/* Stair controls */}
         {stair && (
           <>
