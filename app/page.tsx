@@ -250,6 +250,17 @@ export default function Page() {
             Reset
           </button>
 
+          {peers.length > 0 && (
+            <div className="presence" title={`${peers.length} collaborator${peers.length === 1 ? '' : 's'} online`}>
+              {peers.slice(0, 5).map((p) => (
+                <span key={p.id} className="avatar" style={{ background: p.color }} title={p.name}>
+                  {p.name.slice(0, 1).toUpperCase()}
+                </span>
+              ))}
+              {peers.length > 5 && <span className="avatar more">+{peers.length - 5}</span>}
+            </div>
+          )}
+
           <AccountMenu
             plan={plan}
             onLoadPlan={(p) => {

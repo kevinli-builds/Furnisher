@@ -9,6 +9,8 @@ import { formatSize } from '../lib/units'
 import { furnitureType } from '../lib/furniture'
 import type { Peer } from '../lib/collab'
 import FurnitureGlyph from './FurnitureGlyph'
+import LightingLayer from './LightingLayer'
+import PeerCursors from './PeerCursors'
 
 interface Props {
   plan: Plan
@@ -1009,36 +1011,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
         })}
 
         {/* Lighting overlay: time-of-day wash + window cones + lamp glows */}
-        {plan.lighting && tint && (
-          <g pointerEvents="none">
-            <defs>
-              {cones.map((c, i) => (
-                <radialGradient key={`cg${i}`} id={`cone-${i}`} gradientUnits="userSpaceOnUse" cx={c.ax} cy={c.ay} r={c.r}>
-                  <stop offset="0%" stopColor="#ffe39a" stopOpacity={c.op} />
-                  <stop offset="55%" stopColor="#ffe39a" stopOpacity={c.op * 0.4} />
-                  <stop offset="100%" stopColor="#ffe39a" stopOpacity={0} />
-                </radialGradient>
-              ))}
-              {cones.map((c, i) => c.clip && <clipPath key={`cc${i}`} id={`coneClip-${i}`}><polygon points={c.clip} /></clipPath>)}
-              {glows.map((g, i) => (
-                <radialGradient key={`gg${i}`} id={`glow-${i}`} gradientUnits="userSpaceOnUse" cx={g.x} cy={g.y} r={g.r}>
-                  <stop offset="0%" stopColor="#ffdf86" stopOpacity={g.op} />
-                  <stop offset="70%" stopColor="#ffdf86" stopOpacity={g.op * 0.3} />
-                  <stop offset="100%" stopColor="#ffdf86" stopOpacity={0} />
-                </radialGradient>
-              ))}
-              {glows.map((g, i) => g.clip && <clipPath key={`gc${i}`} id={`glowClip-${i}`}><polygon points={g.clip} /></clipPath>)}
-            </defs>
-
-            <rect x={left} y={top} width={vw} height={vh} fill={tint.color} opacity={tint.opacity} />
-            {cones.map((c, i) => (
-              <polygon key={`cone${i}`} points={c.poly} fill={`url(#cone-${i})`} clipPath={c.clip ? `url(#coneClip-${i})` : undefined} />
-            ))}
-            {glows.map((g, i) => (
-              <circle key={`glow${i}`} cx={g.x} cy={g.y} r={g.r} fill={`url(#glow-${i})`} clipPath={g.clip ? `url(#glowClip-${i})` : undefined} />
-            ))}
-          </g>
-        )}
+        {plan.lighting && tint && <LightingLayer cones={cones} glows={glows} tint={tint} left={left} top={top} vw={vw} vh={vh} />}
 
         {/* Draft room */}
         {draft && (
@@ -1050,17 +1023,8 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
           <rect x={marquee.x} y={marquee.y} width={marquee.w} height={marquee.h} fill="rgba(181,113,78,0.07)" stroke="#b5714e" strokeWidth={1} strokeDasharray="4 3" vectorEffect="non-scaling-stroke" pointerEvents="none" />
         )}
 
-        {/* Collaborator cursors (constant on-screen size via 1/scale) */}
-        {peers.map((pr) =>
-          pr.x == null || pr.y == null ? null : (
-            <g key={pr.id} pointerEvents="none">
-              <circle cx={pr.x} cy={pr.y} r={6 / scale} fill={pr.color} stroke="#fff" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-              <text x={pr.x + 12 / scale} y={pr.y - 8 / scale} fontSize={12 / scale} fill={pr.color} fontWeight={700}>
-                {pr.name}
-              </text>
-            </g>
-          ),
-        )}
+        {/* Collaborator cursors */}
+        <PeerCursors peers={peers} scale={scale} />
       </svg>
 
       {/* Right-click: pick among overlapping objects */}

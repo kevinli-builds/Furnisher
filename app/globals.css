@@ -396,6 +396,33 @@ select.field {
   gap: 6px;
 }
 
+/* ── Presence (who's online) ─────────────────────────────────── */
+.presence {
+  display: inline-flex;
+  align-items: center;
+}
+.presence .avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  border: 2px solid var(--bg);
+  margin-left: -7px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+.presence .avatar:first-child {
+  margin-left: 0;
+}
+.presence .avatar.more {
+  background: var(--muted);
+  font-size: 11px;
+}
+
 /* ── Account / projects menu ─────────────────────────────────── */
 .account {
   position: relative;
