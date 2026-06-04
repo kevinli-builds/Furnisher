@@ -22,7 +22,7 @@ export function defaultPlan(): Plan {
     furniture: [],
     markers: [],
     stairs: [],
-    inventory: { furniture: [], rooms: [] },
+    inventory: { furniture: [], rooms: [], markers: [], groups: ['General'] },
   }
 }
 
@@ -54,6 +54,8 @@ export function loadPlan(): Plan {
       inventory: {
         furniture: parsed.inventory?.furniture ?? [],
         rooms: parsed.inventory?.rooms ?? [],
+        markers: parsed.inventory?.markers ?? [],
+        groups: parsed.inventory?.groups ?? ['General'],
       },
     }
   } catch {

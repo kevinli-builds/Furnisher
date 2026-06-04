@@ -203,7 +203,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
     const raw = e.dataTransfer.getData('application/furnisher-item')
     if (!raw) return
     e.preventDefault()
-    let parsed: { kind: 'furniture' | 'room'; template: { name: string; w: number; h: number; type?: string; color?: string; url?: string } }
+    let parsed: { kind: 'furniture' | 'room' | 'marker'; template: { name: string; w: number; h: number; type?: string; color?: string; url?: string; style?: 'frame' | 'shaded' | 'closet' } }
     try {
       parsed = JSON.parse(raw)
     } catch {
@@ -220,6 +220,9 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
         furniture: [...pl.furniture, { id, name: t.name, type: furnitureType(t.type), x, y, w: t.w, h: t.h, rotation: 0, color: t.color ?? '#d8c8a4', url: t.url }],
       }))
       setSel([{ type: 'furniture', id }])
+    } else if (parsed.kind === 'marker') {
+      setPlan((pl) => ({ ...pl, markers: [...pl.markers, { id, name: t.name, style: t.style ?? 'frame', x, y, w: t.w, h: t.h }] }))
+      setSel([{ type: 'marker', id }])
     } else {
       setPlan((pl) => ({ ...pl, rooms: [...pl.rooms, { id, name: t.name, x, y, w: t.w, h: t.h }] }))
       setSel([{ type: 'room', id }])

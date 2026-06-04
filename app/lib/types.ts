@@ -98,6 +98,7 @@ export interface FurnTemplate {
   h: number
   color: string
   url?: string
+  group?: string // inventory group, e.g. "Kitchen"
 }
 export interface RoomTemplate {
   id: string
@@ -105,9 +106,18 @@ export interface RoomTemplate {
   w: number
   h: number
 }
+export interface MarkerTemplate {
+  id: string
+  name: string
+  w: number
+  h: number
+  style: MarkerStyle
+}
 export interface Inventory {
   furniture: FurnTemplate[]
   rooms: RoomTemplate[]
+  markers: MarkerTemplate[]
+  groups?: string[] // furniture group names
 }
 
 export interface Plan {

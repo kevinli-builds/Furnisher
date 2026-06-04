@@ -6,7 +6,7 @@ import { loadPlan, savePlan, defaultPlan } from './lib/storage'
 import { usePlanHistory } from './lib/usePlanHistory'
 import { uid, snap } from './lib/geometry'
 import { furnitureType } from './lib/furniture'
-import type { FurnTemplate, RoomTemplate } from './lib/types'
+import type { FurnTemplate, RoomTemplate, MarkerTemplate } from './lib/types'
 import Canvas from './components/Canvas'
 import InventoryPanel from './components/InventoryPanel'
 import SettingsPanel from './components/SettingsPanel'
@@ -175,6 +175,13 @@ export default function Page() {
     setSel([{ type: 'room', id }])
   }
 
+  function placeMarkerTemplate(t: MarkerTemplate) {
+    const { cx, cy } = contentCenter()
+    const id = uid()
+    setPlan((p) => ({ ...p, markers: [...p.markers, { id, name: t.name, style: t.style, x: snap(cx - t.w / 2), y: snap(cy - t.h / 2), w: t.w, h: t.h }] }))
+    setSel([{ type: 'marker', id }])
+  }
+
   // Add a linked entry+exit stair pair near the centre of existing content.
   function addStairs() {
     const { cx, cy } = contentCenter()
@@ -257,6 +264,7 @@ export default function Page() {
             setPlan={setPlan}
             onPlaceFurniture={placeFurnitureTemplate}
             onPlaceRoom={placeRoomTemplate}
+            onPlaceMarker={placeMarkerTemplate}
             onImport={setImportMode}
           />
         </div>
