@@ -229,17 +229,6 @@ export default function Page() {
             </button>
           </div>
 
-          <ViewOptionsMenu plan={plan} setPlan={setPlan} />
-
-          <div className="seg" title="Read a floor plan or furniture photo with Claude">
-            <button className="seg-btn" onClick={() => setImportMode('blueprint')}>
-              ⌖ Blueprint
-            </button>
-            <button className="seg-btn" onClick={() => setImportMode('furniture')}>
-              ⌖ Furniture
-            </button>
-          </div>
-
           <button
             className="seg-btn solo"
             onClick={() => {
@@ -264,10 +253,19 @@ export default function Page() {
 
       <main className="workspace">
         <div className="left">
-          <InventoryPanel plan={plan} setPlan={setPlan} onPlaceFurniture={placeFurnitureTemplate} onPlaceRoom={placeRoomTemplate} />
+          <InventoryPanel
+            plan={plan}
+            setPlan={setPlan}
+            onPlaceFurniture={placeFurnitureTemplate}
+            onPlaceRoom={placeRoomTemplate}
+            onImport={setImportMode}
+          />
         </div>
 
         <div className="canvas-wrap">
+          <div className="display-fab">
+            <ViewOptionsMenu plan={plan} setPlan={setPlan} />
+          </div>
           <Canvas plan={plan} setPlan={setPlan} mode={mode} setMode={setMode} sel={sel} setSel={setSel} />
           <p className="hint">
             {mode === 'room' && 'Click and drag on the grid to draw a room.'}

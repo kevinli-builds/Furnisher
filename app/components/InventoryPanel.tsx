@@ -12,9 +12,10 @@ interface Props {
   setPlan: React.Dispatch<React.SetStateAction<Plan>>
   onPlaceFurniture: (t: FurnTemplate) => void
   onPlaceRoom: (t: RoomTemplate) => void
+  onImport: (mode: 'blueprint' | 'furniture') => void
 }
 
-export default function InventoryPanel({ plan, setPlan, onPlaceFurniture, onPlaceRoom }: Props) {
+export default function InventoryPanel({ plan, setPlan, onPlaceFurniture, onPlaceRoom, onImport }: Props) {
   const { units } = plan
   const u = inputUnit(units)
   const [tab, setTab] = useState<'furniture' | 'rooms'>('furniture')
@@ -180,6 +181,18 @@ export default function InventoryPanel({ plan, setPlan, onPlaceFurniture, onPlac
           </div>
         </>
       )}
+
+      <div className="inv-footer">
+        <span className="inv-footer-label">AI import</span>
+        <div className="inv-footer-btns">
+          <button className="icon-btn" onClick={() => onImport('blueprint')} title="Read a floor-plan image with Claude">
+            ⌖ Plan
+          </button>
+          <button className="icon-btn" onClick={() => onImport('furniture')} title="Read a furniture photo / link with Claude">
+            ⌖ Item
+          </button>
+        </div>
+      </div>
     </aside>
   )
 }

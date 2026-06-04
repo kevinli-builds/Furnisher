@@ -241,6 +241,13 @@ body {
   flex-direction: column;
   padding: 18px;
   gap: 10px;
+  position: relative;
+}
+.display-fab {
+  position: absolute;
+  top: 26px;
+  left: 26px;
+  z-index: 20;
 }
 .canvas-host {
   flex: 1;
@@ -344,6 +351,44 @@ select.field {
 /* Display options dropdown rows */
 .opts-menu {
   width: 250px;
+  left: 0;
+  right: auto;
+}
+
+/* Inventory footer: AI import icons (bottom-left of the panel) */
+.inv-footer {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.inv-footer-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.inv-footer-btns {
+  display: flex;
+  gap: 8px;
+}
+.icon-btn {
+  flex: 1;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+.icon-btn:hover {
+  background: #f1ebe0;
+  border-color: var(--accent);
 }
 .opts-row {
   display: flex;
