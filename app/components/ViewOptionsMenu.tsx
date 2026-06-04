@@ -106,6 +106,29 @@ export default function ViewOptionsMenu({ plan, setPlan }: Props) {
                   onChange={(e) => set({ northDeg: Number(e.target.value) })}
                 />
               </div>
+              <div className="opts-row">
+                <span className="sect-label">Latitude · {Math.round(plan.latitude ?? 40)}°</span>
+                <input
+                  type="range"
+                  className="slider"
+                  min={-60}
+                  max={60}
+                  step={1}
+                  value={plan.latitude ?? 40}
+                  onChange={(e) => set({ latitude: Number(e.target.value) })}
+                />
+                <button
+                  className="btn-ghost"
+                  onClick={() =>
+                    navigator.geolocation?.getCurrentPosition(
+                      (pos) => set({ latitude: Math.round(pos.coords.latitude) }),
+                      () => {},
+                    )
+                  }
+                >
+                  📍 Use my location
+                </button>
+              </div>
             </>
           )}
           <div className="opts-row">

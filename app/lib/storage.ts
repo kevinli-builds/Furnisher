@@ -12,6 +12,7 @@ export function defaultPlan(): Plan {
     lighting: false,
     northDeg: 0,
     sunTime: 12,
+    latitude: 40,
     width: 1200, // 12 m ≈ 39 ft
     height: 900, // 9 m  ≈ 29 ft
     rooms: [
@@ -42,6 +43,7 @@ export function loadPlan(): Plan {
       lighting: parsed.lighting === true,
       northDeg: typeof parsed.northDeg === 'number' ? parsed.northDeg : 0,
       sunTime: typeof parsed.sunTime === 'number' ? parsed.sunTime : 12,
+      latitude: typeof parsed.latitude === 'number' ? parsed.latitude : 40,
       width: parsed.width || 1200,
       height: parsed.height || 900,
       rooms: parsed.rooms ?? [],

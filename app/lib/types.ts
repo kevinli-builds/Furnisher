@@ -119,6 +119,7 @@ export interface Plan {
   lighting?: boolean // sun/light overlay on/off
   northDeg?: number // compass direction the top of the plan faces (0 = north up)
   sunTime?: number // hour of day for the sun sim (0–24)
+  latitude?: number // geographic latitude for sun-height accuracy
   blueprintUrl?: string // optional link to the listing / source blueprint
   inventory: Inventory
   width: number // overall canvas extent (cm)

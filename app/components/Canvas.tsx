@@ -639,7 +639,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
   }
 
   // ── Lighting overlay (sun through windows) ────────────────────
-  const sun = plan.lighting ? sunAt(plan.sunTime ?? 12, plan.northDeg ?? 0) : null
+  const sun = plan.lighting ? sunAt(plan.sunTime ?? 12, plan.northDeg ?? 0, plan.latitude ?? 40) : null
   const tint = plan.lighting ? timeTint(plan.sunTime ?? 12) : null
   const beams = sun && sun.altitude > 0.02 ? windowBeams(plan, sun) : []
 

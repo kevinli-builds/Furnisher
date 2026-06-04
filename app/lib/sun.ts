@@ -10,12 +10,15 @@ export interface Sun {
 }
 
 // `dir` is where sunlight travels (opposite the sun's position). `northDeg` is
-// the compass bearing that the top of the plan (−y) points toward.
-export function sunAt(hour: number, northDeg: number): Sun | null {
+// the compass bearing that the top of the plan (−y) points toward. `latitude`
+// scales the peak sun height (higher latitudes → lower, weaker sun).
+export function sunAt(hour: number, northDeg: number, latitude = 40): Sun | null {
   if (hour <= 6 || hour >= 18) return null // night — no direct sun
   const frac = (hour - 6) / 12 // 0..1 across the daylight span
   const azimuth = 90 + frac * 180 // sun bearing: east(90) → south(180) → west(270)
-  const altitude = Math.sin(Math.PI * frac) // 0 → 1 → 0
+  // Peak noon altitude ≈ 90° − |lat| (ignoring season); scale intensity by it.
+  const peak = Math.max(0, Math.sin(((90 - Math.abs(latitude)) * Math.PI) / 180))
+  const altitude = Math.sin(Math.PI * frac) * peak
   const lightAz = azimuth + 180 // light travels opposite the sun
   const theta = ((lightAz - northDeg) * Math.PI) / 180 // relative to plan-up, clockwise
   return { dir: { x: Math.sin(theta), y: -Math.cos(theta) }, altitude }
