@@ -114,6 +114,7 @@ export interface Plan {
   units: Units
   viewMode: ViewMode
   roomLabels: RoomLabels
+  furnitureLabels?: RoomLabels // 'always' | 'hover' (default always)
   showGrid: boolean
   lighting?: boolean // sun/light overlay on/off
   northDeg?: number // compass direction the top of the plan faces (0 = north up)

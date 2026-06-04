@@ -48,6 +48,14 @@ export default function ViewOptionsMenu({ plan, setPlan }: Props) {
               On hover
             </Seg>
           </Row>
+          <Row label="Furniture names">
+            <Seg on={(plan.furnitureLabels ?? 'always') === 'always'} onClick={() => set({ furnitureLabels: 'always' })}>
+              Always
+            </Seg>
+            <Seg on={plan.furnitureLabels === 'hover'} onClick={() => set({ furnitureLabels: 'hover' })}>
+              On hover
+            </Seg>
+          </Row>
           <Row label="Units">
             <Seg on={plan.units === 'imperial'} onClick={() => set({ units: 'imperial' })}>
               ft / in

@@ -44,6 +44,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
   const [draft, setDraft] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   const [marquee, setMarquee] = useState<Box | null>(null)
   const [hoverRoom, setHoverRoom] = useState<string | null>(null)
+  const [hoverFurn, setHoverFurn] = useState<string | null>(null)
   const [doorGhost, setDoorGhost] = useState<{ x: number; y: number; orientation: 'h' | 'v'; swing: 1 | -1; type: 'swing' | 'window' } | null>(null)
   const [menu, setMenu] = useState<{ x: number; y: number; items: { item: SelItem; label: string }[] } | null>(null)
 
@@ -916,23 +917,45 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
           const cx = f.x + f.w / 2
           const cy = f.y + f.h / 2
           const t = furnitureType(f.type)
+          const showLabel = (plan.furnitureLabels ?? 'always') === 'always' || active || hoverFurn === f.id
+          // Top of the rotated footprint (for an upright label above the piece).
+          const rad = (f.rotation * Math.PI) / 180
+          const cs = Math.cos(rad)
+          const sn = Math.sin(rad)
+          const ys = [f.x, f.x + f.w].flatMap((px) =>
+            [f.y, f.y + f.h].map((py) => cy + (px - cx) * sn + (py - cy) * cs),
+          )
+          const labelY = Math.min(...ys) - 8
           return (
-            <g key={f.id} transform={`rotate(${f.rotation} ${cx} ${cy})`} style={{ cursor: 'move' }} onPointerDown={(e) => onFurnDown(e, f.id)}>
-              {schematic ? (
-                <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={6} fill={f.color} fillOpacity={0.85} stroke={active ? '#b5714e' : '#7a6e5b'} strokeWidth={active ? 3 : 1.5} vectorEffect="non-scaling-stroke" />
-              ) : (
+            <g key={f.id}>
+              <g
+                transform={`rotate(${f.rotation} ${cx} ${cy})`}
+                style={{ cursor: 'move' }}
+                onPointerDown={(e) => onFurnDown(e, f.id)}
+                onPointerEnter={() => setHoverFurn(f.id)}
+                onPointerLeave={() => setHoverFurn((h) => (h === f.id ? null : h))}
+              >
+                {schematic ? (
+                  <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={6} fill={f.color} fillOpacity={0.85} stroke={active ? '#b5714e' : '#7a6e5b'} strokeWidth={active ? 3 : 1.5} vectorEffect="non-scaling-stroke" />
+                ) : (
+                  <>
+                    <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={6} fill={f.color} fillOpacity={0.16} stroke={active ? '#b5714e' : '#cabfa9'} strokeWidth={active ? 3 : 1.2} vectorEffect="non-scaling-stroke" />
+                    <FurnitureGlyph type={t} x={f.x} y={f.y} w={f.w} h={f.h} color={f.color} />
+                  </>
+                )}
+                {active && sel.length === 1 && resizeHandles('furniture', f.id, f.x, f.y, f.w, f.h)}
+              </g>
+              {/* Upright label above the (rotated) piece */}
+              {showLabel && (
                 <>
-                  <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={6} fill={f.color} fillOpacity={0.16} stroke={active ? '#b5714e' : '#cabfa9'} strokeWidth={active ? 3 : 1.2} vectorEffect="non-scaling-stroke" />
-                  <FurnitureGlyph type={t} x={f.x} y={f.y} w={f.w} h={f.h} color={f.color} />
+                  <text x={cx} y={labelY - 12} fontSize={13} fill="#8a7e6b" fontWeight={500} textAnchor="middle" pointerEvents="none">
+                    {f.name}
+                  </text>
+                  <text x={cx} y={labelY} fontSize={11} fill="#a89c88" textAnchor="middle" pointerEvents="none">
+                    {formatSize(f.w, f.h, units)}
+                  </text>
                 </>
               )}
-              <text x={cx} y={cy - 1} fontSize={13} fill="#8a7e6b" fontWeight={500} textAnchor="middle" pointerEvents="none">
-                {f.name}
-              </text>
-              <text x={cx} y={cy + 13} fontSize={11} fill="#a89c88" textAnchor="middle" pointerEvents="none">
-                {formatSize(f.w, f.h, units)}
-              </text>
-              {active && sel.length === 1 && resizeHandles('furniture', f.id, f.x, f.y, f.w, f.h)}
             </g>
           )
         })}
