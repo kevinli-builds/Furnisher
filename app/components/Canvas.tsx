@@ -579,7 +579,15 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
           setPlan((pl) => ({ ...pl, markers: [...pl.markers, { id, name: `Floor ${pl.markers.length + 1}`, style: 'frame', x, y, w, h }] }))
           setSel([{ type: 'marker', id }])
         } else {
-          setPlan((pl) => ({ ...pl, rooms: [...pl.rooms, { id, name: `Room ${pl.rooms.length + 1}`, x, y, w, h }] }))
+          // Also save the drawn room to the Rooms inventory for reuse.
+          setPlan((pl) => {
+            const name = `Room ${pl.rooms.length + 1}`
+            return {
+              ...pl,
+              rooms: [...pl.rooms, { id, name, x, y, w, h }],
+              inventory: { ...pl.inventory, rooms: [...pl.inventory.rooms, { id: uid(), name, w, h }] },
+            }
+          })
           setSel([{ type: 'room', id }])
         }
       }
