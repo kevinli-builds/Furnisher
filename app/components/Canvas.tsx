@@ -2,9 +2,9 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Plan, Mode, Selection, SelItem, Door, Pt } from '../lib/types'
-import { snap, clamp, uid, snapDoorToWalls, overlaps, gridStep, roomCorners, bboxOf, roomsAt, MIN_ROOM, MIN_SCALE, MAX_SCALE, type Box } from '../lib/geometry'
+import { snap, clamp, uid, snapDoorToWalls, overlaps, gridStep, roomCorners, bboxOf, resizeRect, MIN_ROOM, MIN_SCALE, MAX_SCALE, type Box } from '../lib/geometry'
 import { DOOR_LEN, swingForCursor, doorBox, doorGeom } from '../lib/door'
-import { sunAt, timeTint, formatHour } from '../lib/sun'
+import { sunAt, timeTint, formatHour, windowBeams } from '../lib/sun'
 import { formatSize } from '../lib/units'
 import { furnitureType } from '../lib/furniture'
 import FurnitureGlyph from './FurnitureGlyph'
@@ -519,27 +519,12 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
         }),
       }))
     } else if (d.kind === 'resize') {
-      const rad = (d.rot * Math.PI) / 180
-      const ux = { x: Math.cos(rad), y: Math.sin(rad) }
-      const uy = { x: -Math.sin(rad), y: Math.cos(rad) }
-      const cx0 = d.ox + d.ow / 2
-      const cy0 = d.oy + d.oh / 2
-      const anchorX = cx0 + ux.x * (-d.hx * d.ow) / 2 + uy.x * (-d.hy * d.oh) / 2
-      const anchorY = cy0 + ux.y * (-d.hx * d.ow) / 2 + uy.y * (-d.hy * d.oh) / 2
-      const lx = (p.x - anchorX) * ux.x + (p.y - anchorY) * ux.y
-      const ly = (p.x - anchorX) * uy.x + (p.y - anchorY) * uy.y
-      const minSz = d.otype === 'furniture' ? 10 : 30
-      const nw = d.hx !== 0 ? Math.max(minSz, snap(d.hx * lx)) : d.ow
-      const nh = d.hy !== 0 ? Math.max(minSz, snap(d.hy * ly)) : d.oh
-      const ncx = anchorX + (ux.x * (d.hx * nw) + uy.x * (d.hy * nh)) / 2
-      const ncy = anchorY + (ux.y * (d.hx * nw) + uy.y * (d.hy * nh)) / 2
-      const nx = snap(ncx - nw / 2)
-      const ny = snap(ncy - nh / 2)
+      const nb = resizeRect(d.ox, d.oy, d.ow, d.oh, d.rot, d.hx, d.hy, p.x, p.y, d.otype === 'furniture' ? 10 : 30)
       setPlan((pl) => {
-        if (d.otype === 'room') return { ...pl, rooms: pl.rooms.map((r) => (r.id === d.id ? { ...r, x: nx, y: ny, w: nw, h: nh } : r)) }
-        if (d.otype === 'furniture') return { ...pl, furniture: pl.furniture.map((f) => (f.id === d.id ? { ...f, x: nx, y: ny, w: nw, h: nh } : f)) }
-        if (d.otype === 'marker') return { ...pl, markers: pl.markers.map((m) => (m.id === d.id ? { ...m, x: nx, y: ny, w: nw, h: nh } : m)) }
-        return { ...pl, stairs: pl.stairs.map((s) => (s.id === d.id ? { ...s, x: nx, y: ny, w: nw, h: nh } : s)) }
+        if (d.otype === 'room') return { ...pl, rooms: pl.rooms.map((r) => (r.id === d.id ? { ...r, ...nb } : r)) }
+        if (d.otype === 'furniture') return { ...pl, furniture: pl.furniture.map((f) => (f.id === d.id ? { ...f, ...nb } : f)) }
+        if (d.otype === 'marker') return { ...pl, markers: pl.markers.map((m) => (m.id === d.id ? { ...m, ...nb } : m)) }
+        return { ...pl, stairs: pl.stairs.map((s) => (s.id === d.id ? { ...s, ...nb } : s)) }
       })
     } else if (d.kind === 'move-furniture') {
       setPlan((pl) => ({ ...pl, furniture: pl.furniture.map((f) => (f.id === d.id ? { ...f, x: snap(d.ox + dx), y: snap(d.oy + dy) } : f)) }))
@@ -655,41 +640,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
   // ── Lighting overlay (sun through windows) ────────────────────
   const sun = plan.lighting ? sunAt(plan.sunTime ?? 12, plan.northDeg ?? 0) : null
   const tint = plan.lighting ? timeTint(plan.sunTime ?? 12) : null
-  const beams: { pts: string; op: number }[] = []
-  if (sun && sun.altitude > 0.02) {
-    const L = 320 // beam reach into the room (cm)
-    for (const d of plan.doors) {
-      if ((d.type ?? 'swing') !== 'window') continue
-      const horiz = d.orientation === 'h'
-      const ax = d.x
-      const ay = d.y
-      const bx = horiz ? d.x + d.length : d.x
-      const by = horiz ? d.y : d.y + d.length
-      const cx = (ax + bx) / 2
-      const cy = (ay + by) / 2
-      // interior normal: which side has a room?
-      let nx = 0
-      let ny = 0
-      if (horiz) {
-        const down = roomsAt(cx, cy + 12, plan.rooms)
-        const up = roomsAt(cx, cy - 12, plan.rooms)
-        if (down && !up) ny = 1
-        else if (up && !down) ny = -1
-        else continue
-      } else {
-        const right = roomsAt(cx + 12, cy, plan.rooms)
-        const left = roomsAt(cx - 12, cy, plan.rooms)
-        if (right && !left) nx = 1
-        else if (left && !right) nx = -1
-        else continue
-      }
-      const facing = sun.dir.x * nx + sun.dir.y * ny // light travelling into the room?
-      if (facing <= 0.05) continue
-      const ex = sun.dir.x * L
-      const ey = sun.dir.y * L
-      beams.push({ pts: `${ax},${ay} ${bx},${by} ${bx + ex},${by + ey} ${ax + ex},${ay + ey}`, op: 0.26 * sun.altitude * facing })
-    }
-  }
+  const beams = sun && sun.altitude > 0.02 ? windowBeams(plan, sun) : []
 
   // 8 resize handles (corners + edge midpoints) in the object's local box.
   function resizeHandles(otype: 'room' | 'furniture' | 'marker' | 'stair', id: string, x: number, y: number, w: number, h: number) {

@@ -79,6 +79,37 @@ export function roomsAt(px: number, py: number, rooms: Room[]): boolean {
   return rooms.some((r) => pointInPolygon(px, py, roomCorners(r)))
 }
 
+// Resize a (possibly rotated) box by a handle (hx,hy ∈ -1/0/1) so the opposite
+// edge/corner stays anchored. Works in the box's local frame. Returns the new
+// unrotated top-left + size (centred on the same rotation pivot).
+export function resizeRect(
+  ox: number,
+  oy: number,
+  ow: number,
+  oh: number,
+  rot: number,
+  hx: number,
+  hy: number,
+  px: number,
+  py: number,
+  minSz: number,
+): Box {
+  const rad = (rot * Math.PI) / 180
+  const ux = { x: Math.cos(rad), y: Math.sin(rad) }
+  const uy = { x: -Math.sin(rad), y: Math.cos(rad) }
+  const cx0 = ox + ow / 2
+  const cy0 = oy + oh / 2
+  const anchorX = cx0 + (ux.x * (-hx * ow) + uy.x * (-hy * oh)) / 2
+  const anchorY = cy0 + (ux.y * (-hx * ow) + uy.y * (-hy * oh)) / 2
+  const lx = (px - anchorX) * ux.x + (py - anchorY) * ux.y
+  const ly = (px - anchorX) * uy.x + (py - anchorY) * uy.y
+  const nw = hx !== 0 ? Math.max(minSz, snap(hx * lx)) : ow
+  const nh = hy !== 0 ? Math.max(minSz, snap(hy * ly)) : oh
+  const ncx = anchorX + (ux.x * (hx * nw) + uy.x * (hy * nh)) / 2
+  const ncy = anchorY + (ux.y * (hx * nw) + uy.y * (hy * nh)) / 2
+  return { x: snap(ncx - nw / 2), y: snap(ncy - nh / 2), w: nw, h: nh }
+}
+
 // Snap a point to the nearest room wall, returning where a door of `length`
 // should sit (its start corner), the wall's orientation, and how far the point
 // was from that wall. Doors are always glued to a border this way — you just
