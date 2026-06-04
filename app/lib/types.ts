@@ -82,12 +82,35 @@ export interface Stair {
   rotation: Rotation
 }
 
+// Reusable templates kept in the project's inventory (left panel). Dragging /
+// clicking one creates a placed instance on the grid.
+export interface FurnTemplate {
+  id: string
+  name: string
+  type: FurnitureType
+  w: number
+  h: number
+  color: string
+  url?: string
+}
+export interface RoomTemplate {
+  id: string
+  name: string
+  w: number
+  h: number
+}
+export interface Inventory {
+  furniture: FurnTemplate[]
+  rooms: RoomTemplate[]
+}
+
 export interface Plan {
   units: Units
   viewMode: ViewMode
   roomLabels: RoomLabels
   showGrid: boolean
   blueprintUrl?: string // optional link to the listing / source blueprint
+  inventory: Inventory
   width: number // overall canvas extent (cm)
   height: number
   rooms: Room[]

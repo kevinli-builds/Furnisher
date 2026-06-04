@@ -547,6 +547,39 @@ select.field {
   text-align: center;
 }
 
+/* ── Left column (inventory) ─────────────────────────────────── */
+.left {
+  width: 240px;
+  flex-shrink: 0;
+}
+.inventory {
+  border-left: none;
+  border-right: 1px solid var(--line);
+}
+.inv-tabs {
+  margin-bottom: 4px;
+}
+.inv-hint {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.inv-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 9px 11px;
+  cursor: grab;
+}
+.inv-card:hover {
+  background: #f5efe4;
+}
+.inv-card:active {
+  cursor: grabbing;
+}
+
 /* ── Right column (furniture panel + settings overlay) ───────── */
 .right {
   position: relative;
@@ -743,15 +776,19 @@ textarea.field {
   .workspace {
     flex-direction: column;
   }
+  .left,
   .right {
     width: 100%;
-    height: 45vh;
+    height: 40vh;
     flex-shrink: 0;
   }
   .panel,
   .settings {
     border-left: none;
     border-top: 1px solid var(--line);
+  }
+  .inventory {
+    border-right: none;
   }
   .brand .tag {
     display: none;

@@ -188,6 +188,40 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
     return res
   }
 
+  // Drag a template from the Inventory panel onto the plan.
+  function onDragOver(e: React.DragEvent) {
+    if (e.dataTransfer.types.includes('application/furnisher-item')) {
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'copy'
+    }
+  }
+  function onDrop(e: React.DragEvent) {
+    const raw = e.dataTransfer.getData('application/furnisher-item')
+    if (!raw) return
+    e.preventDefault()
+    let parsed: { kind: 'furniture' | 'room'; template: { name: string; w: number; h: number; type?: string; color?: string; url?: string } }
+    try {
+      parsed = JSON.parse(raw)
+    } catch {
+      return
+    }
+    const p = toCm(e)
+    const t = parsed.template
+    const id = uid()
+    const x = snap(p.x - t.w / 2)
+    const y = snap(p.y - t.h / 2)
+    if (parsed.kind === 'furniture') {
+      setPlan((pl) => ({
+        ...pl,
+        furniture: [...pl.furniture, { id, name: t.name, type: furnitureType(t.type), x, y, w: t.w, h: t.h, rotation: 0, color: t.color ?? '#d8c8a4', url: t.url }],
+      }))
+      setSel([{ type: 'furniture', id }])
+    } else {
+      setPlan((pl) => ({ ...pl, rooms: [...pl.rooms, { id, name: t.name, x, y, w: t.w, h: t.h }] }))
+      setSel([{ type: 'room', id }])
+    }
+  }
+
   function onContextMenu(e: React.MouseEvent) {
     const items = pointHits(toCm(e))
     if (items.length === 0) return // let the native menu show on empty space
@@ -555,6 +589,8 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
         onPointerUp={onUp}
         onPointerLeave={() => setDoorGhost(null)}
         onContextMenu={onContextMenu}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
       >
         <defs>
           <pattern id="closet-hatch" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">

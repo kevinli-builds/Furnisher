@@ -17,6 +17,7 @@ export function defaultPlan(): Plan {
     furniture: [],
     markers: [],
     stairs: [],
+    inventory: { furniture: [], rooms: [] },
   }
 }
 
@@ -40,6 +41,10 @@ export function loadPlan(): Plan {
       furniture: parsed.furniture ?? [],
       markers: parsed.markers ?? [],
       stairs: parsed.stairs ?? [],
+      inventory: {
+        furniture: parsed.inventory?.furniture ?? [],
+        rooms: parsed.inventory?.rooms ?? [],
+      },
     }
   } catch {
     return defaultPlan()

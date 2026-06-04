@@ -5,7 +5,10 @@ import type { Plan, Mode, Selection } from './lib/types'
 import { loadPlan, savePlan, defaultPlan } from './lib/storage'
 import { usePlanHistory } from './lib/usePlanHistory'
 import { uid, snap } from './lib/geometry'
+import { furnitureType } from './lib/furniture'
+import type { FurnTemplate, RoomTemplate } from './lib/types'
 import Canvas from './components/Canvas'
+import InventoryPanel from './components/InventoryPanel'
 import FurniturePanel from './components/FurniturePanel'
 import SettingsPanel from './components/SettingsPanel'
 import AccountMenu from './components/AccountMenu'
@@ -137,8 +140,8 @@ export default function Page() {
     return () => window.removeEventListener('keydown', onKey)
   }, [sel, plan, undo, redo, setPlan])
 
-  // Add a linked entry+exit stair pair near the centre of existing content.
-  function addStairs() {
+  // Centre of existing content (fallback to plan centre) — for click-to-place.
+  function contentCenter() {
     const xs: number[] = []
     const ys: number[] = []
     const xe: number[] = []
@@ -150,8 +153,32 @@ export default function Page() {
     plan.furniture.forEach((f) => push(f.x, f.y, f.w, f.h))
     plan.markers.forEach((m) => push(m.x, m.y, m.w, m.h))
     plan.stairs.forEach((s) => push(s.x, s.y, s.w, s.h))
-    const cx = xs.length ? (Math.min(...xs) + Math.max(...xe)) / 2 : plan.width / 2
-    const cy = ys.length ? (Math.min(...ys) + Math.max(...ye)) / 2 : plan.height / 2
+    return {
+      cx: xs.length ? (Math.min(...xs) + Math.max(...xe)) / 2 : plan.width / 2,
+      cy: ys.length ? (Math.min(...ys) + Math.max(...ye)) / 2 : plan.height / 2,
+    }
+  }
+
+  function placeFurnitureTemplate(t: FurnTemplate) {
+    const { cx, cy } = contentCenter()
+    const id = uid()
+    setPlan((p) => ({
+      ...p,
+      furniture: [...p.furniture, { id, name: t.name, type: furnitureType(t.type), x: snap(cx - t.w / 2), y: snap(cy - t.h / 2), w: t.w, h: t.h, rotation: 0, color: t.color, url: t.url }],
+    }))
+    setSel([{ type: 'furniture', id }])
+  }
+
+  function placeRoomTemplate(t: RoomTemplate) {
+    const { cx, cy } = contentCenter()
+    const id = uid()
+    setPlan((p) => ({ ...p, rooms: [...p.rooms, { id, name: t.name, x: snap(cx - t.w / 2), y: snap(cy - t.h / 2), w: t.w, h: t.h }] }))
+    setSel([{ type: 'room', id }])
+  }
+
+  // Add a linked entry+exit stair pair near the centre of existing content.
+  function addStairs() {
+    const { cx, cy } = contentCenter()
     const link = uid()
     const sw = 120
     const sh = 240
@@ -237,6 +264,10 @@ export default function Page() {
       </header>
 
       <main className="workspace">
+        <div className="left">
+          <InventoryPanel plan={plan} setPlan={setPlan} onPlaceFurniture={placeFurnitureTemplate} onPlaceRoom={placeRoomTemplate} />
+        </div>
+
         <div className="canvas-wrap">
           <Canvas plan={plan} setPlan={setPlan} mode={mode} setMode={setMode} sel={sel} setSel={setSel} />
           <p className="hint">
