@@ -22,6 +22,7 @@ interface Props {
 }
 
 const PENDING_JOIN = 'furnisher.pendingJoin'
+const CURRENT_KEY = 'furnisher.currentProject'
 
 export default function AccountMenu({ plan, onLoadPlan }: Props) {
   const { user, ready } = useAuth()
@@ -66,36 +67,48 @@ export default function AccountMenu({ plan, onLoadPlan }: Props) {
     if (!user) return
     const url = new URL(window.location.href)
     const token = url.searchParams.get('join') || localStorage.getItem(PENDING_JOIN)
-    if (!token) return
-    localStorage.removeItem(PENDING_JOIN)
-    if (url.searchParams.has('join')) {
-      url.searchParams.delete('join')
-      window.history.replaceState({}, '', url.toString())
-    }
     ;(async () => {
       try {
-        const pid = await joinByToken(token)
-        if (!pid) {
-          flash('Share link is invalid')
+        if (token) {
+          // Redeem a share link → join + open that plan.
+          localStorage.removeItem(PENDING_JOIN)
+          if (url.searchParams.has('join')) {
+            url.searchParams.delete('join')
+            window.history.replaceState({}, '', url.toString())
+          }
+          const pid = await joinByToken(token)
+          if (!pid) return flash('Share link is invalid')
+          const row = await getProject(pid)
+          if (row) {
+            skipNextSave.current = true
+            onLoadPlan(row.data)
+            rememberCurrent(row.id, row.name)
+            flash('Joined shared plan')
+          }
           return
         }
-        const row = await getProject(pid)
-        if (row) {
-          skipNextSave.current = true
-          onLoadPlan(row.data)
-          setCurrentId(row.id)
-          setCurrentName(row.name)
-          await refresh()
-          flash('Joined shared plan')
+        // No join token → reopen the last project (latest cloud copy).
+        const saved = localStorage.getItem(CURRENT_KEY)
+        if (saved) {
+          const { id } = JSON.parse(saved) as { id: string }
+          const row = await getProject(id)
+          if (row) {
+            skipNextSave.current = true
+            onLoadPlan(row.data)
+            rememberCurrent(row.id, row.name)
+          } else {
+            localStorage.removeItem(CURRENT_KEY) // gone / no access
+          }
         }
       } catch {
-        flash('Could not open shared plan')
+        flash('Could not open your saved plan')
       }
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   // Autosave the open cloud project (debounced) so collaborators stay in sync.
+  // Errors are surfaced (not swallowed) so a misconfigured backend is visible.
   useEffect(() => {
     if (!user || !currentId) return
     if (skipNextSave.current) {
@@ -103,7 +116,10 @@ export default function AccountMenu({ plan, onLoadPlan }: Props) {
       return
     }
     const t = setTimeout(() => {
-      updateProject(currentId, { data: planRef.current }).catch(() => {})
+      updateProject(currentId, { data: planRef.current }).then(
+        () => flash('Saved ✓'),
+        (err) => flash(`Cloud save failed: ${err?.message ?? 'check setup'}`),
+      )
     }, 1200)
     return () => clearTimeout(t)
   }, [plan, currentId, user])
@@ -143,6 +159,18 @@ export default function AccountMenu({ plan, onLoadPlan }: Props) {
     setTimeout(() => setStatus(''), 2500)
   }
 
+  // Set + persist the open project so it survives reloads / new devices.
+  function rememberCurrent(id: string | null, name: string) {
+    setCurrentId(id)
+    setCurrentName(name)
+    try {
+      if (id) localStorage.setItem(CURRENT_KEY, JSON.stringify({ id, name }))
+      else localStorage.removeItem(CURRENT_KEY)
+    } catch {
+      /* ignore */
+    }
+  }
+
   if (!supabaseEnabled || !ready) return null
 
   if (!user) {
@@ -165,13 +193,12 @@ export default function AccountMenu({ plan, onLoadPlan }: Props) {
           return
         }
         const row = await createProject(name, plan)
-        setCurrentId(row.id)
-        setCurrentName(row.name)
+        rememberCurrent(row.id, row.name)
       }
       await refresh()
       flash('Saved ✓')
-    } catch {
-      flash('Save failed')
+    } catch (e) {
+      flash(`Save failed: ${(e as Error)?.message ?? 'check setup'}`)
     } finally {
       setBusy(false)
     }
@@ -183,12 +210,11 @@ export default function AccountMenu({ plan, onLoadPlan }: Props) {
     setBusy(true)
     try {
       const row = await createProject(name, plan)
-      setCurrentId(row.id)
-      setCurrentName(row.name)
+      rememberCurrent(row.id, row.name)
       await refresh()
       flash('Saved ✓')
-    } catch {
-      flash('Save failed')
+    } catch (e) {
+      flash(`Save failed: ${(e as Error)?.message ?? 'check setup'}`)
     } finally {
       setBusy(false)
     }
@@ -197,16 +223,14 @@ export default function AccountMenu({ plan, onLoadPlan }: Props) {
   function openProject(row: ProjectRow) {
     skipNextSave.current = true
     onLoadPlan(row.data)
-    setCurrentId(row.id)
-    setCurrentName(row.name)
+    rememberCurrent(row.id, row.name)
     setOpen(false)
     flash(`Opened “${row.name}”`)
   }
 
   function newPlan() {
     onLoadPlan(defaultPlan())
-    setCurrentId(null)
-    setCurrentName('Untitled plan')
+    rememberCurrent(null, 'Untitled plan')
     setOpen(false)
   }
 
@@ -214,17 +238,14 @@ export default function AccountMenu({ plan, onLoadPlan }: Props) {
     const name = (window.prompt('Rename plan:', row.name) || '').trim()
     if (!name || name === row.name) return
     await updateProject(row.id, { name })
-    if (currentId === row.id) setCurrentName(name)
+    if (currentId === row.id) rememberCurrent(row.id, name)
     await refresh()
   }
 
   async function remove(row: ProjectRow) {
     if (!window.confirm(`Delete “${row.name}”? This can't be undone.`)) return
     await deleteProject(row.id)
-    if (currentId === row.id) {
-      setCurrentId(null)
-      setCurrentName('Untitled plan')
-    }
+    if (currentId === row.id) rememberCurrent(null, 'Untitled plan')
     await refresh()
   }
 

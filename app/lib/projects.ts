@@ -30,7 +30,11 @@ export async function getProject(id: string): Promise<ProjectRow | null> {
 }
 
 export async function createProject(name: string, data: Plan): Promise<ProjectRow> {
-  const { data: row, error } = await client().from('projects').insert({ name, data }).select(COLS).single()
+  // Set user_id explicitly rather than relying on a column default.
+  const { data: auth } = await client().auth.getUser()
+  const userId = auth.user?.id
+  if (!userId) throw new Error('Not signed in.')
+  const { data: row, error } = await client().from('projects').insert({ name, data, user_id: userId }).select(COLS).single()
   if (error) throw error
   return row as ProjectRow
 }
