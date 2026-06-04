@@ -5,6 +5,7 @@ import { snap } from '../lib/geometry'
 import { inputUnit, toCm, fromCm, formatLength } from '../lib/units'
 import { SWATCHES } from '../lib/palette'
 import { FURNITURE_TYPES, FURNITURE_META, furnitureType, type FurnitureType } from '../lib/furniture'
+import { safeUrl } from '../lib/url'
 
 interface Props {
   plan: Plan
@@ -234,6 +235,21 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
                   title="Custom colour"
                 />
               </div>
+            </section>
+            <section className="sect">
+              <label className="sect-label">Link</label>
+              <input
+                className="field"
+                type="url"
+                placeholder="https://… (product page)"
+                defaultValue={furn.url ?? ''}
+                onChange={(e) => patchFurn({ url: e.target.value })}
+              />
+              {safeUrl(furn.url) && (
+                <a className="open-link" href={safeUrl(furn.url) as string} target="_blank" rel="noreferrer noopener">
+                  ↗ Open link
+                </a>
+              )}
             </section>
           </>
         )}

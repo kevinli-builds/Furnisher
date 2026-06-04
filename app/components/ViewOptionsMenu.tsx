@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { Plan } from '../lib/types'
+import { safeUrl } from '../lib/url'
 
 interface Props {
   plan: Plan
@@ -62,6 +63,21 @@ export default function ViewOptionsMenu({ plan, setPlan }: Props) {
               Hide
             </Seg>
           </Row>
+          <div className="opts-row">
+            <span className="sect-label">Blueprint link</span>
+            <input
+              className="field"
+              type="url"
+              placeholder="https://… (listing)"
+              defaultValue={plan.blueprintUrl ?? ''}
+              onChange={(e) => set({ blueprintUrl: e.target.value })}
+            />
+            {safeUrl(plan.blueprintUrl) && (
+              <a className="open-link" href={safeUrl(plan.blueprintUrl) as string} target="_blank" rel="noreferrer noopener">
+                ↗ Open blueprint
+              </a>
+            )}
+          </div>
         </div>
       )}
     </div>

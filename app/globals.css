@@ -646,6 +646,45 @@ textarea.field {
   cursor: pointer;
 }
 
+.open-link {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+}
+.open-link:hover {
+  text-decoration: underline;
+}
+
+/* Right-click "select which object" menu */
+.ctx-menu {
+  position: absolute;
+  z-index: 40;
+  min-width: 160px;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(26, 22, 18, 0.18);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+.ctx-item {
+  background: none;
+  border: none;
+  text-align: left;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  padding: 8px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ctx-item:hover {
+  background: var(--accent-soft);
+}
+
 /* ── Furniture list ──────────────────────────────────────────── */
 .list {
   display: flex;

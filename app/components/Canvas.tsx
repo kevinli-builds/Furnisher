@@ -42,6 +42,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
   const [marquee, setMarquee] = useState<Box | null>(null)
   const [hoverRoom, setHoverRoom] = useState<string | null>(null)
   const [doorGhost, setDoorGhost] = useState<{ x: number; y: number; orientation: 'h' | 'v'; swing: 1 | -1; type: 'swing' | 'window' } | null>(null)
+  const [menu, setMenu] = useState<{ x: number; y: number; items: { item: SelItem; label: string }[] } | null>(null)
 
   const [size, setSize] = useState({ cw: 0, ch: 0 })
   const [view, setViewState] = useState<View>({ x: 0, y: 0, scale: 0 })
@@ -172,8 +173,32 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [size])
 
+  // Every object whose box contains a point, front-most first.
+  function pointHits(p: { x: number; y: number }): { item: SelItem; label: string }[] {
+    const inBox = (x: number, y: number, w: number, h: number) => p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h
+    const res: { item: SelItem; label: string }[] = []
+    for (const f of plan.furniture) if (inBox(f.x, f.y, f.w, f.h)) res.push({ item: { type: 'furniture', id: f.id }, label: `Furniture · ${f.name}` })
+    for (const s of plan.stairs) if (inBox(s.x, s.y, s.w, s.h)) res.push({ item: { type: 'stair', id: s.id }, label: `Stairs · ${s.role}` })
+    for (const dd of plan.doors) {
+      const b = doorBox(dd)
+      if (inBox(b.x, b.y, b.w, b.h)) res.push({ item: { type: 'door', id: dd.id }, label: `${dd.type ?? 'swing'} opening` })
+    }
+    for (const r of plan.rooms) if (inBox(r.x, r.y, r.w, r.h)) res.push({ item: { type: 'room', id: r.id }, label: `Room · ${r.name}` })
+    for (const m of plan.markers) if (inBox(m.x, m.y, m.w, m.h)) res.push({ item: { type: 'marker', id: m.id }, label: `${(m.style ?? 'frame') === 'closet' ? 'Closet' : 'Marker'} · ${m.name}` })
+    return res
+  }
+
+  function onContextMenu(e: React.MouseEvent) {
+    const items = pointHits(toCm(e))
+    if (items.length === 0) return // let the native menu show on empty space
+    e.preventDefault()
+    const host = hostRef.current!.getBoundingClientRect()
+    setMenu({ x: e.clientX - host.left, y: e.clientY - host.top, items })
+  }
+
   // ── Capture phase: pan (space / middle mouse) or door placement ─
   function onDownCapture(e: React.PointerEvent) {
+    if (menu) setMenu(null)
     if (spaceRef.current || e.button === 1) {
       e.stopPropagation()
       drag.current = { kind: 'pan', cx0: e.clientX, cy0: e.clientY, vx0: viewRef.current.x, vy0: viewRef.current.y }
@@ -529,6 +554,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
         onPointerMove={onMove}
         onPointerUp={onUp}
         onPointerLeave={() => setDoorGhost(null)}
+        onContextMenu={onContextMenu}
       >
         <defs>
           <pattern id="closet-hatch" width="14" height="14" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -768,6 +794,24 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
           <rect x={marquee.x} y={marquee.y} width={marquee.w} height={marquee.h} fill="rgba(181,113,78,0.07)" stroke="#b5714e" strokeWidth={1} strokeDasharray="4 3" vectorEffect="non-scaling-stroke" pointerEvents="none" />
         )}
       </svg>
+
+      {/* Right-click: pick among overlapping objects */}
+      {menu && (
+        <div className="ctx-menu" style={{ left: menu.x, top: menu.y }}>
+          {menu.items.map((it, i) => (
+            <button
+              key={i}
+              className="ctx-item"
+              onClick={() => {
+                setSel([it.item])
+                setMenu(null)
+              }}
+            >
+              {it.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Zoom controls */}
       <div className="zoom-controls">

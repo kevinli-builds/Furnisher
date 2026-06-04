@@ -51,6 +51,7 @@ export interface Furniture {
   h: number // footprint depth (cm)
   rotation: Rotation
   color: string
+  url?: string // optional product/reference link
 }
 
 // A labelled box drawn behind everything — e.g. to frame a floor (frame) or to
@@ -86,6 +87,7 @@ export interface Plan {
   viewMode: ViewMode
   roomLabels: RoomLabels
   showGrid: boolean
+  blueprintUrl?: string // optional link to the listing / source blueprint
   width: number // overall canvas extent (cm)
   height: number
   rooms: Room[]
