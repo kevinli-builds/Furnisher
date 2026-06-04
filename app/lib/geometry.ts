@@ -93,6 +93,7 @@ export function resizeRect(
   px: number,
   py: number,
   minSz: number,
+  lockRatio = false,
 ): Box {
   const rad = (rot * Math.PI) / 180
   const ux = { x: Math.cos(rad), y: Math.sin(rad) }
@@ -103,8 +104,14 @@ export function resizeRect(
   const anchorY = cy0 + (ux.y * (-hx * ow) + uy.y * (-hy * oh)) / 2
   const lx = (px - anchorX) * ux.x + (py - anchorY) * ux.y
   const ly = (px - anchorX) * uy.x + (py - anchorY) * uy.y
-  const nw = hx !== 0 ? Math.max(minSz, snap(hx * lx)) : ow
-  const nh = hy !== 0 ? Math.max(minSz, snap(hy * ly)) : oh
+  let nw = hx !== 0 ? Math.max(minSz, snap(hx * lx)) : ow
+  let nh = hy !== 0 ? Math.max(minSz, snap(hy * ly)) : oh
+  // Hold Shift on a corner → keep the original aspect ratio.
+  if (lockRatio && hx !== 0 && hy !== 0 && oh > 0) {
+    const aspect = ow / oh
+    if (nw / ow >= nh / oh) nh = Math.max(minSz, snap(nw / aspect))
+    else nw = Math.max(minSz, snap(nh * aspect))
+  }
   const ncx = anchorX + (ux.x * (hx * nw) + uy.x * (hy * nh)) / 2
   const ncy = anchorY + (ux.y * (hx * nw) + uy.y * (hy * nh)) / 2
   return { x: snap(ncx - nw / 2), y: snap(ncy - nh / 2), w: nw, h: nh }

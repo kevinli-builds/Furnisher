@@ -62,7 +62,7 @@ export interface Furniture {
 
 // A labelled box drawn behind everything — e.g. to frame a floor (frame) or to
 // indicate a closet (closet = diagonal-hatched shading).
-export type MarkerStyle = 'frame' | 'closet'
+export type MarkerStyle = 'frame' | 'shaded' | 'closet'
 export interface Marker {
   id: string
   name: string

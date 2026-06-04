@@ -341,8 +341,11 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
               <button className={`seg-btn${(marker.style ?? 'frame') === 'frame' ? ' on' : ''}`} onClick={() => patchMarker({ style: 'frame' })}>
                 Frame
               </button>
+              <button className={`seg-btn${marker.style === 'shaded' ? ' on' : ''}`} onClick={() => patchMarker({ style: 'shaded' })}>
+                Shaded
+              </button>
               <button className={`seg-btn${marker.style === 'closet' ? ' on' : ''}`} onClick={() => patchMarker({ style: 'closet' })}>
-                Closet
+                Hatch
               </button>
             </div>
           </section>

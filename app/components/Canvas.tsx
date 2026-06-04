@@ -519,7 +519,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
         }),
       }))
     } else if (d.kind === 'resize') {
-      const nb = resizeRect(d.ox, d.oy, d.ow, d.oh, d.rot, d.hx, d.hy, p.x, p.y, d.otype === 'furniture' ? 10 : 30)
+      const nb = resizeRect(d.ox, d.oy, d.ow, d.oh, d.rot, d.hx, d.hy, p.x, p.y, d.otype === 'furniture' ? 10 : 30, e.shiftKey)
       setPlan((pl) => {
         if (d.otype === 'room') return { ...pl, rooms: pl.rooms.map((r) => (r.id === d.id ? { ...r, ...nb } : r)) }
         if (d.otype === 'furniture') return { ...pl, furniture: pl.furniture.map((f) => (f.id === d.id ? { ...f, ...nb } : f)) }
@@ -711,10 +711,11 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
           </g>
         )}
 
-        {/* Markers — floor frames (dashed) or closets (diagonal hatch) */}
+        {/* Markers — frame (dashed), shaded (solid tint), or closet (hatch) */}
         {plan.markers.map((m) => {
           const active = inSel('marker', m.id)
-          const closet = (m.style ?? 'frame') === 'closet'
+          const style = m.style ?? 'frame'
+          const fill = style === 'closet' ? 'url(#closet-hatch)' : style === 'shaded' ? 'rgba(140,124,96,0.14)' : 'rgba(140,124,96,0.04)'
           return (
             <g key={m.id}>
               <rect
@@ -722,17 +723,17 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
                 y={m.y}
                 width={m.w}
                 height={m.h}
-                rx={closet ? 4 : 10}
-                fill={closet ? 'url(#closet-hatch)' : 'rgba(140,124,96,0.04)'}
-                fillOpacity={closet ? 0.55 : 1}
+                rx={style === 'frame' ? 10 : 4}
+                fill={fill}
+                fillOpacity={style === 'closet' ? 0.55 : 1}
                 stroke={active ? '#b5714e' : '#c9bca6'}
                 strokeWidth={active ? 2.5 : 1.5}
-                strokeDasharray={closet ? undefined : '10 6'}
+                strokeDasharray={style === 'frame' ? '10 6' : undefined}
                 vectorEffect="non-scaling-stroke"
                 style={{ cursor: 'move' }}
                 onPointerDown={(e) => onMarkerDown(e, m.id)}
               />
-              <text x={m.x + 12} y={m.y + 22} fontSize={closet ? 14 : 18} fill="#b3a488" fontWeight={700} pointerEvents="none">
+              <text x={m.x + 12} y={m.y + 22} fontSize={style === 'frame' ? 18 : 14} fill="#b3a488" fontWeight={700} pointerEvents="none">
                 {m.name}
               </text>
               {active && sel.length === 1 && resizeHandles('marker', m.id, m.x, m.y, m.w, m.h)}

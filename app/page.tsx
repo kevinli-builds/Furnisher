@@ -214,11 +214,10 @@ export default function Page() {
             <button className={`seg-btn${mode === 'marker' ? ' on' : ''}`} onClick={() => setMode('marker')} title="Draw a labelled box, e.g. to frame a floor or a closet">
               ▢ Marker
             </button>
+            <button className="seg-btn" onClick={addStairs} title="Add a linked entry + exit stair pair">
+              ⟚ Stairs
+            </button>
           </div>
-
-          <button className="seg-btn solo" onClick={addStairs} title="Add a linked entry + exit stair pair">
-            ⟚ Stairs
-          </button>
 
           <div className="seg">
             <button className="seg-btn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)">
