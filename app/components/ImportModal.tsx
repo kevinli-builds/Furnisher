@@ -155,7 +155,7 @@ export default function ImportModal({ mode, setPlan, onClose }: Props) {
               <label className="sect-label">Anthropic API key</label>
               <p className="sect-note">
                 Bring your own key. It’s stored only in this browser and sent directly to Anthropic — never to our servers.{' '}
-                <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">
+                <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer noopener">
                   Get a key
                 </a>
                 .

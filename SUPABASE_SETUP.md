@@ -107,6 +107,26 @@ Then enable **Realtime** so collaborators' saves stream live:
 alter publication supabase_realtime add table public.projects;
 ```
 
+**Recommended hardening** — collaborators can edit a shared plan's contents, but
+should not be able to seize ownership or change its share token. This trigger
+locks `user_id` + `share_token` to the owner:
+
+```sql
+create or replace function public.guard_project_owner_cols()
+  returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() <> old.user_id
+     and (new.user_id <> old.user_id or new.share_token is distinct from old.share_token) then
+    raise exception 'Only the owner can change ownership or the share link';
+  end if;
+  return new;
+end; $$;
+
+drop trigger if exists guard_project_owner_cols on public.projects;
+create trigger guard_project_owner_cols before update on public.projects
+  for each row execute function public.guard_project_owner_cols();
+```
+
 (or Supabase → **Database → Replication** → add `projects` to `supabase_realtime`.)
 
 How it works in the app: open a cloud plan → it **auto-saves** (debounced) and
