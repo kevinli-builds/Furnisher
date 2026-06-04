@@ -301,6 +301,37 @@ body {
   padding: 0 4px;
 }
 
+/* Sun indicator (lighting layer) */
+.sun-badge {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 5px 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.sun-time {
+  font-variant-numeric: tabular-nums;
+}
+.sun-arrow {
+  color: #e0a23a;
+  font-size: 15px;
+  display: inline-block;
+}
+.sun-n {
+  color: var(--muted);
+  font-size: 11px;
+  display: inline-block;
+}
+
 select.field {
   cursor: pointer;
 }

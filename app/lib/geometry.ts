@@ -65,6 +65,20 @@ export function bboxOf(pts: Pt[]): Box {
   return { x, y, w: Math.max(...xs) - x, h: Math.max(...ys) - y }
 }
 
+export function pointInPolygon(px: number, py: number, pts: Pt[]): boolean {
+  let inside = false
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const a = pts[i]
+    const b = pts[j]
+    if (a.y > py !== b.y > py && px < ((b.x - a.x) * (py - a.y)) / (b.y - a.y) + a.x) inside = !inside
+  }
+  return inside
+}
+
+export function roomsAt(px: number, py: number, rooms: Room[]): boolean {
+  return rooms.some((r) => pointInPolygon(px, py, roomCorners(r)))
+}
+
 // Snap a point to the nearest room wall, returning where a door of `length`
 // should sit (its start corner), the wall's orientation, and how far the point
 // was from that wall. Doors are always glued to a border this way — you just

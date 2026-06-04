@@ -2,8 +2,9 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Plan, Mode, Selection, SelItem, Door, Pt } from '../lib/types'
-import { snap, clamp, uid, snapDoorToWalls, overlaps, gridStep, roomCorners, bboxOf, MIN_ROOM, MIN_SCALE, MAX_SCALE, type Box } from '../lib/geometry'
+import { snap, clamp, uid, snapDoorToWalls, overlaps, gridStep, roomCorners, bboxOf, roomsAt, MIN_ROOM, MIN_SCALE, MAX_SCALE, type Box } from '../lib/geometry'
 import { DOOR_LEN, swingForCursor, doorBox, doorGeom } from '../lib/door'
+import { sunAt, timeTint, formatHour } from '../lib/sun'
 import { formatSize } from '../lib/units'
 import { furnitureType } from '../lib/furniture'
 import FurnitureGlyph from './FurnitureGlyph'
@@ -624,6 +625,45 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
     return !plan.rooms.some((o) => o.id !== r.id && o.x < r.x + r.w && o.x + o.w > r.x && o.y < r.y && o.y + o.h >= r.y - 2)
   }
 
+  // ── Lighting overlay (sun through windows) ────────────────────
+  const sun = plan.lighting ? sunAt(plan.sunTime ?? 12, plan.northDeg ?? 0) : null
+  const tint = plan.lighting ? timeTint(plan.sunTime ?? 12) : null
+  const beams: { pts: string; op: number }[] = []
+  if (sun && sun.altitude > 0.02) {
+    const L = 320 // beam reach into the room (cm)
+    for (const d of plan.doors) {
+      if ((d.type ?? 'swing') !== 'window') continue
+      const horiz = d.orientation === 'h'
+      const ax = d.x
+      const ay = d.y
+      const bx = horiz ? d.x + d.length : d.x
+      const by = horiz ? d.y : d.y + d.length
+      const cx = (ax + bx) / 2
+      const cy = (ay + by) / 2
+      // interior normal: which side has a room?
+      let nx = 0
+      let ny = 0
+      if (horiz) {
+        const down = roomsAt(cx, cy + 12, plan.rooms)
+        const up = roomsAt(cx, cy - 12, plan.rooms)
+        if (down && !up) ny = 1
+        else if (up && !down) ny = -1
+        else continue
+      } else {
+        const right = roomsAt(cx + 12, cy, plan.rooms)
+        const left = roomsAt(cx - 12, cy, plan.rooms)
+        if (right && !left) nx = 1
+        else if (left && !right) nx = -1
+        else continue
+      }
+      const facing = sun.dir.x * nx + sun.dir.y * ny // light travelling into the room?
+      if (facing <= 0.05) continue
+      const ex = sun.dir.x * L
+      const ey = sun.dir.y * L
+      beams.push({ pts: `${ax},${ay} ${bx},${by} ${bx + ex},${by + ey} ${ax + ex},${ay + ey}`, op: 0.26 * sun.altitude * facing })
+    }
+  }
+
   const bgCursor = spaceHeld ? 'grab' : mode === 'room' || mode === 'marker' ? 'crosshair' : mode === 'door' || mode === 'window' ? 'copy' : 'default'
 
   return (
@@ -925,6 +965,16 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
           )
         })}
 
+        {/* Lighting overlay (sun wash + light from windows) */}
+        {plan.lighting && tint && (
+          <g pointerEvents="none">
+            <rect x={left} y={top} width={vw} height={vh} fill={tint.color} opacity={tint.opacity} />
+            {beams.map((b, i) => (
+              <polygon key={`beam${i}`} points={b.pts} fill="#ffe6a8" opacity={b.op} />
+            ))}
+          </g>
+        )}
+
         {/* Draft room */}
         {draft && (
           <rect x={draft.x} y={draft.y} width={draft.w} height={draft.h} fill="rgba(181,113,78,0.09)" stroke="#b5714e" strokeWidth={2} strokeDasharray="6 4" vectorEffect="non-scaling-stroke" pointerEvents="none" />
@@ -967,6 +1017,21 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
         </button>
         <span className="zoom-pct">{Math.round(scale * 100)}%</span>
       </div>
+
+      {/* Sun indicator */}
+      {plan.lighting && (
+        <div className="sun-badge">
+          <span className="sun-time">{sun ? '☀' : '☾'} {formatHour(plan.sunTime ?? 12)}</span>
+          {sun && (
+            <span className="sun-arrow" style={{ transform: `rotate(${(Math.atan2(-sun.dir.x, sun.dir.y) * 180) / Math.PI}deg)` }}>
+              ↑
+            </span>
+          )}
+          <span className="sun-n" style={{ transform: `rotate(${-(plan.northDeg ?? 0)}deg)` }} title="North">
+            ⇧N
+          </span>
+        </div>
+      )}
     </div>
   )
 }

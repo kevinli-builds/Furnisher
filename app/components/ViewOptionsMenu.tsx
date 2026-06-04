@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Plan } from '../lib/types'
 import { safeUrl } from '../lib/url'
+import { formatHour } from '../lib/sun'
 
 interface Props {
   plan: Plan
@@ -63,6 +64,42 @@ export default function ViewOptionsMenu({ plan, setPlan }: Props) {
               Hide
             </Seg>
           </Row>
+          <Row label="Lighting">
+            <Seg on={!!plan.lighting} onClick={() => set({ lighting: true })}>
+              On
+            </Seg>
+            <Seg on={!plan.lighting} onClick={() => set({ lighting: false })}>
+              Off
+            </Seg>
+          </Row>
+          {plan.lighting && (
+            <>
+              <div className="opts-row">
+                <span className="sect-label">Time · {formatHour(plan.sunTime ?? 12)}</span>
+                <input
+                  type="range"
+                  className="slider"
+                  min={0}
+                  max={24}
+                  step={0.5}
+                  value={plan.sunTime ?? 12}
+                  onChange={(e) => set({ sunTime: Number(e.target.value) })}
+                />
+              </div>
+              <div className="opts-row">
+                <span className="sect-label">North · {Math.round(plan.northDeg ?? 0)}°</span>
+                <input
+                  type="range"
+                  className="slider"
+                  min={0}
+                  max={359}
+                  step={5}
+                  value={plan.northDeg ?? 0}
+                  onChange={(e) => set({ northDeg: Number(e.target.value) })}
+                />
+              </div>
+            </>
+          )}
           <div className="opts-row">
             <span className="sect-label">Blueprint link</span>
             <input
