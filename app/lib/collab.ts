@@ -57,6 +57,29 @@ export function diffPlan(prev: Plan, next: Plan): Op[] {
   return ops
 }
 
+// Validate + clean ops arriving from the network (the channel is only
+// semi-trusted): drop anything malformed, and only allow known meta keys.
+export function sanitizeOps(raw: unknown): Op[] {
+  if (!Array.isArray(raw)) return []
+  const out: Op[] = []
+  for (const o of raw) {
+    if (!o || typeof o !== 'object') continue
+    const op = o as Record<string, unknown>
+    if (op.t === 'upsert' && COLLS.includes(op.c as Coll) && op.item && typeof op.item === 'object' && typeof (op.item as Entity).id === 'string') {
+      out.push({ t: 'upsert', c: op.c as Coll, item: op.item as Entity })
+    } else if (op.t === 'del' && COLLS.includes(op.c as Coll) && typeof op.id === 'string') {
+      out.push({ t: 'del', c: op.c as Coll, id: op.id })
+    } else if (op.t === 'meta' && op.fields && typeof op.fields === 'object') {
+      const clean: Partial<Plan> = {}
+      for (const k of META_KEYS) {
+        if (k in (op.fields as object)) (clean as Record<string, unknown>)[k] = (op.fields as Record<string, unknown>)[k]
+      }
+      out.push({ t: 'meta', fields: clean })
+    }
+  }
+  return out
+}
+
 export function applyOps(plan: Plan, ops: Op[]): Plan {
   let p: Plan = plan
   for (const op of ops) {
@@ -144,9 +167,11 @@ export function useCollab(projectId: string | null, plan: Plan, applyRemote: (p:
       config: { broadcast: { self: false }, presence: { key: me.current.id } },
     })
 
-    ch.on('broadcast', { event: 'ops' }, ({ payload }: { payload: { ops: Op[] } }) => {
+    ch.on('broadcast', { event: 'ops' }, ({ payload }: { payload: { ops?: unknown } }) => {
+      const ops = sanitizeOps(payload?.ops)
+      if (!ops.length) return
       applyingRemote.current = true
-      const np = applyOps(planRef.current, payload.ops)
+      const np = applyOps(planRef.current, ops)
       prevPlan.current = np
       applyRemote(np)
       queueMicrotask(() => {
@@ -154,9 +179,16 @@ export function useCollab(projectId: string | null, plan: Plan, applyRemote: (p:
       })
     })
 
-    ch.on('broadcast', { event: 'cursor' }, ({ payload }: { payload: Peer }) => {
-      if (payload.id === me.current.id) return
-      setPeers((ps) => ({ ...ps, [payload.id]: { ...ps[payload.id], ...payload } }))
+    ch.on('broadcast', { event: 'cursor' }, ({ payload }: { payload: Partial<Peer> }) => {
+      if (typeof payload?.id !== 'string' || payload.id === me.current.id) return
+      const peer: Peer = {
+        id: payload.id,
+        name: String(payload.name ?? 'Guest').slice(0, 24),
+        color: typeof payload.color === 'string' ? payload.color : '#888',
+        x: typeof payload.x === 'number' ? payload.x : undefined,
+        y: typeof payload.y === 'number' ? payload.y : undefined,
+      }
+      setPeers((ps) => ({ ...ps, [peer.id]: { ...ps[peer.id], ...peer } }))
     })
 
     const syncPresence = () => {
