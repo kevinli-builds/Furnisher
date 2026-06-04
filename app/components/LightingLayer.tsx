@@ -3,24 +3,21 @@ import type { LightCone, LightGlow } from '../lib/sun'
 interface Props {
   cones: LightCone[]
   glows: LightGlow[]
-  tint: { color: string; opacity: number }
-  left: number
-  top: number
-  vw: number
-  vh: number
+  coneColor: string // sun colour for the cones (background is left unchanged)
 }
 
-// The lighting overlay: a time-of-day wash + window sun-cones + lamp glows,
-// each rendered with a radial gradient and clipped to its room.
-export default function LightingLayer({ cones, glows, tint, left, top, vw, vh }: Props) {
+// The lighting overlay: window sun-cones + lamp glows, each a radial gradient
+// clipped to its room. The cones' colour shifts with time of day; the plan
+// background itself is never recoloured.
+export default function LightingLayer({ cones, glows, coneColor }: Props) {
   return (
     <g pointerEvents="none">
       <defs>
         {cones.map((c, i) => (
           <radialGradient key={`cg${i}`} id={`cone-${i}`} gradientUnits="userSpaceOnUse" cx={c.ax} cy={c.ay} r={c.r}>
-            <stop offset="0%" stopColor="#ffe39a" stopOpacity={c.op} />
-            <stop offset="55%" stopColor="#ffe39a" stopOpacity={c.op * 0.4} />
-            <stop offset="100%" stopColor="#ffe39a" stopOpacity={0} />
+            <stop offset="0%" stopColor={coneColor} stopOpacity={c.op} />
+            <stop offset="55%" stopColor={coneColor} stopOpacity={c.op * 0.4} />
+            <stop offset="100%" stopColor={coneColor} stopOpacity={0} />
           </radialGradient>
         ))}
         {cones.map((c, i) => c.clip && (
@@ -42,7 +39,6 @@ export default function LightingLayer({ cones, glows, tint, left, top, vw, vh }:
         ))}
       </defs>
 
-      <rect x={left} y={top} width={vw} height={vh} fill={tint.color} opacity={tint.opacity} />
       {cones.map((c, i) => (
         <polygon key={`cone${i}`} points={c.poly} fill={`url(#cone-${i})`} clipPath={c.clip ? `url(#coneClip-${i})` : undefined} />
       ))}

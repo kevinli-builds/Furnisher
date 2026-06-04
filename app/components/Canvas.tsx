@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Plan, Mode, Selection, SelItem, Door, Pt } from '../lib/types'
 import { snap, clamp, uid, snapDoorToWalls, overlaps, gridStep, roomCorners, bboxOf, resizeRect, MIN_ROOM, MIN_SCALE, MAX_SCALE, type Box } from '../lib/geometry'
 import { DOOR_LEN, swingForCursor, doorBox, doorGeom } from '../lib/door'
-import { sunAt, timeTint, formatHour, windowCones, lampGlows } from '../lib/sun'
+import { sunAt, sunColor, formatHour, windowCones, lampGlows } from '../lib/sun'
 import { formatSize } from '../lib/units'
 import { furnitureType } from '../lib/furniture'
 import type { Peer } from '../lib/collab'
@@ -652,7 +652,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
 
   // ── Lighting overlay (sun cones from windows + lamp glows) ────
   const sun = plan.lighting ? sunAt(plan.sunTime ?? 12, plan.northDeg ?? 0, plan.latitude ?? 40) : null
-  const tint = plan.lighting ? timeTint(plan.sunTime ?? 12) : null
+  const coneColor = sunColor(plan.sunTime ?? 12)
   const cones = plan.lighting ? windowCones(plan, sun) : []
   const glows = plan.lighting ? lampGlows(plan, sun) : []
 
@@ -1010,8 +1010,8 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
           )
         })}
 
-        {/* Lighting overlay: time-of-day wash + window cones + lamp glows */}
-        {plan.lighting && tint && <LightingLayer cones={cones} glows={glows} tint={tint} left={left} top={top} vw={vw} vh={vh} />}
+        {/* Lighting overlay: window cones (colour shifts with the sun) + lamp glows */}
+        {plan.lighting && <LightingLayer cones={cones} glows={glows} coneColor={coneColor} />}
 
         {/* Draft room */}
         {draft && (

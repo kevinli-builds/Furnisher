@@ -25,12 +25,13 @@ export function sunAt(hour: number, northDeg: number, latitude = 40): Sun | null
   return { dir: { x: Math.sin(theta), y: -Math.cos(theta) }, altitude }
 }
 
-// A whole-plan wash conveying time of day.
-export function timeTint(hour: number): { color: string; opacity: number } {
-  if (hour < 5.5 || hour > 18.5) return { color: '#2a3358', opacity: 0.22 } // night (cool, dim)
+// Daylight colour: golden near sunrise/sunset → pale warm at midday. Used to
+// tint the light cones (the background itself is left unchanged).
+export function sunColor(hour: number): string {
   const frac = Math.max(0, Math.min(1, (hour - 6) / 12))
-  const alt = Math.sin(Math.PI * frac)
-  return { color: '#ffb060', opacity: 0.16 * (1 - alt) + 0.02 } // golden near horizon, clear at noon
+  const alt = Math.sin(Math.PI * frac) // 0 at horizon → 1 at noon
+  const lerp = (a: number, b: number) => Math.round(a + (b - a) * alt)
+  return `rgb(${lerp(255, 255)}, ${lerp(176, 238)}, ${lerp(96, 196)})` // #ffb060 → #ffeec4
 }
 
 export function formatHour(hour: number): string {
