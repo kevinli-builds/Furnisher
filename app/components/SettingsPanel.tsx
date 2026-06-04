@@ -149,7 +149,24 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
                 </button>
               </>
             ) : (
-              <p className="sect-note">Click a white dot on an edge to add a corner and make a non-square room.</p>
+              <>
+                <p className="sect-note">Drag the border handles to resize, or convert to a polygon to make an L-shape.</p>
+                <button
+                  className="btn-ghost"
+                  onClick={() =>
+                    setPlan((p) => ({
+                      ...p,
+                      rooms: p.rooms.map((r) =>
+                        r.id === sel.id
+                          ? { ...r, points: [{ x: r.x, y: r.y }, { x: r.x + r.w, y: r.y }, { x: r.x + r.w, y: r.y + r.h }, { x: r.x, y: r.y + r.h }] }
+                          : r,
+                      ),
+                    }))
+                  }
+                >
+                  Make non-square
+                </button>
+              </>
             )}
           </section>
         )}

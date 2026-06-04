@@ -25,7 +25,8 @@ type Drag =
   | { kind: 'marquee'; ox: number; oy: number }
   | { kind: 'pan'; cx0: number; cy0: number; vx0: number; vy0: number }
   | { kind: 'move-sel'; sx: number; sy: number; orig: OrigPos[]; click: SelItem; moved: boolean }
-  | { kind: 'move-room' | 'resize-room' | 'resize-marker'; id: string; sx: number; sy: number; ox: number; oy: number; ow: number; oh: number; pts?: Pt[] }
+  | { kind: 'move-room'; id: string; sx: number; sy: number; ox: number; oy: number; pts?: Pt[] }
+  | { kind: 'resize'; otype: 'room' | 'furniture' | 'marker' | 'stair'; id: string; hx: number; hy: number; sx: number; sy: number; ox: number; oy: number; ow: number; oh: number; rot: number }
   | { kind: 'move-node'; id: string; idx: number; sx: number; sy: number }
   | { kind: 'move-furniture' | 'move-door' | 'move-marker' | 'move-stair'; id: string; sx: number; sy: number; ox: number; oy: number }
   | null
@@ -331,17 +332,29 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
     onObjDown(e, { type: 'room', id }, () => {
       const r = plan.rooms.find((r) => r.id === id)!
       const p = toCm(e)
-      drag.current = { kind: 'move-room', id, sx: p.x, sy: p.y, ox: r.x, oy: r.y, ow: r.w, oh: r.h, pts: r.points }
+      drag.current = { kind: 'move-room', id, sx: p.x, sy: p.y, ox: r.x, oy: r.y, pts: r.points }
       capture(e)
     })
   }
 
-  function onRoomResize(e: React.PointerEvent, id: string) {
+  // Generic border/corner resize for room/furniture/marker/stair. hx,hy are the
+  // handle's local sign (-1/0/1). Math runs in the object's local (rotated) frame
+  // so the opposite edge stays anchored.
+  function onResizeStart(e: React.PointerEvent, otype: 'room' | 'furniture' | 'marker' | 'stair', id: string, hx: number, hy: number) {
     e.stopPropagation()
-    const r = plan.rooms.find((r) => r.id === id)!
+    const o =
+      otype === 'room'
+        ? plan.rooms.find((r) => r.id === id)
+        : otype === 'furniture'
+          ? plan.furniture.find((f) => f.id === id)
+          : otype === 'marker'
+            ? plan.markers.find((m) => m.id === id)
+            : plan.stairs.find((s) => s.id === id)
+    if (!o) return
+    const rot = 'rotation' in o ? (o.rotation as number) : 0
     const p = toCm(e)
-    drag.current = { kind: 'resize-room', id, sx: p.x, sy: p.y, ox: r.x, oy: r.y, ow: r.w, oh: r.h }
-    setSel([{ type: 'room', id }])
+    drag.current = { kind: 'resize', otype, id, hx, hy, sx: p.x, sy: p.y, ox: o.x, oy: o.y, ow: o.w, oh: o.h, rot }
+    setSel([{ type: otype, id }])
     capture(e)
   }
 
@@ -402,15 +415,6 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
       drag.current = { kind: 'move-marker', id, sx: p.x, sy: p.y, ox: m.x, oy: m.y }
       capture(e)
     })
-  }
-
-  function onMarkerResize(e: React.PointerEvent, id: string) {
-    e.stopPropagation()
-    const m = plan.markers.find((m) => m.id === id)!
-    const p = toCm(e)
-    drag.current = { kind: 'resize-marker', id, sx: p.x, sy: p.y, ox: m.x, oy: m.y, ow: m.w, oh: m.h }
-    setSel([{ type: 'marker', id }])
-    capture(e)
   }
 
   function onStairDown(e: React.PointerEvent, id: string) {
@@ -514,10 +518,29 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
           return { ...r, points: np, ...bboxOf(np) }
         }),
       }))
-    } else if (d.kind === 'resize-room') {
-      const nw = Math.max(MIN_ROOM, snap(d.ow + dx))
-      const nh = Math.max(MIN_ROOM, snap(d.oh + dy))
-      setPlan((pl) => ({ ...pl, rooms: pl.rooms.map((r) => (r.id === d.id ? { ...r, w: nw, h: nh } : r)) }))
+    } else if (d.kind === 'resize') {
+      const rad = (d.rot * Math.PI) / 180
+      const ux = { x: Math.cos(rad), y: Math.sin(rad) }
+      const uy = { x: -Math.sin(rad), y: Math.cos(rad) }
+      const cx0 = d.ox + d.ow / 2
+      const cy0 = d.oy + d.oh / 2
+      const anchorX = cx0 + ux.x * (-d.hx * d.ow) / 2 + uy.x * (-d.hy * d.oh) / 2
+      const anchorY = cy0 + ux.y * (-d.hx * d.ow) / 2 + uy.y * (-d.hy * d.oh) / 2
+      const lx = (p.x - anchorX) * ux.x + (p.y - anchorY) * ux.y
+      const ly = (p.x - anchorX) * uy.x + (p.y - anchorY) * uy.y
+      const minSz = d.otype === 'furniture' ? 10 : 30
+      const nw = d.hx !== 0 ? Math.max(minSz, snap(d.hx * lx)) : d.ow
+      const nh = d.hy !== 0 ? Math.max(minSz, snap(d.hy * ly)) : d.oh
+      const ncx = anchorX + (ux.x * (d.hx * nw) + uy.x * (d.hy * nh)) / 2
+      const ncy = anchorY + (ux.y * (d.hx * nw) + uy.y * (d.hy * nh)) / 2
+      const nx = snap(ncx - nw / 2)
+      const ny = snap(ncy - nh / 2)
+      setPlan((pl) => {
+        if (d.otype === 'room') return { ...pl, rooms: pl.rooms.map((r) => (r.id === d.id ? { ...r, x: nx, y: ny, w: nw, h: nh } : r)) }
+        if (d.otype === 'furniture') return { ...pl, furniture: pl.furniture.map((f) => (f.id === d.id ? { ...f, x: nx, y: ny, w: nw, h: nh } : f)) }
+        if (d.otype === 'marker') return { ...pl, markers: pl.markers.map((m) => (m.id === d.id ? { ...m, x: nx, y: ny, w: nw, h: nh } : m)) }
+        return { ...pl, stairs: pl.stairs.map((s) => (s.id === d.id ? { ...s, x: nx, y: ny, w: nw, h: nh } : s)) }
+      })
     } else if (d.kind === 'move-furniture') {
       setPlan((pl) => ({ ...pl, furniture: pl.furniture.map((f) => (f.id === d.id ? { ...f, x: snap(d.ox + dx), y: snap(d.oy + dy) } : f)) }))
     } else if (d.kind === 'move-door') {
@@ -535,10 +558,6 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
       }))
     } else if (d.kind === 'move-marker') {
       setPlan((pl) => ({ ...pl, markers: pl.markers.map((m) => (m.id === d.id ? { ...m, x: snap(d.ox + dx), y: snap(d.oy + dy) } : m)) }))
-    } else if (d.kind === 'resize-marker') {
-      const nw = Math.max(MIN_ROOM, snap(d.ow + dx))
-      const nh = Math.max(MIN_ROOM, snap(d.oh + dy))
-      setPlan((pl) => ({ ...pl, markers: pl.markers.map((m) => (m.id === d.id ? { ...m, w: nw, h: nh } : m)) }))
     } else if (d.kind === 'move-stair') {
       setPlan((pl) => ({ ...pl, stairs: pl.stairs.map((s) => (s.id === d.id ? { ...s, x: snap(d.ox + dx), y: snap(d.oy + dy) } : s)) }))
     }
@@ -664,6 +683,37 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
     }
   }
 
+  // 8 resize handles (corners + edge midpoints) in the object's local box.
+  function resizeHandles(otype: 'room' | 'furniture' | 'marker' | 'stair', id: string, x: number, y: number, w: number, h: number) {
+    const HS = 16
+    const hs: { hx: number; hy: number; cx: number; cy: number; cur: string }[] = [
+      { hx: -1, hy: -1, cx: x, cy: y, cur: 'nwse-resize' },
+      { hx: 1, hy: -1, cx: x + w, cy: y, cur: 'nesw-resize' },
+      { hx: 1, hy: 1, cx: x + w, cy: y + h, cur: 'nwse-resize' },
+      { hx: -1, hy: 1, cx: x, cy: y + h, cur: 'nesw-resize' },
+      { hx: 0, hy: -1, cx: x + w / 2, cy: y, cur: 'ns-resize' },
+      { hx: 1, hy: 0, cx: x + w, cy: y + h / 2, cur: 'ew-resize' },
+      { hx: 0, hy: 1, cx: x + w / 2, cy: y + h, cur: 'ns-resize' },
+      { hx: -1, hy: 0, cx: x, cy: y + h / 2, cur: 'ew-resize' },
+    ]
+    return hs.map((g, i) => (
+      <rect
+        key={`rh${i}`}
+        x={g.cx - HS / 2}
+        y={g.cy - HS / 2}
+        width={HS}
+        height={HS}
+        rx={2}
+        fill="#fff"
+        stroke="#b5714e"
+        strokeWidth={2}
+        vectorEffect="non-scaling-stroke"
+        style={{ cursor: g.cur }}
+        onPointerDown={(e) => onResizeStart(e, otype, id, g.hx, g.hy)}
+      />
+    ))
+  }
+
   const bgCursor = spaceHeld ? 'grab' : mode === 'room' || mode === 'marker' ? 'crosshair' : mode === 'door' || mode === 'window' ? 'copy' : 'default'
 
   return (
@@ -726,9 +776,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
               <text x={m.x + 12} y={m.y + 22} fontSize={closet ? 14 : 18} fill="#b3a488" fontWeight={700} pointerEvents="none">
                 {m.name}
               </text>
-              {active && sel.length === 1 && (
-                <rect x={m.x + m.w - 14} y={m.y + m.h - 14} width={28} height={28} fill="#b5714e" rx={3} style={{ cursor: 'nwse-resize' }} onPointerDown={(e) => onMarkerResize(e, m.id)} />
-              )}
+              {active && sel.length === 1 && resizeHandles('marker', m.id, m.x, m.y, m.w, m.h)}
             </g>
           )
         })}
@@ -781,29 +829,30 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
                   </text>
                 </>
               )}
-              {active && sel.length === 1 && (
-                <>
-                  {/* Edge midpoints: click to insert a corner (reshape) */}
-                  {corners.map((a, i) => {
-                    const b = corners[(i + 1) % corners.length]
-                    return (
-                      <circle
-                        key={`e${i}`}
-                        cx={(a.x + b.x) / 2}
-                        cy={(a.y + b.y) / 2}
-                        r={9}
-                        fill="#fff"
-                        stroke="#b5714e"
-                        strokeWidth={2}
-                        vectorEffect="non-scaling-stroke"
-                        style={{ cursor: 'copy' }}
-                        onPointerDown={(e) => insertNode(e, r.id, i)}
-                      />
-                    )
-                  })}
-                  {/* Vertices (polygon only): drag to move, double-click to delete */}
-                  {isPoly &&
-                    corners.map((c, i) => (
+              {active &&
+                sel.length === 1 &&
+                (isPoly ? (
+                  <>
+                    {/* Edge midpoints: click to insert a corner */}
+                    {corners.map((a, i) => {
+                      const b = corners[(i + 1) % corners.length]
+                      return (
+                        <circle
+                          key={`e${i}`}
+                          cx={(a.x + b.x) / 2}
+                          cy={(a.y + b.y) / 2}
+                          r={9}
+                          fill="#fff"
+                          stroke="#b5714e"
+                          strokeWidth={2}
+                          vectorEffect="non-scaling-stroke"
+                          style={{ cursor: 'copy' }}
+                          onPointerDown={(e) => insertNode(e, r.id, i)}
+                        />
+                      )
+                    })}
+                    {/* Vertices: drag to move, double-click to delete */}
+                    {corners.map((c, i) => (
                       <circle
                         key={`v${i}`}
                         cx={c.x}
@@ -816,12 +865,10 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
                         onDoubleClick={(e) => deleteNode(e, r.id, i)}
                       />
                     ))}
-                  {/* Rectangles keep the corner resize handle */}
-                  {!isPoly && (
-                    <rect x={r.x + r.w - 14} y={r.y + r.h - 14} width={28} height={28} fill="#b5714e" rx={3} style={{ cursor: 'nwse-resize' }} onPointerDown={(e) => onRoomResize(e, r.id)} />
-                  )}
-                </>
-              )}
+                  </>
+                ) : (
+                  resizeHandles('room', r.id, r.x, r.y, r.w, r.h)
+                ))}
             </g>
           )
         })}
@@ -925,6 +972,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
               <text x={cx} y={cy + 13} fontSize={11} fill="#a89c88" textAnchor="middle" pointerEvents="none">
                 {formatSize(f.w, f.h, units)}
               </text>
+              {active && sel.length === 1 && resizeHandles('furniture', f.id, f.x, f.y, f.w, f.h)}
             </g>
           )
         })}
@@ -961,6 +1009,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
               <text x={cx} y={cy + 4} fontSize={12} fill="#8a7e6b" fontWeight={600} textAnchor="middle" pointerEvents="none">
                 {up ? 'Entry' : 'Exit'}
               </text>
+              {active && sel.length === 1 && resizeHandles('stair', s.id, s.x, s.y, s.w, s.h)}
             </g>
           )
         })}
