@@ -79,6 +79,14 @@ export function roomsAt(px: number, py: number, rooms: Room[]): boolean {
   return rooms.some((r) => pointInPolygon(px, py, roomCorners(r)))
 }
 
+export function roomAtPoint(px: number, py: number, rooms: Room[]): Room | undefined {
+  return rooms.find((r) => pointInPolygon(px, py, roomCorners(r)))
+}
+
+export function cornersToPoints(pts: Pt[]): string {
+  return pts.map((p) => `${p.x},${p.y}`).join(' ')
+}
+
 // Resize a (possibly rotated) box by a handle (hx,hy ∈ -1/0/1) so the opposite
 // edge/corner stays anchored. Works in the box's local frame. Returns the new
 // unrotated top-left + size (centred on the same rotation pivot).

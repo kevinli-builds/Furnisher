@@ -58,6 +58,7 @@ export interface Furniture {
   rotation: Rotation
   color: string
   url?: string // optional product/reference link
+  light?: boolean // emits a glow in the lighting layer (lamps default on)
 }
 
 // A labelled box drawn behind everything — e.g. to frame a floor (frame) or to

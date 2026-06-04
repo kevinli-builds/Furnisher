@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Plan, Mode, Selection, SelItem, Door, Pt } from '../lib/types'
 import { snap, clamp, uid, snapDoorToWalls, overlaps, gridStep, roomCorners, bboxOf, resizeRect, MIN_ROOM, MIN_SCALE, MAX_SCALE, type Box } from '../lib/geometry'
 import { DOOR_LEN, swingForCursor, doorBox, doorGeom } from '../lib/door'
-import { sunAt, timeTint, formatHour, windowBeams } from '../lib/sun'
+import { sunAt, timeTint, formatHour, windowCones, lampGlows } from '../lib/sun'
 import { formatSize } from '../lib/units'
 import { furnitureType } from '../lib/furniture'
 import FurnitureGlyph from './FurnitureGlyph'
@@ -641,10 +641,11 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
     return !plan.rooms.some((o) => o.id !== r.id && o.x < r.x + r.w && o.x + o.w > r.x && o.y < r.y && o.y + o.h >= r.y - 2)
   }
 
-  // ── Lighting overlay (sun through windows) ────────────────────
+  // ── Lighting overlay (sun cones from windows + lamp glows) ────
   const sun = plan.lighting ? sunAt(plan.sunTime ?? 12, plan.northDeg ?? 0, plan.latitude ?? 40) : null
   const tint = plan.lighting ? timeTint(plan.sunTime ?? 12) : null
-  const beams = sun && sun.altitude > 0.02 ? windowBeams(plan, sun) : []
+  const cones = plan.lighting ? windowCones(plan, sun) : []
+  const glows = plan.lighting ? lampGlows(plan, sun) : []
 
   // 8 resize handles (corners + edge midpoints) in the object's local box.
   function resizeHandles(otype: 'room' | 'furniture' | 'marker' | 'stair', id: string, x: number, y: number, w: number, h: number) {
@@ -1000,12 +1001,34 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel }: Pr
           )
         })}
 
-        {/* Lighting overlay (sun wash + light from windows) */}
+        {/* Lighting overlay: time-of-day wash + window cones + lamp glows */}
         {plan.lighting && tint && (
           <g pointerEvents="none">
+            <defs>
+              {cones.map((c, i) => (
+                <radialGradient key={`cg${i}`} id={`cone-${i}`} gradientUnits="userSpaceOnUse" cx={c.ax} cy={c.ay} r={c.r}>
+                  <stop offset="0%" stopColor="#ffe39a" stopOpacity={c.op} />
+                  <stop offset="55%" stopColor="#ffe39a" stopOpacity={c.op * 0.4} />
+                  <stop offset="100%" stopColor="#ffe39a" stopOpacity={0} />
+                </radialGradient>
+              ))}
+              {cones.map((c, i) => c.clip && <clipPath key={`cc${i}`} id={`coneClip-${i}`}><polygon points={c.clip} /></clipPath>)}
+              {glows.map((g, i) => (
+                <radialGradient key={`gg${i}`} id={`glow-${i}`} gradientUnits="userSpaceOnUse" cx={g.x} cy={g.y} r={g.r}>
+                  <stop offset="0%" stopColor="#ffdf86" stopOpacity={g.op} />
+                  <stop offset="70%" stopColor="#ffdf86" stopOpacity={g.op * 0.3} />
+                  <stop offset="100%" stopColor="#ffdf86" stopOpacity={0} />
+                </radialGradient>
+              ))}
+              {glows.map((g, i) => g.clip && <clipPath key={`gc${i}`} id={`glowClip-${i}`}><polygon points={g.clip} /></clipPath>)}
+            </defs>
+
             <rect x={left} y={top} width={vw} height={vh} fill={tint.color} opacity={tint.opacity} />
-            {beams.map((b, i) => (
-              <polygon key={`beam${i}`} points={b.pts} fill="#ffe6a8" opacity={b.op} />
+            {cones.map((c, i) => (
+              <polygon key={`cone${i}`} points={c.poly} fill={`url(#cone-${i})`} clipPath={c.clip ? `url(#coneClip-${i})` : undefined} />
+            ))}
+            {glows.map((g, i) => (
+              <circle key={`glow${i}`} cx={g.x} cy={g.y} r={g.r} fill={`url(#glow-${i})`} clipPath={g.clip ? `url(#glowClip-${i})` : undefined} />
             ))}
           </g>
         )}

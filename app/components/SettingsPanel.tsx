@@ -288,6 +288,23 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
                 </a>
               )}
             </section>
+            <section className="sect">
+              <label className="sect-label">Light source</label>
+              <div className="seg full">
+                <button
+                  className={`seg-btn${(furn.light ?? furnitureType(furn.type) === 'lamp') ? ' on' : ''}`}
+                  onClick={() => patchFurn({ light: true })}
+                >
+                  Emits light
+                </button>
+                <button
+                  className={`seg-btn${!(furn.light ?? furnitureType(furn.type) === 'lamp') ? ' on' : ''}`}
+                  onClick={() => patchFurn({ light: false })}
+                >
+                  None
+                </button>
+              </div>
+            </section>
           </>
         )}
 
