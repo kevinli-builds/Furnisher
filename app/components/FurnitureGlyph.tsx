@@ -96,11 +96,11 @@ function Icon({ type, color }: { type: FurnitureType; color: string }) {
     case 'sofa':
       return (
         <>
-          <rect x={10} y={14} width={80} height={18} rx={6} {...fill} />
-          <rect x={10} y={14} width={16} height={72} rx={6} {...fill} />
-          <rect x={74} y={14} width={16} height={72} rx={6} {...fill} />
-          <rect x={26} y={34} width={48} height={52} rx={4} {...fill} />
-          <line x1={50} y1={34} x2={50} y2={86} {...line} />
+          <rect x={8} y={8} width={84} height={20} rx={6} {...fill} />
+          <rect x={8} y={8} width={17} height={84} rx={6} {...fill} />
+          <rect x={75} y={8} width={17} height={84} rx={6} {...fill} />
+          <rect x={27} y={30} width={46} height={58} rx={4} {...fill} />
+          <line x1={50} y1={32} x2={50} y2={88} {...line} />
         </>
       )
     case 'bed':
