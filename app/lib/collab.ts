@@ -114,6 +114,13 @@ function colorFor(seed: string): string {
   return PALETTE[h % PALETTE.length]
 }
 
+// A peer-supplied colour goes into CSS `background` / SVG `fill`; restrict it to
+// hex / rgb() so a hostile peer can't inject e.g. url(...) for tracking.
+function safeColor(c: unknown): string {
+  return typeof c === 'string' && /^#[0-9a-fA-F]{3,8}$|^rgba?\([\d.,\s%]+\)$/.test(c) ? c : '#888'
+}
+const safeName = (n: unknown) => String(n ?? 'Guest').slice(0, 24)
+
 // throttle helper
 function throttle<A extends unknown[]>(fn: (...a: A) => void, ms: number) {
   let last = 0
@@ -183,8 +190,8 @@ export function useCollab(projectId: string | null, plan: Plan, applyRemote: (p:
       if (typeof payload?.id !== 'string' || payload.id === me.current.id) return
       const peer: Peer = {
         id: payload.id,
-        name: String(payload.name ?? 'Guest').slice(0, 24),
-        color: typeof payload.color === 'string' ? payload.color : '#888',
+        name: safeName(payload.name),
+        color: safeColor(payload.color),
         x: typeof payload.x === 'number' ? payload.x : undefined,
         y: typeof payload.y === 'number' ? payload.y : undefined,
       }
@@ -198,7 +205,7 @@ export function useCollab(projectId: string | null, plan: Plan, applyRemote: (p:
         for (const key of Object.keys(state)) {
           const meta = state[key][0]
           if (!meta || meta.id === me.current.id) continue
-          next[meta.id] = { ...meta, x: prev[meta.id]?.x, y: prev[meta.id]?.y }
+          next[meta.id] = { id: meta.id, name: safeName(meta.name), color: safeColor(meta.color), x: prev[meta.id]?.x, y: prev[meta.id]?.y }
         }
         return next
       })
