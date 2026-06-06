@@ -35,6 +35,7 @@ type Drag =
   | { kind: 'resize'; otype: 'room' | 'furniture' | 'marker' | 'stair'; id: string; hx: number; hy: number; sx: number; sy: number; ox: number; oy: number; ow: number; oh: number; rot: number }
   | { kind: 'move-node'; id: string; idx: number; sx: number; sy: number }
   | { kind: 'move-furniture' | 'move-door' | 'move-marker' | 'move-stair'; id: string; sx: number; sy: number; ox: number; oy: number; moved?: boolean }
+  | { kind: 'resize-door'; id: string; orient: 'h' | 'v'; fixed: number }
   | null
 
 export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peers = [], onPointer }: Props) {
@@ -319,6 +320,18 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     })
   }
 
+  // Drag a window/door end to lengthen or shorten it; the opposite end stays put.
+  function onDoorResizeStart(e: React.PointerEvent, id: string, end: 0 | 1) {
+    e.stopPropagation()
+    const dd = plan.doors.find((d) => d.id === id)
+    if (!dd) return
+    const start = dd.orientation === 'h' ? dd.x : dd.y
+    const fixed = end === 0 ? start + dd.length : start // the end NOT being dragged
+    drag.current = { kind: 'resize-door', id, orient: dd.orientation, fixed }
+    setSel([{ type: 'door', id }])
+    capture(e)
+  }
+
   function onMarkerDown(e: React.PointerEvent, id: string) {
     onObjDown(e, { type: 'marker', id }, () => {
       const m = plan.markers.find((m) => m.id === id)!
@@ -407,6 +420,22 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
           const o = d.orig.find((x) => x.t === 'stair' && x.id === st.id)
           return o ? { ...st, x: o.x + dx, y: o.y + dy } : st
         }),
+      }))
+      return
+    }
+
+    if (d.kind === 'resize-door') {
+      const MIN_OPENING = 30
+      const dragged = snap(d.orient === 'h' ? p.x : p.y)
+      let lo = Math.min(d.fixed, dragged)
+      let hi = Math.max(d.fixed, dragged)
+      if (hi - lo < MIN_OPENING) {
+        if (dragged >= d.fixed) { lo = d.fixed; hi = d.fixed + MIN_OPENING } else { hi = d.fixed; lo = d.fixed - MIN_OPENING }
+      }
+      const length = hi - lo
+      setPlan((pl) => ({
+        ...pl,
+        doors: pl.doors.map((dd) => (dd.id === d.id ? (d.orient === 'h' ? { ...dd, x: lo, length } : { ...dd, y: lo, length }) : dd)),
       }))
       return
     }
@@ -814,6 +843,27 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
                   <line x1={d.x + 2} y1={d.y} x2={d.x + 2} y2={ey} stroke={color} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
                 </>
               ))}
+              {/* Drag either end to resize the opening (like other objects). */}
+              {active && sel.length === 1 &&
+                ([
+                  { end: 0 as const, cx: d.x, cy: d.y },
+                  { end: 1 as const, cx: ex, cy: ey },
+                ]).map((g) => (
+                  <rect
+                    key={`de${g.end}`}
+                    x={g.cx - 7}
+                    y={g.cy - 7}
+                    width={14}
+                    height={14}
+                    rx={2}
+                    fill="#fff"
+                    stroke="#b5714e"
+                    strokeWidth={2}
+                    vectorEffect="non-scaling-stroke"
+                    style={{ cursor: horiz ? 'ew-resize' : 'ns-resize' }}
+                    onPointerDown={(e) => onDoorResizeStart(e, d.id, g.end)}
+                  />
+                ))}
             </g>
           )
         })}
