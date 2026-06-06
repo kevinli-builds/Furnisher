@@ -57,9 +57,13 @@ export interface Furniture {
   h: number // footprint depth (cm)
   rotation: Rotation
   color: string
+  shape?: FurnShape // footprint shape — 'rect' (default) or 'round' (e.g. round rug/table)
   url?: string // optional product/reference link
   light?: boolean // emits a glow in the lighting layer (lamps default on)
 }
+
+// Footprint outline of a piece. Absent = rectangular.
+export type FurnShape = 'rect' | 'round'
 
 // A labelled box drawn behind everything — e.g. to frame a floor (frame) or to
 // indicate a closet (closet = diagonal-hatched shading).
@@ -98,6 +102,7 @@ export interface FurnTemplate {
   w: number
   h: number
   color: string
+  shape?: FurnShape // 'round' templates place round pieces
   url?: string
   group?: string // inventory group, e.g. "Kitchen"
 }

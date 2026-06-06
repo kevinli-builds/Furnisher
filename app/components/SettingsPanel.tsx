@@ -225,6 +225,21 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
           </section>
         )}
 
+        {/* Shape — furniture (round rugs, round tables, …) */}
+        {furn && (
+          <section className="sect">
+            <label className="sect-label">Shape</label>
+            <div className="seg full">
+              <button className={`seg-btn${(furn.shape ?? 'rect') === 'rect' ? ' on' : ''}`} onClick={() => patchFurn({ shape: 'rect' })}>
+                Square
+              </button>
+              <button className={`seg-btn${furn.shape === 'round' ? ' on' : ''}`} onClick={() => patchFurn({ shape: 'round' })}>
+                Round
+              </button>
+            </div>
+          </section>
+        )}
+
         {/* Rotation + colour — furniture */}
         {furn && (
           <>

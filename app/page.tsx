@@ -166,7 +166,7 @@ export default function Page() {
     const id = uid()
     setPlan((p) => ({
       ...p,
-      furniture: [...p.furniture, { id, name: t.name, type: furnitureType(t.type), x: snap(cx - t.w / 2), y: snap(cy - t.h / 2), w: t.w, h: t.h, rotation: 0, color: t.color, url: t.url }],
+      furniture: [...p.furniture, { id, name: t.name, type: furnitureType(t.type), x: snap(cx - t.w / 2), y: snap(cy - t.h / 2), w: t.w, h: t.h, rotation: 0, color: t.color, shape: t.shape, url: t.url }],
     }))
     setSel([{ type: 'furniture', id }])
   }

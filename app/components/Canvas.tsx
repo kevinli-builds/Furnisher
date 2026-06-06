@@ -106,7 +106,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     const raw = e.dataTransfer.getData('application/furnisher-item')
     if (!raw) return
     e.preventDefault()
-    let parsed: { kind: 'furniture' | 'room' | 'marker'; template: { name: string; w: number; h: number; type?: string; color?: string; url?: string; style?: 'frame' | 'shaded' | 'closet' } }
+    let parsed: { kind: 'furniture' | 'room' | 'marker'; template: { name: string; w: number; h: number; type?: string; color?: string; url?: string; shape?: 'rect' | 'round'; style?: 'frame' | 'shaded' | 'closet' } }
     try {
       parsed = JSON.parse(raw)
     } catch {
@@ -120,7 +120,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     if (parsed.kind === 'furniture') {
       setPlan((pl) => ({
         ...pl,
-        furniture: [...pl.furniture, { id, name: t.name, type: furnitureType(t.type), x, y, w: t.w, h: t.h, rotation: 0, color: t.color ?? '#d8c8a4', url: t.url }],
+        furniture: [...pl.furniture, { id, name: t.name, type: furnitureType(t.type), x, y, w: t.w, h: t.h, rotation: 0, color: t.color ?? '#d8c8a4', shape: t.shape, url: t.url }],
       }))
       setSel([{ type: 'furniture', id }])
     } else if (parsed.kind === 'marker') {
@@ -845,7 +845,23 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
                 onPointerLeave={() => setHoverFurn((h) => (h === f.id ? null : h))}
               >
                 {schematic ? (
-                  <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={6} fill={f.color} fillOpacity={0.85} stroke={active ? '#b5714e' : '#7a6e5b'} strokeWidth={active ? 3 : 1.5} vectorEffect="non-scaling-stroke" />
+                  f.shape === 'round' ? (
+                    <ellipse cx={cx} cy={cy} rx={f.w / 2} ry={f.h / 2} fill={f.color} fillOpacity={0.85} stroke={active ? '#b5714e' : '#7a6e5b'} strokeWidth={active ? 3 : 1.5} vectorEffect="non-scaling-stroke" />
+                  ) : (
+                    <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={6} fill={f.color} fillOpacity={0.85} stroke={active ? '#b5714e' : '#7a6e5b'} strokeWidth={active ? 3 : 1.5} vectorEffect="non-scaling-stroke" />
+                  )
+                ) : f.shape === 'round' ? (
+                  <>
+                    <defs>
+                      <clipPath id={`fclip-${f.id}`}>
+                        <ellipse cx={cx} cy={cy} rx={f.w / 2} ry={f.h / 2} />
+                      </clipPath>
+                    </defs>
+                    <ellipse cx={cx} cy={cy} rx={f.w / 2} ry={f.h / 2} fill={f.color} fillOpacity={0.16} stroke={active ? '#b5714e' : '#cabfa9'} strokeWidth={active ? 3 : 1.2} vectorEffect="non-scaling-stroke" />
+                    <g clipPath={`url(#fclip-${f.id})`}>
+                      <FurnitureGlyph type={t} x={f.x} y={f.y} w={f.w} h={f.h} color={f.color} />
+                    </g>
+                  </>
                 ) : (
                   <>
                     <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={6} fill={f.color} fillOpacity={0.16} stroke={active ? '#b5714e' : '#cabfa9'} strokeWidth={active ? 3 : 1.2} vectorEffect="non-scaling-stroke" />
