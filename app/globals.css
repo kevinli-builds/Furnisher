@@ -674,6 +674,13 @@ select.field {
 .inv-tabs {
   margin-bottom: 4px;
 }
+/* Three tabs ("Furniture/Rooms/Markers") must fit a narrow panel without the
+   last one being clipped by the seg's overflow:hidden — trim the padding. */
+.inv-tabs .seg-btn {
+  padding-left: 6px;
+  padding-right: 6px;
+  font-size: 12.5px;
+}
 .inv-hint {
   font-size: 11.5px;
   color: var(--muted);

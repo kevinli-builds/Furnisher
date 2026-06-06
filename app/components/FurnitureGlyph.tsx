@@ -9,24 +9,75 @@ interface Props {
   w: number
   h: number
   color: string
+  round?: boolean // draw the circular variant (for round-shaped pieces)
 }
 
 // A little top-view furniture icon, drawn in a 0..100 box and stretched to fill
-// the piece's footprint (with padding). Strokes are non-scaling so they stay
-// crisp at any zoom or footprint size.
-export default function FurnitureGlyph({ type, x, y, w, h, color }: Props) {
-  // Fill the footprint (the icons are drawn with a little internal margin, so a
-  // pad slightly over 1 lets them reach the edges and spill a touch).
-  const pad = 1.08
+// the piece's footprint. Strokes are non-scaling so they stay crisp at any zoom
+// or footprint size.
+export default function FurnitureGlyph({ type, x, y, w, h, color, round }: Props) {
+  // The 0..100 box maps onto the footprint. Rectangular icons are drawn with a
+  // small internal margin, so we over-scale a touch to reach the edges. Round
+  // icons are drawn edge-to-edge (r≈50), so they map 1:1 onto the ellipse.
+  const pad = round ? 1.0 : 1.2
   const sx = (w * pad) / 100
   const sy = (h * pad) / 100
   const tx = x + (w * (1 - pad)) / 2
   const ty = y + (h * (1 - pad)) / 2
   return (
     <g transform={`translate(${tx} ${ty}) scale(${sx} ${sy})`} pointerEvents="none">
-      <Icon type={type} color={color} />
+      {round ? <RoundIcon type={type} color={color} /> : <Icon type={type} color={color} />}
     </g>
   )
+}
+
+// Circular top-view icons for round pieces — filled to the footprint's ellipse
+// (r≈49 of the 0..100 box) so they fully fill the shape, with a type-specific
+// inner motif where it reads (rugs, tables, lamps, plants).
+function RoundIcon({ type, color }: { type: FurnitureType; color: string }) {
+  const S = '#6b5f4f'
+  const line = { stroke: S, strokeWidth: 1.5, fill: 'none', vectorEffect: 'non-scaling-stroke', strokeLinecap: 'round', strokeLinejoin: 'round' } as const
+  const fill = { ...line, fill: color, fillOpacity: 0.5 } as const
+  const base = <circle cx={50} cy={50} r={49} {...fill} />
+  switch (type) {
+    case 'rug':
+      return (
+        <>
+          <circle cx={50} cy={50} r={49} {...fill} fillOpacity={0.32} />
+          <circle cx={50} cy={50} r={35} {...line} strokeDasharray="4 3" />
+          <circle cx={50} cy={50} r={21} {...line} strokeDasharray="4 3" />
+        </>
+      )
+    case 'table':
+    case 'diningTable':
+      return (
+        <>
+          {base}
+          <circle cx={50} cy={50} r={36} {...line} />
+        </>
+      )
+    case 'lamp':
+      return (
+        <>
+          {base}
+          <circle cx={50} cy={50} r={13} {...line} />
+        </>
+      )
+    case 'plant':
+      return (
+        <>
+          {base}
+          <circle cx={50} cy={50} r={20} {...line} />
+        </>
+      )
+    default:
+      return (
+        <>
+          {base}
+          <circle cx={50} cy={50} r={33} {...line} strokeOpacity={0.5} />
+        </>
+      )
+  }
 }
 
 function Icon({ type, color }: { type: FurnitureType; color: string }) {

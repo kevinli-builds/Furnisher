@@ -852,15 +852,8 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
                   )
                 ) : f.shape === 'round' ? (
                   <>
-                    <defs>
-                      <clipPath id={`fclip-${f.id}`}>
-                        <ellipse cx={cx} cy={cy} rx={f.w / 2} ry={f.h / 2} />
-                      </clipPath>
-                    </defs>
                     <ellipse cx={cx} cy={cy} rx={f.w / 2} ry={f.h / 2} fill={f.color} fillOpacity={0.16} stroke={active ? '#b5714e' : '#cabfa9'} strokeWidth={active ? 3 : 1.2} vectorEffect="non-scaling-stroke" />
-                    <g clipPath={`url(#fclip-${f.id})`}>
-                      <FurnitureGlyph type={t} x={f.x} y={f.y} w={f.w} h={f.h} color={f.color} />
-                    </g>
+                    <FurnitureGlyph type={t} x={f.x} y={f.y} w={f.w} h={f.h} color={f.color} round />
                   </>
                 ) : (
                   <>
