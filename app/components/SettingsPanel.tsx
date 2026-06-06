@@ -66,7 +66,8 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
     return cm < min ? fallback : cm
   }
 
-  const title = room ? 'Room' : furn ? 'Furniture' : door ? 'Door' : marker ? 'Marker' : 'Stairs'
+  const openingLabel = door ? (door.type === 'window' ? 'Window' : door.type === 'sliding' ? 'Sliding door' : 'Door') : ''
+  const title = room ? 'Room' : furn ? 'Furniture' : door ? openingLabel : marker ? 'Marker' : 'Stairs'
   if (!room && !furn && !door && !marker && !stair) return null
 
   return (
