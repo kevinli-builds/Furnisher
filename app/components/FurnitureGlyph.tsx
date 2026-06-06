@@ -175,10 +175,11 @@ function Icon({ type, color }: { type: FurnitureType; color: string }) {
         </>
       )
     case 'rug':
+      // A rug covers its whole footprint, so fill the box edge-to-edge.
       return (
         <>
-          <rect x={10} y={16} width={80} height={68} rx={8} {...fill} fillOpacity={0.32} />
-          <rect x={18} y={24} width={64} height={52} rx={5} {...line} strokeDasharray="4 3" />
+          <rect x={8} y={8} width={84} height={84} rx={8} {...fill} fillOpacity={0.32} />
+          <rect x={18} y={18} width={64} height={64} rx={5} {...line} strokeDasharray="4 3" />
         </>
       )
     case 'lamp':
