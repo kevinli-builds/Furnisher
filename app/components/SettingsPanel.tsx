@@ -321,6 +321,18 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
                 </button>
               </div>
             </section>
+            <section className="sect">
+              <label className="sect-label">Auto-snap</label>
+              <div className="seg full">
+                <button className={`seg-btn${furn.snap ? ' on' : ''}`} onClick={() => patchFurn({ snap: true })}>
+                  Snap to walls
+                </button>
+                <button className={`seg-btn${!furn.snap ? ' on' : ''}`} onClick={() => patchFurn({ snap: false })}>
+                  Off
+                </button>
+              </div>
+              <p className="sect-note">When on, dragging this piece hugs it to a nearby wall.</p>
+            </section>
           </>
         )}
 

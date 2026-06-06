@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { Plan, Mode, Selection, SelItem, Door, Pt } from '../lib/types'
-import { snap, uid, snapDoorToWalls, overlaps, gridStep, roomCorners, bboxOf, resizeRect, MIN_ROOM, type Box } from '../lib/geometry'
+import { snap, uid, snapDoorToWalls, snapToWalls, overlaps, gridStep, roomCorners, bboxOf, resizeRect, MIN_ROOM, type Box } from '../lib/geometry'
 import { useViewport } from '../lib/useViewport'
 import { DOOR_LEN, swingForCursor, doorBox, doorGeom } from '../lib/door'
 import { sunAt, sunColor, formatHour, windowCones, lampGlows } from '../lib/sun'
@@ -47,6 +47,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
   const [hoverFurn, setHoverFurn] = useState<string | null>(null)
   const [doorGhost, setDoorGhost] = useState<{ x: number; y: number; orientation: 'h' | 'v'; swing: 1 | -1; type: 'swing' | 'window' } | null>(null)
   const [menu, setMenu] = useState<{ x: number; y: number; items: { item: SelItem; label: string }[] } | null>(null)
+  const [snapGuide, setSnapGuide] = useState<{ gx: number | null; gy: number | null } | null>(null)
 
   const { hostRef, svgRef, viewRef, setView, scale, vw, vh, left, top, toCm, capture, fitView, zoomCentre } = useViewport(plan)
 
@@ -480,7 +481,20 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
         return { ...pl, stairs: pl.stairs.map((s) => (s.id === d.id ? { ...s, ...nb } : s)) }
       })
     } else if (d.kind === 'move-furniture') {
-      setPlan((pl) => ({ ...pl, furniture: pl.furniture.map((f) => (f.id === d.id ? { ...f, x: snap(d.ox + dx), y: snap(d.oy + dy) } : f)) }))
+      const rawX = d.ox + dx
+      const rawY = d.oy + dy
+      let nx = snap(rawX)
+      let ny = snap(rawY)
+      const f0 = plan.furniture.find((f) => f.id === d.id)
+      if (f0?.snap) {
+        // Wall snap wins over the grid: run it on the raw position with a ~20cm
+        // attraction zone; fall back to the grid-snapped value when no wall is near.
+        const s = snapToWalls(rawX, rawY, f0.w, f0.h, plan.rooms, 20)
+        if (s.gx !== null) nx = s.x
+        if (s.gy !== null) ny = s.y
+        setSnapGuide(s.gx !== null || s.gy !== null ? { gx: s.gx, gy: s.gy } : null)
+      }
+      setPlan((pl) => ({ ...pl, furniture: pl.furniture.map((f) => (f.id === d.id ? { ...f, x: nx, y: ny } : f)) }))
     } else if (d.kind === 'move-door') {
       setPlan((pl) => ({
         ...pl,
@@ -563,6 +577,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
       }
     }
     drag.current = null
+    setSnapGuide(null)
     svgRef.current?.releasePointerCapture(e.pointerId)
   }
 
@@ -945,6 +960,14 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
         {/* Marquee selection box */}
         {marquee && (
           <rect x={marquee.x} y={marquee.y} width={marquee.w} height={marquee.h} fill="rgba(181,113,78,0.07)" stroke="#b5714e" strokeWidth={1} strokeDasharray="4 3" vectorEffect="non-scaling-stroke" pointerEvents="none" />
+        )}
+
+        {/* Auto-snap guide line(s) — shown while a snapping piece hugs a wall */}
+        {snapGuide?.gx != null && (
+          <line x1={snapGuide.gx} y1={top} x2={snapGuide.gx} y2={top + vh} stroke="#b5714e" strokeWidth={1} strokeDasharray="5 4" vectorEffect="non-scaling-stroke" pointerEvents="none" />
+        )}
+        {snapGuide?.gy != null && (
+          <line x1={left} y1={snapGuide.gy} x2={left + vw} y2={snapGuide.gy} stroke="#b5714e" strokeWidth={1} strokeDasharray="5 4" vectorEffect="non-scaling-stroke" pointerEvents="none" />
         )}
 
         {/* Collaborator cursors */}

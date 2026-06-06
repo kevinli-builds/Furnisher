@@ -166,3 +166,38 @@ export function snapDoorToWalls(px: number, py: number, length: number, rooms: R
   }
   return best
 }
+
+// Auto-snap a furniture footprint (x,y,w,h) so its nearest edge hugs a nearby
+// room wall. `tol` is the attraction distance in cm. Snaps X and Y independently
+// to the closest wall within tolerance; returns the (possibly) adjusted x/y plus
+// the wall coordinates it locked onto (for drawing guide lines), or null each.
+export function snapToWalls(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  rooms: Room[],
+  tol: number,
+): { x: number; y: number; gx: number | null; gy: number | null } {
+  let nx = x
+  let ny = y
+  let gx: number | null = null
+  let gy: number | null = null
+  let bestXd = tol
+  let bestYd = tol
+  for (const r of rooms) {
+    for (const vx of [r.x, r.x + r.w]) {
+      const dl = Math.abs(x - vx) // snap the left edge
+      if (dl < bestXd) { bestXd = dl; nx = vx; gx = vx }
+      const dr = Math.abs(x + w - vx) // snap the right edge
+      if (dr < bestXd) { bestXd = dr; nx = vx - w; gx = vx }
+    }
+    for (const hy of [r.y, r.y + r.h]) {
+      const dt = Math.abs(y - hy) // snap the top edge
+      if (dt < bestYd) { bestYd = dt; ny = hy; gy = hy }
+      const db = Math.abs(y + h - hy) // snap the bottom edge
+      if (db < bestYd) { bestYd = db; ny = hy - h; gy = hy }
+    }
+  }
+  return { x: nx, y: ny, gx, gy }
+}

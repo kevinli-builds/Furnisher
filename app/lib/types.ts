@@ -60,6 +60,7 @@ export interface Furniture {
   shape?: FurnShape // footprint shape — 'rect' (default) or 'round' (e.g. round rug/table)
   url?: string // optional product/reference link
   light?: boolean // emits a glow in the lighting layer (lamps default on)
+  snap?: boolean // when dragging, hug a nearby room wall (auto-snap)
 }
 
 // Footprint outline of a piece. Absent = rectangular.
