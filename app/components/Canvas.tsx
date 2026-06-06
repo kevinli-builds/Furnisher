@@ -31,10 +31,10 @@ type Drag =
   | { kind: 'marquee'; ox: number; oy: number }
   | { kind: 'pan'; cx0: number; cy0: number; vx0: number; vy0: number }
   | { kind: 'move-sel'; sx: number; sy: number; orig: OrigPos[]; click: SelItem; moved: boolean }
-  | { kind: 'move-room'; id: string; sx: number; sy: number; ox: number; oy: number; pts?: Pt[] }
+  | { kind: 'move-room'; id: string; sx: number; sy: number; ox: number; oy: number; pts?: Pt[]; moved?: boolean }
   | { kind: 'resize'; otype: 'room' | 'furniture' | 'marker' | 'stair'; id: string; hx: number; hy: number; sx: number; sy: number; ox: number; oy: number; ow: number; oh: number; rot: number }
   | { kind: 'move-node'; id: string; idx: number; sx: number; sy: number }
-  | { kind: 'move-furniture' | 'move-door' | 'move-marker' | 'move-stair'; id: string; sx: number; sy: number; ox: number; oy: number }
+  | { kind: 'move-furniture' | 'move-door' | 'move-marker' | 'move-stair'; id: string; sx: number; sy: number; ox: number; oy: number; moved?: boolean }
   | null
 
 export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peers = [], onPointer }: Props) {
@@ -50,6 +50,9 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
 
   const spaceRef = useRef(false)
   const [spaceHeld, setSpaceHeld] = useState(false)
+  // Selection as it was *before* the current press — lets a no-move click on a
+  // stack of overlapping objects cycle to the next one underneath (see onUp).
+  const prevSelRef = useRef<Selection>([])
 
   const { viewMode, units } = plan
   const schematic = viewMode === 'schematic'
@@ -223,6 +226,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
   // member of a multi-selection moves the group; otherwise select just it.
   function onObjDown(e: React.PointerEvent, item: SelItem, startSingle: () => void) {
     e.stopPropagation()
+    prevSelRef.current = sel // remember what was selected before this press (for overlap cycling)
     if (e.shiftKey) {
       toggle(item)
       return
@@ -410,6 +414,14 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     const dx = p.x - d.sx
     const dy = p.y - d.sy
 
+    // Flag a real displacement so onUp can tell a drag from a click (cycling).
+    if (
+      (d.kind === 'move-room' || d.kind === 'move-furniture' || d.kind === 'move-door' || d.kind === 'move-marker' || d.kind === 'move-stair') &&
+      (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5)
+    ) {
+      d.moved = true
+    }
+
     if (d.kind === 'move-room') {
       const ndx = snap(d.ox + dx) - d.ox
       const ndy = snap(d.oy + dy) - d.oy
@@ -506,6 +518,19 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     } else if (d?.kind === 'move-sel' && !d.moved) {
       // Pressed (without dragging) a member of a multi-selection → narrow to it.
       setSel([d.click])
+    } else if (
+      d &&
+      (d.kind === 'move-room' || d.kind === 'move-furniture' || d.kind === 'move-door' || d.kind === 'move-marker' || d.kind === 'move-stair') &&
+      !d.moved
+    ) {
+      // A no-move click on a stack of overlapping objects: advance the selection
+      // to the next object underneath the one that was selected before the press.
+      const hits = pointHits(toCm(e))
+      if (hits.length > 1) {
+        const prev = prevSelRef.current.length === 1 ? prevSelRef.current[0] : null
+        const idx = prev ? hits.findIndex((h) => h.item.type === prev.type && h.item.id === prev.id) : -1
+        if (idx >= 0) setSel([hits[(idx + 1) % hits.length].item])
+      }
     }
     drag.current = null
     svgRef.current?.releasePointerCapture(e.pointerId)
@@ -753,6 +778,8 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
           const ey = horiz ? d.y : d.y + d.length
           return (
             <g key={d.id} style={{ cursor: 'move' }} onPointerDown={(e) => onDoorDown(e, d.id)}>
+              {/* fat invisible hit band — makes thin openings easy to click */}
+              <line x1={d.x} y1={d.y} x2={ex} y2={ey} stroke="transparent" strokeWidth={20} strokeLinecap="round" vectorEffect="non-scaling-stroke" pointerEvents="stroke" />
               {/* white wall gap */}
               <line x1={d.x} y1={d.y} x2={ex} y2={ey} stroke="#fdfbf7" strokeWidth={6} vectorEffect="non-scaling-stroke" />
               {type === 'swing' && (() => {
