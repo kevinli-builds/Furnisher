@@ -167,37 +167,75 @@ export function snapDoorToWalls(px: number, py: number, length: number, rooms: R
   return best
 }
 
-// Auto-snap a furniture footprint (x,y,w,h) so its nearest edge hugs a nearby
-// room wall. `tol` is the attraction distance in cm. Snaps X and Y independently
-// to the closest wall within tolerance; returns the (possibly) adjusted x/y plus
-// the wall coordinates it locked onto (for drawing guide lines), or null each.
-export function snapToWalls(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  rooms: Room[],
+// Half-extents of a w×h rectangle's axis-aligned bounding box at `rotDeg`.
+export function bboxHalf(w: number, h: number, rotDeg: number): { hw: number; hh: number } {
+  const r = (rotDeg * Math.PI) / 180
+  const c = Math.abs(Math.cos(r))
+  const s = Math.abs(Math.sin(r))
+  return { hw: (w * c + h * s) / 2, hh: (w * s + h * c) / 2 }
+}
+
+// Auto-snap an object's bounding box (centre + half-extents) so its nearest edge
+// hugs the closest candidate line (room walls and/or other objects' edges) within
+// `tol` cm. X and Y snap independently. Returns the adjusted centre + the line
+// coords it locked onto (for guide lines), or null each.
+export function snapBBox(
+  cx: number,
+  cy: number,
+  hw: number,
+  hh: number,
+  vLines: number[],
+  hLines: number[],
   tol: number,
-): { x: number; y: number; gx: number | null; gy: number | null } {
-  let nx = x
-  let ny = y
+): { cx: number; cy: number; gx: number | null; gy: number | null } {
+  let ncx = cx
+  let ncy = cy
   let gx: number | null = null
   let gy: number | null = null
-  let bestXd = tol
-  let bestYd = tol
-  for (const r of rooms) {
-    for (const vx of [r.x, r.x + r.w]) {
-      const dl = Math.abs(x - vx) // snap the left edge
-      if (dl < bestXd) { bestXd = dl; nx = vx; gx = vx }
-      const dr = Math.abs(x + w - vx) // snap the right edge
-      if (dr < bestXd) { bestXd = dr; nx = vx - w; gx = vx }
-    }
-    for (const hy of [r.y, r.y + r.h]) {
-      const dt = Math.abs(y - hy) // snap the top edge
-      if (dt < bestYd) { bestYd = dt; ny = hy; gy = hy }
-      const db = Math.abs(y + h - hy) // snap the bottom edge
-      if (db < bestYd) { bestYd = db; ny = hy - h; gy = hy }
+  let bx = tol
+  let by = tol
+  const left = cx - hw
+  const right = cx + hw
+  const top = cy - hh
+  const bottom = cy + hh
+  for (const vx of vLines) {
+    const dl = Math.abs(left - vx)
+    if (dl < bx) { bx = dl; ncx = vx + hw; gx = vx }
+    const dr = Math.abs(right - vx)
+    if (dr < bx) { bx = dr; ncx = vx - hw; gx = vx }
+  }
+  for (const hy of hLines) {
+    const dt = Math.abs(top - hy)
+    if (dt < by) { by = dt; ncy = hy + hh; gy = hy }
+    const db = Math.abs(bottom - hy)
+    if (db < by) { by = db; ncy = hy - hh; gy = hy }
+  }
+  return { cx: ncx, cy: ncy, gx, gy }
+}
+
+// Pick the wall a piece should back onto: the one its depth (h) edge is closest
+// to, within `tol`. Facing a wall always puts the depth perpendicular to it, so
+// the perpendicular half-extent is always h/2 whichever wall. Returns the cardinal
+// rotation (back-to-wall), the axis to pin, and the flush centre coord — or null.
+export interface FaceSnap {
+  rot: number
+  axis: 'x' | 'y'
+  value: number
+}
+export function faceSnap(cx: number, cy: number, w: number, h: number, rooms: Room[], tol: number): FaceSnap | null {
+  let best = tol
+  let res: FaceSnap | null = null
+  const consider = (gap: number, fs: FaceSnap) => {
+    if (gap < best) {
+      best = gap
+      res = fs
     }
   }
-  return { x: nx, y: ny, gx, gy }
+  for (const r of rooms) {
+    consider(Math.abs(cx - h / 2 - r.x), { rot: 270, axis: 'x', value: r.x + h / 2 }) // left wall
+    consider(Math.abs(cx + h / 2 - (r.x + r.w)), { rot: 90, axis: 'x', value: r.x + r.w - h / 2 }) // right
+    consider(Math.abs(cy - h / 2 - r.y), { rot: 0, axis: 'y', value: r.y + h / 2 }) // top
+    consider(Math.abs(cy + h / 2 - (r.y + r.h)), { rot: 180, axis: 'y', value: r.y + r.h - h / 2 }) // bottom
+  }
+  return res
 }

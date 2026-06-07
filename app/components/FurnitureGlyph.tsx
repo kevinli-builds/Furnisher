@@ -106,55 +106,55 @@ function Icon({ type, color }: { type: FurnitureType; color: string }) {
     case 'bed':
       return (
         <>
-          <rect x={12} y={10} width={76} height={80} rx={6} {...fill} />
-          <rect x={18} y={16} width={28} height={18} rx={4} {...line} />
-          <rect x={54} y={16} width={28} height={18} rx={4} {...line} />
-          <line x1={12} y1={40} x2={88} y2={40} {...line} />
+          <rect x={6} y={6} width={88} height={88} rx={6} {...fill} />
+          <rect x={13} y={13} width={32} height={20} rx={4} {...line} />
+          <rect x={55} y={13} width={32} height={20} rx={4} {...line} />
+          <line x1={6} y1={42} x2={94} y2={42} {...line} />
         </>
       )
     case 'chair':
       return (
         <>
-          <rect x={24} y={30} width={52} height={52} rx={8} {...fill} />
-          <rect x={24} y={16} width={52} height={14} rx={5} {...fill} />
+          <rect x={12} y={34} width={76} height={54} rx={8} {...fill} />
+          <rect x={12} y={12} width={76} height={20} rx={6} {...fill} />
         </>
       )
     case 'diningTable':
       return (
         <>
-          <rect x={20} y={26} width={60} height={48} rx={8} {...fill} />
-          <rect x={28} y={12} width={16} height={10} rx={3} {...line} />
-          <rect x={56} y={12} width={16} height={10} rx={3} {...line} />
-          <rect x={28} y={78} width={16} height={10} rx={3} {...line} />
-          <rect x={56} y={78} width={16} height={10} rx={3} {...line} />
+          <rect x={12} y={14} width={76} height={72} rx={8} {...fill} />
+          <rect x={28} y={6} width={18} height={9} rx={3} {...line} />
+          <rect x={54} y={6} width={18} height={9} rx={3} {...line} />
+          <rect x={28} y={85} width={18} height={9} rx={3} {...line} />
+          <rect x={54} y={85} width={18} height={9} rx={3} {...line} />
         </>
       )
     case 'table':
-      return <rect x={16} y={24} width={68} height={52} rx={10} {...fill} />
+      return <rect x={10} y={14} width={80} height={72} rx={10} {...fill} />
     case 'desk':
       return (
         <>
-          <rect x={12} y={26} width={76} height={48} rx={4} {...fill} />
-          <line x1={58} y1={26} x2={58} y2={74} {...line} />
-          <circle cx={66} cy={50} r={3} {...line} />
+          <rect x={8} y={14} width={84} height={72} rx={4} {...fill} />
+          <line x1={58} y1={14} x2={58} y2={86} {...line} />
+          <circle cx={68} cy={50} r={3} {...line} />
         </>
       )
     case 'dresser':
       return (
         <>
-          <rect x={14} y={28} width={72} height={44} rx={4} {...fill} />
-          <line x1={38} y1={28} x2={38} y2={72} {...line} />
-          <line x1={62} y1={28} x2={62} y2={72} {...line} />
-          <circle cx={26} cy={50} r={2.5} {...line} />
+          <rect x={8} y={16} width={84} height={68} rx={4} {...fill} />
+          <line x1={36} y1={16} x2={36} y2={84} {...line} />
+          <line x1={64} y1={16} x2={64} y2={84} {...line} />
+          <circle cx={22} cy={50} r={2.5} {...line} />
           <circle cx={50} cy={50} r={2.5} {...line} />
-          <circle cx={74} cy={50} r={2.5} {...line} />
+          <circle cx={78} cy={50} r={2.5} {...line} />
         </>
       )
     case 'wardrobe':
       return (
         <>
-          <rect x={16} y={18} width={68} height={64} rx={4} {...fill} />
-          <line x1={50} y1={18} x2={50} y2={82} {...line} />
+          <rect x={8} y={8} width={84} height={84} rx={4} {...fill} />
+          <line x1={50} y1={8} x2={50} y2={92} {...line} />
           <circle cx={44} cy={50} r={2.5} {...line} />
           <circle cx={56} cy={50} r={2.5} {...line} />
         </>
@@ -162,16 +162,16 @@ function Icon({ type, color }: { type: FurnitureType; color: string }) {
     case 'nightstand':
       return (
         <>
-          <rect x={28} y={28} width={44} height={44} rx={5} {...fill} />
-          <circle cx={50} cy={50} r={3} {...line} />
+          <rect x={12} y={12} width={76} height={76} rx={6} {...fill} />
+          <circle cx={50} cy={50} r={3.5} {...line} />
         </>
       )
     case 'bookshelf':
       return (
         <>
-          <rect x={14} y={26} width={72} height={48} rx={3} {...fill} />
-          <line x1={14} y1={42} x2={86} y2={42} {...line} />
-          <line x1={14} y1={58} x2={86} y2={58} {...line} />
+          <rect x={8} y={10} width={84} height={80} rx={3} {...fill} />
+          <line x1={8} y1={37} x2={92} y2={37} {...line} />
+          <line x1={8} y1={63} x2={92} y2={63} {...line} />
         </>
       )
     case 'rug':
@@ -185,69 +185,69 @@ function Icon({ type, color }: { type: FurnitureType; color: string }) {
     case 'lamp':
       return (
         <>
-          <circle cx={50} cy={50} r={30} {...fill} />
-          <circle cx={50} cy={50} r={10} {...line} />
+          <circle cx={50} cy={50} r={46} {...fill} />
+          <circle cx={50} cy={50} r={14} {...line} />
         </>
       )
     case 'plant':
       return (
         <>
-          <circle cx={50} cy={40} r={26} {...fill} />
-          <rect x={42} y={64} width={16} height={22} rx={2} {...line} />
+          <circle cx={50} cy={50} r={45} {...fill} />
+          <circle cx={50} cy={50} r={19} {...line} />
         </>
       )
     case 'tv':
       return (
         <>
-          <rect x={10} y={38} width={80} height={20} rx={3} {...fill} />
-          <line x1={50} y1={58} x2={50} y2={68} {...line} />
-          <line x1={38} y1={68} x2={62} y2={68} {...line} />
+          <rect x={6} y={20} width={88} height={48} rx={3} {...fill} />
+          <line x1={50} y1={68} x2={50} y2={82} {...line} />
+          <line x1={34} y1={82} x2={66} y2={82} {...line} />
         </>
       )
     case 'fridge':
       return (
         <>
-          <rect x={24} y={12} width={52} height={76} rx={5} {...fill} />
-          <line x1={24} y1={40} x2={76} y2={40} {...line} />
-          <line x1={68} y1={20} x2={68} y2={32} {...line} strokeWidth={2.5} />
-          <line x1={68} y1={50} x2={68} y2={70} {...line} strokeWidth={2.5} />
+          <rect x={12} y={8} width={76} height={84} rx={5} {...fill} />
+          <line x1={12} y1={42} x2={88} y2={42} {...line} />
+          <line x1={78} y1={18} x2={78} y2={32} {...line} strokeWidth={2.5} />
+          <line x1={78} y1={52} x2={78} y2={74} {...line} strokeWidth={2.5} />
         </>
       )
     case 'stove':
       return (
         <>
-          <rect x={16} y={16} width={68} height={68} rx={5} {...fill} />
-          <circle cx={38} cy={38} r={9} {...line} />
-          <circle cx={62} cy={38} r={9} {...line} />
-          <circle cx={38} cy={62} r={9} {...line} />
-          <circle cx={62} cy={62} r={9} {...line} />
+          <rect x={8} y={8} width={84} height={84} rx={5} {...fill} />
+          <circle cx={34} cy={34} r={11} {...line} />
+          <circle cx={66} cy={34} r={11} {...line} />
+          <circle cx={34} cy={66} r={11} {...line} />
+          <circle cx={66} cy={66} r={11} {...line} />
         </>
       )
     case 'sink':
       return (
         <>
-          <rect x={18} y={22} width={64} height={56} rx={6} {...fill} />
-          <ellipse cx={50} cy={54} rx={22} ry={16} {...line} />
-          <circle cx={50} cy={30} r={3} {...line} />
+          <rect x={8} y={10} width={84} height={80} rx={6} {...fill} />
+          <ellipse cx={50} cy={56} rx={28} ry={20} {...line} />
+          <circle cx={50} cy={24} r={3.5} {...line} />
         </>
       )
     case 'toilet':
       return (
         <>
-          <rect x={30} y={12} width={40} height={18} rx={3} {...fill} />
-          <ellipse cx={50} cy={56} rx={20} ry={26} {...fill} />
+          <rect x={14} y={8} width={72} height={20} rx={3} {...fill} />
+          <ellipse cx={50} cy={58} rx={37} ry={33} {...fill} />
         </>
       )
     case 'bathtub':
       return (
         <>
-          <rect x={18} y={10} width={64} height={80} rx={16} {...fill} />
-          <rect x={28} y={24} width={44} height={56} rx={14} {...line} />
-          <circle cx={50} cy={20} r={3} {...line} />
+          <rect x={8} y={6} width={84} height={88} rx={16} {...fill} />
+          <rect x={18} y={20} width={64} height={62} rx={14} {...line} />
+          <circle cx={50} cy={14} r={3.5} {...line} />
         </>
       )
     case 'box':
     default:
-      return <rect x={18} y={18} width={64} height={64} rx={6} {...fill} />
+      return <rect x={8} y={8} width={84} height={84} rx={6} {...fill} />
   }
 }

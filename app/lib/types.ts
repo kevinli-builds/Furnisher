@@ -60,7 +60,8 @@ export interface Furniture {
   shape?: FurnShape // footprint shape — 'rect' (default) or 'round' (e.g. round rug/table)
   url?: string // optional product/reference link
   light?: boolean // emits a glow in the lighting layer (lamps default on)
-  snap?: boolean // when dragging, hug a nearby room wall (auto-snap)
+  snap?: boolean // when dragging, hug a nearby room wall / other furniture (auto-snap)
+  face?: boolean // when snapping, also rotate so the back sits against the wall
 }
 
 // Footprint outline of a piece. Absent = rectangular.
@@ -77,6 +78,7 @@ export interface Marker {
   y: number
   w: number
   h: number
+  snap?: boolean // auto-snap to walls / other objects when dragged
 }
 
 export type StairRole = 'entry' | 'exit'
@@ -92,6 +94,7 @@ export interface Stair {
   w: number
   h: number
   rotation: Rotation
+  snap?: boolean // auto-snap to walls / other objects when dragged
 }
 
 // Reusable templates kept in the project's inventory (left panel). Dragging /
@@ -137,6 +140,7 @@ export interface Plan {
   northDeg?: number // compass direction the top of the plan faces (0 = north up)
   sunTime?: number // hour of day for the sun sim (0–24)
   latitude?: number // geographic latitude for sun-height accuracy
+  snapAll?: boolean // global auto-snap: every dragged object hugs walls/objects
   blueprintUrl?: string // optional link to the listing / source blueprint
   inventory: Inventory
   width: number // overall canvas extent (cm)

@@ -205,6 +205,17 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
                 onChange={(e) => patchStair({ rotation: Number(e.target.value) })}
               />
             </section>
+            <section className="sect">
+              <label className="sect-label">Auto-snap</label>
+              <div className="seg full">
+                <button className={`seg-btn${stair.snap ? ' on' : ''}`} onClick={() => patchStair({ snap: true })}>
+                  Snap on
+                </button>
+                <button className={`seg-btn${!stair.snap ? ' on' : ''}`} onClick={() => patchStair({ snap: false })}>
+                  Off
+                </button>
+              </div>
+            </section>
           </>
         )}
 
@@ -325,13 +336,26 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
               <label className="sect-label">Auto-snap</label>
               <div className="seg full">
                 <button className={`seg-btn${furn.snap ? ' on' : ''}`} onClick={() => patchFurn({ snap: true })}>
-                  Snap to walls
+                  Snap on
                 </button>
                 <button className={`seg-btn${!furn.snap ? ' on' : ''}`} onClick={() => patchFurn({ snap: false })}>
                   Off
                 </button>
               </div>
-              <p className="sect-note">When on, dragging this piece hugs it to a nearby wall.</p>
+              <p className="sect-note">When on, dragging hugs this piece to nearby walls and other furniture.</p>
+              {furn.snap && (
+                <>
+                  <div className="seg full" style={{ marginTop: 6 }}>
+                    <button className={`seg-btn${furn.face ? ' on' : ''}`} onClick={() => patchFurn({ face: true })}>
+                      Face into room
+                    </button>
+                    <button className={`seg-btn${!furn.face ? ' on' : ''}`} onClick={() => patchFurn({ face: false })}>
+                      Keep angle
+                    </button>
+                  </div>
+                  <p className="sect-note">&ldquo;Face into room&rdquo; rotates the piece so its back sits against the wall.</p>
+                </>
+              )}
             </section>
           </>
         )}
@@ -391,6 +415,17 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
               </button>
               <button className={`seg-btn${marker.style === 'closet' ? ' on' : ''}`} onClick={() => patchMarker({ style: 'closet' })}>
                 Hatch
+              </button>
+            </div>
+            <label className="sect-label" style={{ marginTop: 10 }}>
+              Auto-snap
+            </label>
+            <div className="seg full">
+              <button className={`seg-btn${marker.snap ? ' on' : ''}`} onClick={() => patchMarker({ snap: true })}>
+                Snap on
+              </button>
+              <button className={`seg-btn${!marker.snap ? ' on' : ''}`} onClick={() => patchMarker({ snap: false })}>
+                Off
               </button>
             </div>
           </section>

@@ -72,6 +72,14 @@ export default function ViewOptionsMenu({ plan, setPlan }: Props) {
               Hide
             </Seg>
           </Row>
+          <Row label="Auto-snap (all)">
+            <Seg on={!!plan.snapAll} onClick={() => set({ snapAll: true })}>
+              On
+            </Seg>
+            <Seg on={!plan.snapAll} onClick={() => set({ snapAll: false })}>
+              Off
+            </Seg>
+          </Row>
           <Row label="Lighting">
             <Seg on={!!plan.lighting} onClick={() => set({ lighting: true })}>
               On

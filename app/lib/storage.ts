@@ -44,6 +44,8 @@ export function loadPlan(): Plan {
       northDeg: typeof parsed.northDeg === 'number' ? parsed.northDeg : 0,
       sunTime: typeof parsed.sunTime === 'number' ? parsed.sunTime : 12,
       latitude: typeof parsed.latitude === 'number' ? parsed.latitude : 40,
+      snapAll: parsed.snapAll === true,
+      blueprintUrl: typeof parsed.blueprintUrl === 'string' ? parsed.blueprintUrl : undefined,
       width: parsed.width || 1200,
       height: parsed.height || 900,
       rooms: parsed.rooms ?? [],

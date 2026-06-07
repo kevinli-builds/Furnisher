@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { Plan, Mode, Selection, SelItem, Door, Pt } from '../lib/types'
-import { snap, uid, snapDoorToWalls, snapToWalls, overlaps, gridStep, roomCorners, bboxOf, resizeRect, MIN_ROOM, type Box } from '../lib/geometry'
+import { snap, uid, snapDoorToWalls, bboxHalf, snapBBox, faceSnap, overlaps, gridStep, roomCorners, bboxOf, resizeRect, MIN_ROOM, type Box } from '../lib/geometry'
 import { useViewport } from '../lib/useViewport'
 import { DOOR_LEN, swingForCursor, doorBox, doorGeom } from '../lib/door'
 import { sunAt, sunColor, formatHour, windowCones, lampGlows } from '../lib/sun'
@@ -352,6 +352,51 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     })
   }
 
+  // Auto-snap a dragged object to nearby walls + other objects' edges. Returns
+  // the resolved x/y (+ rotation for face-snapping furniture) and updates the
+  // guide-line state. Falls back to grid snapping when nothing is in range.
+  function snapMove(
+    obj: { id: string; x: number; y: number; w: number; h: number; rotation?: number; snap?: boolean; face?: boolean },
+    rawX: number,
+    rawY: number,
+    kind: 'furniture' | 'marker' | 'stair',
+  ): { x: number; y: number; rotation?: number } {
+    const wantSnap = obj.snap || plan.snapAll
+    if (!wantSnap) {
+      setSnapGuide(null)
+      return { x: snap(rawX), y: snap(rawY), rotation: obj.rotation }
+    }
+    const { w, h } = obj
+    // Candidate lines: room walls + every other object's bounding-box edges.
+    const vLines: number[] = []
+    const hLines: number[] = []
+    for (const r of plan.rooms) { vLines.push(r.x, r.x + r.w); hLines.push(r.y, r.y + r.h) }
+    for (const f of plan.furniture) if (f.id !== obj.id) { vLines.push(f.x, f.x + f.w); hLines.push(f.y, f.y + f.h) }
+    for (const m of plan.markers) if (m.id !== obj.id) { vLines.push(m.x, m.x + m.w); hLines.push(m.y, m.y + m.h) }
+    for (const s of plan.stairs) if (s.id !== obj.id) { vLines.push(s.x, s.x + s.w); hLines.push(s.y, s.y + s.h) }
+
+    let cx = rawX + w / 2
+    let cy = rawY + h / 2
+    let rotation = obj.rotation ?? 0
+    // Face-snap (furniture only): rotate the back against the nearest wall, flush.
+    if (kind === 'furniture' && obj.face) {
+      const fs = faceSnap(cx, cy, w, h, plan.rooms, 35)
+      if (fs) {
+        rotation = fs.rot
+        if (fs.axis === 'x') cx = fs.value
+        else cy = fs.value
+      }
+    }
+    const { hw, hh } = bboxHalf(w, h, rotation)
+    const s = snapBBox(cx, cy, hw, hh, vLines, hLines, 20)
+    setSnapGuide(s.gx !== null || s.gy !== null ? { gx: s.gx, gy: s.gy } : null)
+    return {
+      x: s.gx !== null ? s.cx - w / 2 : snap(rawX),
+      y: s.gy !== null ? s.cy - h / 2 : snap(rawY),
+      rotation,
+    }
+  }
+
   // ── Move / resize / pan / marquee ─────────────────────────────
   function onMove(e: React.PointerEvent) {
     if (onPointer) {
@@ -481,20 +526,10 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
         return { ...pl, stairs: pl.stairs.map((s) => (s.id === d.id ? { ...s, ...nb } : s)) }
       })
     } else if (d.kind === 'move-furniture') {
-      const rawX = d.ox + dx
-      const rawY = d.oy + dy
-      let nx = snap(rawX)
-      let ny = snap(rawY)
       const f0 = plan.furniture.find((f) => f.id === d.id)
-      if (f0?.snap) {
-        // Wall snap wins over the grid: run it on the raw position with a ~20cm
-        // attraction zone; fall back to the grid-snapped value when no wall is near.
-        const s = snapToWalls(rawX, rawY, f0.w, f0.h, plan.rooms, 20)
-        if (s.gx !== null) nx = s.x
-        if (s.gy !== null) ny = s.y
-        setSnapGuide(s.gx !== null || s.gy !== null ? { gx: s.gx, gy: s.gy } : null)
-      }
-      setPlan((pl) => ({ ...pl, furniture: pl.furniture.map((f) => (f.id === d.id ? { ...f, x: nx, y: ny } : f)) }))
+      if (!f0) return
+      const m = snapMove(f0, d.ox + dx, d.oy + dy, 'furniture')
+      setPlan((pl) => ({ ...pl, furniture: pl.furniture.map((f) => (f.id === d.id ? { ...f, x: m.x, y: m.y, rotation: m.rotation ?? f.rotation } : f)) }))
     } else if (d.kind === 'move-door') {
       setPlan((pl) => ({
         ...pl,
@@ -509,9 +544,15 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
         }),
       }))
     } else if (d.kind === 'move-marker') {
-      setPlan((pl) => ({ ...pl, markers: pl.markers.map((m) => (m.id === d.id ? { ...m, x: snap(d.ox + dx), y: snap(d.oy + dy) } : m)) }))
+      const m0 = plan.markers.find((m) => m.id === d.id)
+      if (!m0) return
+      const r = snapMove(m0, d.ox + dx, d.oy + dy, 'marker')
+      setPlan((pl) => ({ ...pl, markers: pl.markers.map((m) => (m.id === d.id ? { ...m, x: r.x, y: r.y } : m)) }))
     } else if (d.kind === 'move-stair') {
-      setPlan((pl) => ({ ...pl, stairs: pl.stairs.map((s) => (s.id === d.id ? { ...s, x: snap(d.ox + dx), y: snap(d.oy + dy) } : s)) }))
+      const s0 = plan.stairs.find((s) => s.id === d.id)
+      if (!s0) return
+      const r = snapMove(s0, d.ox + dx, d.oy + dy, 'stair')
+      setPlan((pl) => ({ ...pl, stairs: pl.stairs.map((s) => (s.id === d.id ? { ...s, x: r.x, y: r.y } : s)) }))
     }
   }
 
