@@ -106,10 +106,10 @@ function Icon({ type, color }: { type: FurnitureType; color: string }) {
     case 'bed':
       return (
         <>
-          <rect x={6} y={6} width={88} height={88} rx={6} {...fill} />
-          <rect x={13} y={13} width={32} height={20} rx={4} {...line} />
-          <rect x={55} y={13} width={32} height={20} rx={4} {...line} />
-          <line x1={6} y1={42} x2={94} y2={42} {...line} />
+          <rect x={8} y={8} width={84} height={84} rx={6} {...fill} />
+          <rect x={14} y={14} width={30} height={20} rx={4} {...line} />
+          <rect x={56} y={14} width={30} height={20} rx={4} {...line} />
+          <line x1={8} y1={42} x2={92} y2={42} {...line} />
         </>
       )
     case 'chair':
@@ -122,11 +122,11 @@ function Icon({ type, color }: { type: FurnitureType; color: string }) {
     case 'diningTable':
       return (
         <>
-          <rect x={12} y={14} width={76} height={72} rx={8} {...fill} />
-          <rect x={28} y={6} width={18} height={9} rx={3} {...line} />
-          <rect x={54} y={6} width={18} height={9} rx={3} {...line} />
-          <rect x={28} y={85} width={18} height={9} rx={3} {...line} />
-          <rect x={54} y={85} width={18} height={9} rx={3} {...line} />
+          <rect x={12} y={16} width={76} height={68} rx={8} {...fill} />
+          <rect x={28} y={8} width={18} height={9} rx={3} {...line} />
+          <rect x={54} y={8} width={18} height={9} rx={3} {...line} />
+          <rect x={28} y={83} width={18} height={9} rx={3} {...line} />
+          <rect x={54} y={83} width={18} height={9} rx={3} {...line} />
         </>
       )
     case 'table':
@@ -199,7 +199,7 @@ function Icon({ type, color }: { type: FurnitureType; color: string }) {
     case 'tv':
       return (
         <>
-          <rect x={6} y={20} width={88} height={48} rx={3} {...fill} />
+          <rect x={8} y={20} width={84} height={48} rx={3} {...fill} />
           <line x1={50} y1={68} x2={50} y2={82} {...line} />
           <line x1={34} y1={82} x2={66} y2={82} {...line} />
         </>
