@@ -19,7 +19,7 @@ export function roomArea(r: Room): number {
 }
 
 // Is a point inside a room (polygon if present, else its rectangle)?
-function inRoom(x: number, y: number, r: Room): boolean {
+export function inRoom(x: number, y: number, r: Room): boolean {
   if (r.points && r.points.length >= 3) {
     let inside = false
     const pts = r.points

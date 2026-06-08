@@ -141,6 +141,7 @@ export interface Plan {
   sunTime?: number // hour of day for the sun sim (0–24)
   latitude?: number // geographic latitude for sun-height accuracy
   snapAll?: boolean // global auto-snap: every dragged object hugs walls/objects
+  warnings?: boolean // show collision / clearance warnings (default on)
   blueprintUrl?: string // optional link to the listing / source blueprint
   inventory: Inventory
   width: number // overall canvas extent (cm)

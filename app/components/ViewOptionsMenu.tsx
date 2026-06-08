@@ -80,6 +80,14 @@ export default function ViewOptionsMenu({ plan, setPlan }: Props) {
               Off
             </Seg>
           </Row>
+          <Row label="Warnings">
+            <Seg on={plan.warnings !== false} onClick={() => set({ warnings: true })}>
+              On
+            </Seg>
+            <Seg on={plan.warnings === false} onClick={() => set({ warnings: false })}>
+              Off
+            </Seg>
+          </Row>
           <Row label="Lighting">
             <Seg on={!!plan.lighting} onClick={() => set({ lighting: true })}>
               On

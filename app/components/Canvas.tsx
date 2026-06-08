@@ -6,6 +6,7 @@ import { snap, uid, snapDoorToWalls, bboxHalf, snapBBox, faceSnap, overlaps, gri
 import { useViewport } from '../lib/useViewport'
 import { DOOR_LEN, swingForCursor, doorBox, doorGeom } from '../lib/door'
 import { sunAt, sunColor, formatHour, windowCones, lampGlows } from '../lib/sun'
+import { computeWarnings } from '../lib/warnings'
 import { formatSize } from '../lib/units'
 import { furnitureType } from '../lib/furniture'
 import type { Peer } from '../lib/collab'
@@ -671,6 +672,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
   const coneColor = sunColor(plan.sunTime ?? 12)
   const cones = plan.lighting ? windowCones(plan, sun) : []
   const glows = plan.lighting ? lampGlows(plan, sun) : []
+  const warn = plan.warnings === false ? null : computeWarnings(plan)
 
   // 8 resize handles (corners + edge midpoints) in the object's local box.
   function resizeHandles(otype: 'room' | 'furniture' | 'marker' | 'stair', id: string, x: number, y: number, w: number, h: number) {
@@ -872,6 +874,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
             showHandles={inSel('door', d.id) && sel.length === 1}
             onDown={onDoorDown}
             onResizeStart={onDoorResizeStart}
+            warn={!!warn?.doors.has(d.id)}
           />
         ))}
 
@@ -919,6 +922,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
               onEnter={setHoverFurn}
               onLeave={(id) => setHoverFurn((h) => (h === id ? null : h))}
               handles={active && sel.length === 1 ? resizeHandles('furniture', f.id, f.x, f.y, f.w, f.h) : null}
+              warn={!!warn?.furniture.has(f.id)}
             />
           )
         })}

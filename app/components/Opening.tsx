@@ -9,12 +9,13 @@ interface Props {
   showHandles: boolean // active && single selection — show the end resize handles
   onDown: (e: React.PointerEvent, id: string) => void
   onResizeStart: (e: React.PointerEvent, id: string, end: 0 | 1) => void
+  warn?: boolean // swing arc blocked by furniture — draw in red
 }
 
 // A wall opening (swing door / sliding door / window). Presentational: the
 // drag/select/resize behaviour lives in Canvas via the passed-in handlers.
-export default function Opening({ door: d, active, showHandles, onDown, onResizeStart }: Props) {
-  const color = active ? '#b5714e' : '#6b5f4f'
+export default function Opening({ door: d, active, showHandles, onDown, onResizeStart, warn }: Props) {
+  const color = warn ? '#d4564f' : active ? '#b5714e' : '#6b5f4f'
   const type = d.type ?? 'swing'
   const horiz = d.orientation === 'h'
   const ex = horiz ? d.x + d.length : d.x

@@ -15,15 +15,18 @@ interface Props {
   onEnter: (id: string) => void
   onLeave: (id: string) => void
   handles: React.ReactNode // resize handles (rendered by Canvas) when single-selected
+  warn?: boolean // collision / out-of-room — draw a red outline
 }
 
 // One placed furniture piece: rotated footprint (rect or round ellipse), the
 // top-view glyph (sim mode), an upright name/size label, and resize handles.
 // Presentational — drag/select/resize behaviour lives in Canvas via the handlers.
-export default function FurniturePiece({ f, active, schematic, showLabel, units, onDown, onEnter, onLeave, handles }: Props) {
+export default function FurniturePiece({ f, active, schematic, showLabel, units, onDown, onEnter, onLeave, handles, warn }: Props) {
   const cx = f.x + f.w / 2
   const cy = f.y + f.h / 2
   const t = furnitureType(f.type)
+  const stroke = warn ? '#d4564f' : active ? '#b5714e' : schematic ? '#7a6e5b' : '#cabfa9'
+  const sw = warn || active ? 3 : schematic ? 1.5 : 1.2
   // Top of the rotated footprint, for an upright label above the piece.
   const rad = (f.rotation * Math.PI) / 180
   const cs = Math.cos(rad)
@@ -41,18 +44,18 @@ export default function FurniturePiece({ f, active, schematic, showLabel, units,
       >
         {schematic ? (
           f.shape === 'round' ? (
-            <ellipse cx={cx} cy={cy} rx={f.w / 2} ry={f.h / 2} fill={f.color} fillOpacity={0.85} stroke={active ? '#b5714e' : '#7a6e5b'} strokeWidth={active ? 3 : 1.5} vectorEffect="non-scaling-stroke" />
+            <ellipse cx={cx} cy={cy} rx={f.w / 2} ry={f.h / 2} fill={f.color} fillOpacity={0.85} stroke={stroke} strokeWidth={sw} vectorEffect="non-scaling-stroke" />
           ) : (
-            <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={6} fill={f.color} fillOpacity={0.85} stroke={active ? '#b5714e' : '#7a6e5b'} strokeWidth={active ? 3 : 1.5} vectorEffect="non-scaling-stroke" />
+            <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={6} fill={f.color} fillOpacity={0.85} stroke={stroke} strokeWidth={sw} vectorEffect="non-scaling-stroke" />
           )
         ) : f.shape === 'round' ? (
           <>
-            <ellipse cx={cx} cy={cy} rx={f.w / 2} ry={f.h / 2} fill={f.color} fillOpacity={0.16} stroke={active ? '#b5714e' : '#cabfa9'} strokeWidth={active ? 3 : 1.2} vectorEffect="non-scaling-stroke" />
+            <ellipse cx={cx} cy={cy} rx={f.w / 2} ry={f.h / 2} fill={f.color} fillOpacity={0.16} stroke={stroke} strokeWidth={sw} vectorEffect="non-scaling-stroke" />
             <FurnitureGlyph type={t} x={f.x} y={f.y} w={f.w} h={f.h} color={f.color} round />
           </>
         ) : (
           <>
-            <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={6} fill={f.color} fillOpacity={0.16} stroke={active ? '#b5714e' : '#cabfa9'} strokeWidth={active ? 3 : 1.2} vectorEffect="non-scaling-stroke" />
+            <rect x={f.x} y={f.y} width={f.w} height={f.h} rx={6} fill={f.color} fillOpacity={0.16} stroke={stroke} strokeWidth={sw} vectorEffect="non-scaling-stroke" />
             <FurnitureGlyph type={t} x={f.x} y={f.y} w={f.w} h={f.h} color={f.color} />
           </>
         )}
