@@ -15,6 +15,7 @@ import AccountMenu from './components/AccountMenu'
 import ImportModal from './components/ImportModal'
 import ViewOptionsMenu from './components/ViewOptionsMenu'
 import StatsPanel from './components/StatsPanel'
+import { exportPng } from './lib/exportImage'
 
 export default function Page() {
   const { plan, setPlan, applyRemote, undo, redo, replace, canUndo, canRedo } = usePlanHistory(defaultPlan())
@@ -254,6 +255,17 @@ export default function Page() {
 
           <button className={`seg-btn solo${showStats ? ' on' : ''}`} onClick={() => setShowStats((s) => !s)} title="Room areas & free floor space">
             📊 Stats
+          </button>
+
+          <button
+            className="seg-btn solo"
+            title="Download the plan as a PNG image"
+            onClick={() => {
+              setSel([]) // drop selection so handles aren't captured
+              requestAnimationFrame(() => exportPng(plan))
+            }}
+          >
+            ⤓ Image
           </button>
 
           {peers.length > 0 && (
