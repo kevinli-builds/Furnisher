@@ -5,7 +5,7 @@ import type { Plan, Mode, Selection } from './lib/types'
 import { loadPlan, savePlan, defaultPlan } from './lib/storage'
 import { usePlanHistory } from './lib/usePlanHistory'
 import { useCollab } from './lib/collab'
-import { uid, snap } from './lib/geometry'
+import { uid, snap, SNAP } from './lib/geometry'
 import { furnitureType } from './lib/furniture'
 import type { FurnTemplate, RoomTemplate, MarkerTemplate } from './lib/types'
 import Canvas from './components/Canvas'
@@ -123,6 +123,32 @@ export default function Page() {
         e.preventDefault()
         copy()
         paste()
+        return
+      }
+
+      // Arrow keys nudge the selection (grid step; Shift = 1 cm fine).
+      if (e.key.startsWith('Arrow')) {
+        if (typing || sel.length === 0) return
+        e.preventDefault()
+        const step = e.shiftKey ? 1 : SNAP
+        const d: Record<string, [number, number]> = {
+          ArrowLeft: [-step, 0],
+          ArrowRight: [step, 0],
+          ArrowUp: [0, -step],
+          ArrowDown: [0, step],
+        }
+        const mv = d[e.key]
+        if (!mv) return
+        const [dx, dy] = mv
+        const has = (t: string, id: string) => sel.some((s) => s.type === t && s.id === id)
+        setPlan((p) => ({
+          ...p,
+          rooms: p.rooms.map((r) => (has('room', r.id) ? { ...r, x: r.x + dx, y: r.y + dy, points: r.points?.map((pt) => ({ x: pt.x + dx, y: pt.y + dy })) } : r)),
+          doors: p.doors.map((dd) => (has('door', dd.id) ? { ...dd, x: dd.x + dx, y: dd.y + dy } : dd)),
+          furniture: p.furniture.map((f) => (has('furniture', f.id) ? { ...f, x: f.x + dx, y: f.y + dy } : f)),
+          markers: p.markers.map((m) => (has('marker', m.id) ? { ...m, x: m.x + dx, y: m.y + dy } : m)),
+          stairs: p.stairs.map((s) => (has('stair', s.id) ? { ...s, x: s.x + dx, y: s.y + dy } : s)),
+        }))
         return
       }
 
@@ -317,7 +343,7 @@ export default function Page() {
             {mode === 'door' && "Click a room's wall to place a door — it snaps onto the border. Drag to slide it along. (Switch to sliding in its settings.)"}
             {mode === 'window' && "Click a room's wall to place a window — it snaps onto the border."}
             {mode === 'measure' && 'Drag between two points to measure the distance. Drag a piece (in Select) to see live gaps to the walls.'}
-            {mode === 'select' && 'Drag empty space to pan · Shift-drag to box-select · Shift-click to add · click again on a stack to cycle · Delete removes selection.'}
+            {mode === 'select' && 'Drag empty space to pan · Shift-drag to box-select · Shift-click to add · click again on a stack to cycle · arrow keys nudge (Shift = fine) · Delete removes.'}
           </p>
         </div>
 
