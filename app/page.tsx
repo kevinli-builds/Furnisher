@@ -230,6 +230,9 @@ export default function Page() {
             <button className="seg-btn" onClick={addStairs} title="Add a linked entry + exit stair pair">
               ⟚ Stairs
             </button>
+            <button className={`seg-btn${mode === 'measure' ? ' on' : ''}`} onClick={() => setMode('measure')} title="Drag to measure any distance">
+              📏 Measure
+            </button>
           </div>
 
           <div className="seg">
@@ -313,6 +316,7 @@ export default function Page() {
             {mode === 'marker' && 'Click and drag to draw a labelled box — handy for framing each floor.'}
             {mode === 'door' && "Click a room's wall to place a door — it snaps onto the border. Drag to slide it along. (Switch to sliding in its settings.)"}
             {mode === 'window' && "Click a room's wall to place a window — it snaps onto the border."}
+            {mode === 'measure' && 'Drag between two points to measure the distance. Drag a piece (in Select) to see live gaps to the walls.'}
             {mode === 'select' && 'Drag empty space to pan · Shift-drag to box-select · Shift-click to add · click again on a stack to cycle · Delete removes selection.'}
           </p>
         </div>

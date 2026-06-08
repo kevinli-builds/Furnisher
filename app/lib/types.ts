@@ -3,7 +3,7 @@
 // imperial/metric toggle is display-only — it never mutates stored values.
 
 export type Units = 'imperial' | 'metric'
-export type Mode = 'select' | 'room' | 'door' | 'window' | 'marker'
+export type Mode = 'select' | 'room' | 'door' | 'window' | 'marker' | 'measure'
 
 // How the plan is drawn:
 //   schematic → flat "box + sticky-note" outlines, text only (most minimal)

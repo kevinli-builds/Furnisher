@@ -7,7 +7,8 @@ import { useViewport } from '../lib/useViewport'
 import { DOOR_LEN, swingForCursor, doorBox, doorGeom } from '../lib/door'
 import { sunAt, sunColor, formatHour, windowCones, lampGlows } from '../lib/sun'
 import { computeWarnings } from '../lib/warnings'
-import { formatSize } from '../lib/units'
+import { inRoom } from '../lib/stats'
+import { formatSize, formatLength } from '../lib/units'
 import { furnitureType } from '../lib/furniture'
 import type { Peer } from '../lib/collab'
 import FurniturePiece from './FurniturePiece'
@@ -39,6 +40,7 @@ type Drag =
   | { kind: 'move-node'; id: string; idx: number; sx: number; sy: number }
   | { kind: 'move-furniture' | 'move-door' | 'move-marker' | 'move-stair'; id: string; sx: number; sy: number; ox: number; oy: number; moved?: boolean }
   | { kind: 'resize-door'; id: string; orient: 'h' | 'v'; fixed: number }
+  | { kind: 'measure' }
   | null
 
 export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peers = [], onPointer }: Props) {
@@ -50,6 +52,8 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
   const [doorGhost, setDoorGhost] = useState<{ x: number; y: number; orientation: 'h' | 'v'; swing: 1 | -1; type: 'swing' | 'window' } | null>(null)
   const [menu, setMenu] = useState<{ x: number; y: number; items: { item: SelItem; label: string }[] } | null>(null)
   const [snapGuide, setSnapGuide] = useState<{ gx: number | null; gy: number | null } | null>(null)
+  const [measure, setMeasure] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null)
+  const [dragDims, setDragDims] = useState<{ x1: number; y1: number; x2: number; y2: number; label: string }[] | null>(null)
 
   const { hostRef, svgRef, viewRef, setView, scale, vw, vh, left, top, toCm, capture, fitView, zoomCentre } = useViewport(plan)
 
@@ -87,6 +91,11 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
       window.removeEventListener('keyup', up)
     }
   }, [])
+
+  // Drop the measurement overlay when leaving the Measure tool.
+  useEffect(() => {
+    if (mode !== 'measure') setMeasure(null)
+  }, [mode])
 
   // Every object whose box contains a point, front-most first.
   function pointHits(p: { x: number; y: number }): { item: SelItem; label: string }[] {
@@ -148,12 +157,21 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     setMenu({ x: e.clientX - host.left, y: e.clientY - host.top, items })
   }
 
-  // ── Capture phase: pan (space / middle mouse) or door placement ─
+  // ── Capture phase: pan (space / middle mouse), measure, or door placement ─
   function onDownCapture(e: React.PointerEvent) {
     if (menu) setMenu(null)
     if (spaceRef.current || e.button === 1) {
       e.stopPropagation()
       drag.current = { kind: 'pan', cx0: e.clientX, cy0: e.clientY, vx0: viewRef.current.x, vy0: viewRef.current.y }
+      capture(e)
+      return
+    }
+    if (mode === 'measure') {
+      // Drag to measure any distance — intercept before objects can select.
+      e.stopPropagation()
+      const p = toCm(e)
+      drag.current = { kind: 'measure' }
+      setMeasure({ x1: snap(p.x), y1: snap(p.y), x2: snap(p.x), y2: snap(p.y) })
       capture(e)
       return
     }
@@ -403,6 +421,24 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     }
   }
 
+  // Live gap labels from a dragged piece's bounding box to its room's walls.
+  function wallDims(bx: number, by: number, bw: number, bh: number): { x1: number; y1: number; x2: number; y2: number; label: string }[] {
+    const pcx = bx + bw / 2
+    const pcy = by + bh / 2
+    const room = plan.rooms.find((r) => inRoom(pcx, pcy, r))
+    if (!room) return []
+    const L = room.x
+    const R = room.x + room.w
+    const T = room.y
+    const B = room.y + room.h
+    const dims: { x1: number; y1: number; x2: number; y2: number; label: string }[] = []
+    if (bx - L > 1) dims.push({ x1: L, y1: pcy, x2: bx, y2: pcy, label: formatLength(bx - L, units) })
+    if (R - (bx + bw) > 1) dims.push({ x1: bx + bw, y1: pcy, x2: R, y2: pcy, label: formatLength(R - (bx + bw), units) })
+    if (by - T > 1) dims.push({ x1: pcx, y1: T, x2: pcx, y2: by, label: formatLength(by - T, units) })
+    if (B - (by + bh) > 1) dims.push({ x1: pcx, y1: by + bh, x2: pcx, y2: B, label: formatLength(B - (by + bh), units) })
+    return dims
+  }
+
   // ── Move / resize / pan / marquee ─────────────────────────────
   function onMove(e: React.PointerEvent) {
     if (onPointer) {
@@ -433,6 +469,12 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
       if (Math.abs(e.clientX - d.cx0) > 3 || Math.abs(e.clientY - d.cy0) > 3) d.moved = true
       const sc = viewRef.current.scale || scale
       setView({ x: d.vx0 - (e.clientX - d.cx0) / sc, y: d.vy0 - (e.clientY - d.cy0) / sc, scale: sc })
+      return
+    }
+
+    if (d.kind === 'measure') {
+      const p = toCm(e)
+      setMeasure((m) => (m ? { ...m, x2: snap(p.x), y2: snap(p.y) } : m))
       return
     }
 
@@ -536,6 +578,8 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
       const f0 = plan.furniture.find((f) => f.id === d.id)
       if (!f0) return
       const m = snapMove(f0, d.ox + dx, d.oy + dy, 'furniture')
+      const fbb = bboxHalf(f0.w, f0.h, m.rotation ?? f0.rotation)
+      setDragDims(wallDims(m.x + f0.w / 2 - fbb.hw, m.y + f0.h / 2 - fbb.hh, fbb.hw * 2, fbb.hh * 2))
       setPlan((pl) => ({ ...pl, furniture: pl.furniture.map((f) => (f.id === d.id ? { ...f, x: m.x, y: m.y, rotation: m.rotation ?? f.rotation } : f)) }))
     } else if (d.kind === 'move-door') {
       setPlan((pl) => ({
@@ -554,11 +598,14 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
       const m0 = plan.markers.find((m) => m.id === d.id)
       if (!m0) return
       const r = snapMove(m0, d.ox + dx, d.oy + dy, 'marker')
+      setDragDims(wallDims(r.x, r.y, m0.w, m0.h))
       setPlan((pl) => ({ ...pl, markers: pl.markers.map((m) => (m.id === d.id ? { ...m, x: r.x, y: r.y } : m)) }))
     } else if (d.kind === 'move-stair') {
       const s0 = plan.stairs.find((s) => s.id === d.id)
       if (!s0) return
       const r = snapMove(s0, d.ox + dx, d.oy + dy, 'stair')
+      const sbb = bboxHalf(s0.w, s0.h, s0.rotation)
+      setDragDims(wallDims(r.x + s0.w / 2 - sbb.hw, r.y + s0.h / 2 - sbb.hh, sbb.hw * 2, sbb.hh * 2))
       setPlan((pl) => ({ ...pl, stairs: pl.stairs.map((s) => (s.id === d.id ? { ...s, x: r.x, y: r.y } : s)) }))
     }
   }
@@ -629,6 +676,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     }
     drag.current = null
     setSnapGuide(null)
+    setDragDims(null)
     svgRef.current?.releasePointerCapture(e.pointerId)
   }
 
@@ -705,7 +753,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     ))
   }
 
-  const bgCursor = spaceHeld ? 'grab' : mode === 'room' || mode === 'marker' ? 'crosshair' : mode === 'door' || mode === 'window' ? 'copy' : 'grab'
+  const bgCursor = spaceHeld ? 'grab' : mode === 'room' || mode === 'marker' || mode === 'measure' ? 'crosshair' : mode === 'door' || mode === 'window' ? 'copy' : 'grab'
 
   return (
     <div className="canvas-host" ref={hostRef}>
@@ -970,6 +1018,57 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
         {snapGuide?.gy != null && (
           <line x1={left} y1={snapGuide.gy} x2={left + vw} y2={snapGuide.gy} stroke="#b5714e" strokeWidth={1} strokeDasharray="5 4" vectorEffect="non-scaling-stroke" pointerEvents="none" />
         )}
+
+        {/* Live gap dimensions while dragging a piece */}
+        {dragDims?.map((d, i) => {
+          const horiz = Math.abs(d.y1 - d.y2) < 0.5
+          return (
+            <g key={`dd${i}`} pointerEvents="none">
+              <line x1={d.x1} y1={d.y1} x2={d.x2} y2={d.y2} stroke="#b5714e" strokeWidth={1} strokeDasharray="3 3" vectorEffect="non-scaling-stroke" />
+              <text
+                x={(d.x1 + d.x2) / 2 + (horiz ? 0 : 7 / scale)}
+                y={(d.y1 + d.y2) / 2 - (horiz ? 5 / scale : 0)}
+                fontSize={12 / scale}
+                fill="#8a5a3c"
+                textAnchor={horiz ? 'middle' : 'start'}
+                dominantBaseline="central"
+                style={{ paintOrder: 'stroke' }}
+                stroke="#fdfbf7"
+                strokeWidth={3 / scale}
+                strokeLinejoin="round"
+              >
+                {d.label}
+              </text>
+            </g>
+          )
+        })}
+
+        {/* Measure tool: a measured line with a distance label */}
+        {measure &&
+          (() => {
+            const dist = Math.hypot(measure.x2 - measure.x1, measure.y2 - measure.y1)
+            return (
+              <g pointerEvents="none">
+                <line x1={measure.x1} y1={measure.y1} x2={measure.x2} y2={measure.y2} stroke="#b5714e" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+                <circle cx={measure.x1} cy={measure.y1} r={3 / scale} fill="#b5714e" />
+                <circle cx={measure.x2} cy={measure.y2} r={3 / scale} fill="#b5714e" />
+                <text
+                  x={(measure.x1 + measure.x2) / 2}
+                  y={(measure.y1 + measure.y2) / 2 - 7 / scale}
+                  fontSize={13 / scale}
+                  fill="#8a5a3c"
+                  fontWeight={600}
+                  textAnchor="middle"
+                  style={{ paintOrder: 'stroke' }}
+                  stroke="#fdfbf7"
+                  strokeWidth={3.5 / scale}
+                  strokeLinejoin="round"
+                >
+                  {formatLength(dist, units)}
+                </text>
+              </g>
+            )
+          })()}
 
         {/* Collaborator cursors */}
         <PeerCursors peers={peers} scale={scale} />
