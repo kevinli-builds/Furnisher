@@ -40,6 +40,7 @@ type Drag =
   | { kind: 'move-node'; id: string; idx: number; sx: number; sy: number }
   | { kind: 'move-furniture' | 'move-door' | 'move-marker' | 'move-stair'; id: string; sx: number; sy: number; ox: number; oy: number; moved?: boolean }
   | { kind: 'resize-door'; id: string; orient: 'h' | 'v'; fixed: number }
+  | { kind: 'rotate'; otype: 'furniture' | 'stair'; id: string; cx: number; cy: number }
   | { kind: 'measure' }
   | null
 
@@ -296,6 +297,16 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     capture(e)
   }
 
+  // Drag the rotate knob to spin a piece around its centre (snaps to 15°, Shift = free).
+  function onRotateStart(e: React.PointerEvent, otype: 'furniture' | 'stair', id: string) {
+    e.stopPropagation()
+    const o = otype === 'furniture' ? plan.furniture.find((f) => f.id === id) : plan.stairs.find((s) => s.id === id)
+    if (!o) return
+    drag.current = { kind: 'rotate', otype, id, cx: o.x + o.w / 2, cy: o.y + o.h / 2 }
+    setSel([{ type: otype, id }])
+    capture(e)
+  }
+
   // ── Polygon room node editing ─────────────────────────────────
   function setRoomPoints(id: string, pts: Pt[]) {
     const bb = bboxOf(pts)
@@ -536,6 +547,18 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
       return
     }
 
+    if (d.kind === 'rotate') {
+      const ang = (Math.atan2(p.y - d.cy, p.x - d.cx) * 180) / Math.PI + 90 // handle points "up" at rotation 0
+      let r = ((ang % 360) + 360) % 360
+      if (!e.shiftKey) r = (Math.round(r / 15) * 15) % 360 // snap to 15° unless Shift
+      setPlan((pl) =>
+        d.otype === 'furniture'
+          ? { ...pl, furniture: pl.furniture.map((f) => (f.id === d.id ? { ...f, rotation: r } : f)) }
+          : { ...pl, stairs: pl.stairs.map((s) => (s.id === d.id ? { ...s, rotation: r } : s)) },
+      )
+      return
+    }
+
     const dx = p.x - d.sx
     const dy = p.y - d.sy
 
@@ -751,6 +774,19 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
         onPointerDown={(e) => onResizeStart(e, otype, id, g.hx, g.hy)}
       />
     ))
+  }
+
+  // A rotate knob on a stalk above the piece's top edge (rotates with the piece).
+  function rotateHandle(otype: 'furniture' | 'stair', id: string, x: number, y: number, w: number, h: number) {
+    const hx = x + w / 2
+    const dist = 28 / scale
+    const hy = y - dist
+    return (
+      <g key="rot">
+        <line x1={hx} y1={y} x2={hx} y2={hy} stroke="#b5714e" strokeWidth={1.5} vectorEffect="non-scaling-stroke" pointerEvents="none" />
+        <circle cx={hx} cy={hy} r={7 / scale} fill="#fff" stroke="#b5714e" strokeWidth={2} vectorEffect="non-scaling-stroke" style={{ cursor: 'grab' }} onPointerDown={(e) => onRotateStart(e, otype, id)} />
+      </g>
+    )
   }
 
   const bgCursor = spaceHeld ? 'grab' : mode === 'room' || mode === 'marker' || mode === 'measure' ? 'crosshair' : mode === 'door' || mode === 'window' ? 'copy' : 'grab'
@@ -969,7 +1005,14 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
               onDown={onFurnDown}
               onEnter={setHoverFurn}
               onLeave={(id) => setHoverFurn((h) => (h === id ? null : h))}
-              handles={active && sel.length === 1 ? resizeHandles('furniture', f.id, f.x, f.y, f.w, f.h) : null}
+              handles={
+                active && sel.length === 1 ? (
+                  <>
+                    {resizeHandles('furniture', f.id, f.x, f.y, f.w, f.h)}
+                    {rotateHandle('furniture', f.id, f.x, f.y, f.w, f.h)}
+                  </>
+                ) : null
+              }
               warn={!!warn?.furniture.has(f.id)}
             />
           )
@@ -993,7 +1036,14 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
               s={s}
               active={active}
               onDown={onStairDown}
-              handles={active && sel.length === 1 ? resizeHandles('stair', s.id, s.x, s.y, s.w, s.h) : null}
+              handles={
+                active && sel.length === 1 ? (
+                  <>
+                    {resizeHandles('stair', s.id, s.x, s.y, s.w, s.h)}
+                    {rotateHandle('stair', s.id, s.x, s.y, s.w, s.h)}
+                  </>
+                ) : null
+              }
             />
           )
         })}
