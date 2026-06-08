@@ -62,6 +62,7 @@ export interface Furniture {
   light?: boolean // emits a glow in the lighting layer (lamps default on)
   snap?: boolean // when dragging, hug a nearby room wall / other furniture (auto-snap)
   face?: boolean // when snapping, also rotate so the back sits against the wall
+  price?: number // optional cost — feeds the budget summary
 }
 
 // Footprint outline of a piece. Absent = rectangular.
@@ -108,6 +109,7 @@ export interface FurnTemplate {
   color: string
   shape?: FurnShape // 'round' templates place round pieces
   url?: string
+  price?: number // optional cost carried onto placed instances
   group?: string // inventory group, e.g. "Kitchen"
 }
 export interface RoomTemplate {

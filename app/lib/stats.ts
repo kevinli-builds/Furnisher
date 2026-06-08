@@ -39,29 +39,37 @@ export interface RoomStat {
   area: number // cm²
   furnArea: number // cm² of solid furniture whose centre sits in this room
   freePct: number // 0..100
+  cost: number // total price of furniture whose centre sits in this room
 }
 export interface Stats {
   totalArea: number
   furnArea: number
   freePct: number
+  totalCost: number // sum of all furniture prices
   rooms: RoomStat[]
 }
 
 export function computeStats(plan: Plan): Stats {
-  const rooms: RoomStat[] = plan.rooms.map((r) => ({ id: r.id, name: r.name, area: roomArea(r), furnArea: 0, freePct: 100 }))
+  const rooms: RoomStat[] = plan.rooms.map((r) => ({ id: r.id, name: r.name, area: roomArea(r), furnArea: 0, freePct: 100, cost: 0 }))
   const byId = new Map(rooms.map((s) => [s.id, s]))
   for (const f of plan.furniture) {
-    if (furnitureType(f.type) === 'rug') continue // rugs cover the floor, don't consume it
     const cx = f.x + f.w / 2
     const cy = f.y + f.h / 2
     const room = plan.rooms.find((r) => inRoom(cx, cy, r))
-    if (room) byId.get(room.id)!.furnArea += f.w * f.h
+    if (furnitureType(f.type) !== 'rug' && room) byId.get(room.id)!.furnArea += f.w * f.h // rugs cover floor, don't consume it
+    if (room && f.price) byId.get(room.id)!.cost += f.price // cost counts everything, incl. rugs
   }
   for (const s of rooms) s.freePct = s.area > 0 ? Math.max(0, Math.round((1 - s.furnArea / s.area) * 100)) : 0
   const totalArea = rooms.reduce((a, s) => a + s.area, 0)
   const furnArea = rooms.reduce((a, s) => a + s.furnArea, 0)
   const freePct = totalArea > 0 ? Math.max(0, Math.round((1 - furnArea / totalArea) * 100)) : 0
-  return { totalArea, furnArea, freePct, rooms }
+  const totalCost = plan.furniture.reduce((a, f) => a + (f.price || 0), 0)
+  return { totalArea, furnArea, freePct, totalCost, rooms }
+}
+
+// Format a price as a currency-ish string (e.g. $1,250).
+export function formatPrice(n: number): string {
+  return `$${Math.round(n).toLocaleString()}`
 }
 
 // Format a cm² area to m² (metric) or ft² (imperial).

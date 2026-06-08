@@ -136,13 +136,15 @@ export interface FurnitureResult {
   type: FurnitureType
   w: number
   h: number
+  price?: number // detected price (any currency), if stated
 }
 
 export async function readFurniture(img: ImageInput): Promise<FurnitureResult> {
   const system = [
     'You identify a single piece of furniture from an image and estimate its real-world footprint in CENTIMETRES.',
     `Choose the closest "type" from this list: ${FURNITURE_TYPES.join(', ')}.`,
-    'Return ONLY JSON, no prose: {"name":string,"type":string,"w":number,"h":number} where w = width (cm), h = depth (cm).',
+    'If a price is visible (e.g. a tag), include it as a plain number; otherwise omit it.',
+    'Return ONLY JSON, no prose: {"name":string,"type":string,"w":number,"h":number,"price"?:number} where w = width (cm), h = depth (cm).',
   ].join(' ')
   const text = await callClaude(system, [imageBlock(img), { type: 'text', text: 'Identify this furniture and its footprint.' }], 400)
   return normalizeFurniture(parseJson<Partial<FurnitureResult>>(text))
@@ -156,11 +158,12 @@ export async function readFurnitureFromUrl(url: string): Promise<FurnitureResult
     'Use the web_fetch tool to read the given URL. Prefer dimensions stated on the page (convert inches to cm if needed).',
     `Choose the closest "type" from this list: ${FURNITURE_TYPES.join(', ')}.`,
     'w = width (cm), h = depth / front-to-back (cm). Use a concise product name.',
-    'Return ONLY JSON, no prose: {"name":string,"type":string,"w":number,"h":number}.',
+    'Also read the listed price — return it as a plain number (no currency symbol); omit if not found.',
+    'Return ONLY JSON, no prose: {"name":string,"type":string,"w":number,"h":number,"price"?:number}.',
   ].join(' ')
   const text = await callClaude(
     system,
-    [{ type: 'text', text: `Read this furniture product page and extract its footprint:\n${url}` }],
+    [{ type: 'text', text: `Read this furniture product page and extract its footprint and price:\n${url}` }],
     900,
     { tools: [{ type: 'web_fetch_20250910', name: 'web_fetch', max_uses: 5 }], beta: 'web-fetch-2025-09-10' },
   )
@@ -174,17 +177,20 @@ export async function readFurnitureFromText(text: string): Promise<FurnitureResu
     'Use any dimensions in the text (convert inches to cm if needed). If depth is missing, estimate it from the item type.',
     `Choose the closest "type" from this list: ${FURNITURE_TYPES.join(', ')}.`,
     'w = width (cm), h = depth / front-to-back (cm). Use a concise name.',
-    'Return ONLY JSON, no prose: {"name":string,"type":string,"w":number,"h":number}.',
+    'If a price is mentioned, include it as a plain number (no currency symbol); otherwise omit it.',
+    'Return ONLY JSON, no prose: {"name":string,"type":string,"w":number,"h":number,"price"?:number}.',
   ].join(' ')
   const out = await callClaude(system, [{ type: 'text', text: `Furniture details:\n${text}` }], 400)
   return normalizeFurniture(parseJson<Partial<FurnitureResult>>(out))
 }
 
 function normalizeFurniture(raw: Partial<FurnitureResult>): FurnitureResult {
+  const price = Number(raw.price)
   return {
     name: String(raw.name ?? 'Furniture').slice(0, 60),
     type: furnitureType(raw.type as string | undefined),
     w: Math.max(10, Math.round(Number(raw.w) || 60)),
     h: Math.max(10, Math.round(Number(raw.h) || 60)),
+    ...(Number.isFinite(price) && price > 0 ? { price: Math.round(price) } : {}),
   }
 }

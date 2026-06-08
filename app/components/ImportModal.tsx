@@ -132,7 +132,7 @@ export default function ImportModal({ mode, setPlan, onClose }: Props) {
       ...pl,
       furniture: [
         ...pl.furniture,
-        { id: uid(), name: furniture.name, type: furniture.type, x: 100, y: 100, w: furniture.w, h: furniture.h, rotation: 0, color: SWATCHES[0] },
+        { id: uid(), name: furniture.name, type: furniture.type, x: 100, y: 100, w: furniture.w, h: furniture.h, rotation: 0, color: SWATCHES[0], price: furniture.price },
       ],
     }))
     onClose()
@@ -280,6 +280,7 @@ export default function ImportModal({ mode, setPlan, onClose }: Props) {
               <label className="sect-label">Found</label>
               <p className="sect-note">
                 <strong>{furniture.name}</strong> · {FURNITURE_META[furniture.type].label} · {furniture.w} × {furniture.h} cm
+                {furniture.price ? ` · $${furniture.price.toLocaleString()}` : ''}
               </p>
               <button className="btn" onClick={addFurniture}>
                 Add to plan

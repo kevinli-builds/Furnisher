@@ -1,7 +1,7 @@
 'use client'
 
 import type { Plan } from '../lib/types'
-import { computeStats, formatArea } from '../lib/stats'
+import { computeStats, formatArea, formatPrice } from '../lib/stats'
 
 interface Props {
   plan: Plan
@@ -33,12 +33,18 @@ export default function StatsPanel({ plan, onClose }: Props) {
           <span>Free floor</span>
           <strong>{s.freePct}%</strong>
         </div>
+        {s.totalCost > 0 && (
+          <div className="stats-row stats-total">
+            <span>Total cost</span>
+            <strong>{formatPrice(s.totalCost)}</strong>
+          </div>
+        )}
         {s.rooms.length > 0 && <div className="stats-divider" />}
         {s.rooms.map((r) => (
           <div key={r.id} className="stats-room">
             <span className="stats-room-name">{r.name}</span>
             <span className="stats-room-meta">
-              {formatArea(r.area, u)} · {r.freePct}% free
+              {formatArea(r.area, u)} · {r.freePct}% free{r.cost > 0 ? ` · ${formatPrice(r.cost)}` : ''}
             </span>
           </div>
         ))}

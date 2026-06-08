@@ -316,6 +316,19 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
               )}
             </section>
             <section className="sect">
+              <label className="sect-label">Price</label>
+              <input
+                className="field"
+                inputMode="decimal"
+                placeholder="e.g. 499"
+                defaultValue={furn.price ?? ''}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value)
+                  patchFurn({ price: Number.isFinite(v) && v > 0 ? v : undefined })
+                }}
+              />
+            </section>
+            <section className="sect">
               <label className="sect-label">Light source</label>
               <div className="seg full">
                 <button

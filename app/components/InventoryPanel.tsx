@@ -32,6 +32,7 @@ export default function InventoryPanel({ plan, setPlan, onPlaceFurniture, onPlac
   const [fcolor, setFcolor] = useState(SWATCHES[0])
   const [fgroup, setFgroup] = useState(groups[0])
   const [fround, setFround] = useState(false)
+  const [fprice, setFprice] = useState('')
 
   function pickType(t: FurnitureType) {
     setFtype(t)
@@ -47,7 +48,8 @@ export default function InventoryPanel({ plan, setPlan, onPlaceFurniture, onPlac
     const w = snap(toCm(parseFloat(fw) || 0, units))
     const h = snap(toCm(parseFloat(fd) || 0, units))
     if (w < 10 || h < 10) return
-    const t: FurnTemplate = { id: uid(), name: fname.trim() || FURNITURE_META[ftype].label, type: ftype, w, h, color: fcolor, group: effGroup(fgroup), shape: fround ? 'round' : undefined }
+    const priceN = parseFloat(fprice)
+    const t: FurnTemplate = { id: uid(), name: fname.trim() || FURNITURE_META[ftype].label, type: ftype, w, h, color: fcolor, group: effGroup(fgroup), shape: fround ? 'round' : undefined, price: Number.isFinite(priceN) && priceN > 0 ? priceN : undefined }
     setPlan((p) => ({ ...p, inventory: { ...p.inventory, furniture: [...p.inventory.furniture, t] } }))
   }
 
@@ -165,16 +167,22 @@ export default function InventoryPanel({ plan, setPlan, onPlaceFurniture, onPlac
                 Round
               </button>
             </div>
-            <label className="dim">
-              <span>Group</span>
-              <select className="field" value={fgroup} onChange={(e) => setFgroup(e.target.value)}>
-                {groups.map((g) => (
-                  <option key={g} value={g}>
-                    {g}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="dim-row">
+              <label className="dim">
+                <span>Group</span>
+                <select className="field" value={fgroup} onChange={(e) => setFgroup(e.target.value)}>
+                  {groups.map((g) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="dim">
+                <span>Price</span>
+                <input className="field" inputMode="decimal" placeholder="—" value={fprice} onChange={(e) => setFprice(e.target.value)} />
+              </label>
+            </div>
             <button className="btn" onClick={addFurn}>
               Save to inventory
             </button>

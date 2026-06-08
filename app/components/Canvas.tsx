@@ -124,7 +124,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     const raw = e.dataTransfer.getData('application/furnisher-item')
     if (!raw) return
     e.preventDefault()
-    let parsed: { kind: 'furniture' | 'room' | 'marker'; template: { name: string; w: number; h: number; type?: string; color?: string; url?: string; shape?: 'rect' | 'round'; style?: 'frame' | 'shaded' | 'closet' } }
+    let parsed: { kind: 'furniture' | 'room' | 'marker'; template: { name: string; w: number; h: number; type?: string; color?: string; url?: string; shape?: 'rect' | 'round'; price?: number; style?: 'frame' | 'shaded' | 'closet' } }
     try {
       parsed = JSON.parse(raw)
     } catch {
@@ -138,7 +138,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     if (parsed.kind === 'furniture') {
       setPlan((pl) => ({
         ...pl,
-        furniture: [...pl.furniture, { id, name: t.name, type: furnitureType(t.type), x, y, w: t.w, h: t.h, rotation: 0, color: t.color ?? '#d8c8a4', shape: t.shape, url: t.url }],
+        furniture: [...pl.furniture, { id, name: t.name, type: furnitureType(t.type), x, y, w: t.w, h: t.h, rotation: 0, color: t.color ?? '#d8c8a4', shape: t.shape, url: t.url, price: t.price }],
       }))
       setSel([{ type: 'furniture', id }])
     } else if (parsed.kind === 'marker') {
