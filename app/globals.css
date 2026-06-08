@@ -239,6 +239,7 @@ body {
   display: flex;
   flex: 1;
   min-height: 0;
+  position: relative; /* anchors the floating settings panel */
 }
 .canvas-wrap {
   flex: 1;
@@ -797,11 +798,16 @@ select.field {
   cursor: grabbing;
 }
 
-/* ── Right column (furniture panel + settings overlay) ───────── */
+/* ── Right column (settings) — floats over the canvas so selecting an
+   object never reflows / resizes the canvas viewport. ───────────────── */
 .right {
-  position: relative;
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
   width: 300px;
-  flex-shrink: 0;
+  z-index: 15;
+  box-shadow: -8px 0 24px rgba(60, 50, 35, 0.1);
 }
 .panel {
   width: 100%;
