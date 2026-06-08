@@ -24,6 +24,7 @@ export default function Page() {
   const [mounted, setMounted] = useState(false)
   const [importMode, setImportMode] = useState<'blueprint' | 'furniture' | null>(null)
   const [showStats, setShowStats] = useState(false)
+  const [invOpen, setInvOpen] = useState(false) // mobile inventory bottom-sheet
   const [collabId, setCollabId] = useState<string | null>(null)
   const { peers, onPointer } = useCollab(collabId, plan, applyRemote)
   const clipboard = useRef<Pick<Plan, 'rooms' | 'doors' | 'furniture' | 'markers' | 'stairs'> | null>(null)
@@ -191,6 +192,7 @@ export default function Page() {
   }
 
   function placeFurnitureTemplate(t: FurnTemplate) {
+    setInvOpen(false)
     const { cx, cy } = contentCenter()
     const id = uid()
     setPlan((p) => ({
@@ -201,6 +203,7 @@ export default function Page() {
   }
 
   function placeRoomTemplate(t: RoomTemplate) {
+    setInvOpen(false)
     const { cx, cy } = contentCenter()
     const id = uid()
     setPlan((p) => ({ ...p, rooms: [...p.rooms, { id, name: t.name, x: snap(cx - t.w / 2), y: snap(cy - t.h / 2), w: t.w, h: t.h }] }))
@@ -208,6 +211,7 @@ export default function Page() {
   }
 
   function placeMarkerTemplate(t: MarkerTemplate) {
+    setInvOpen(false)
     const { cx, cy } = contentCenter()
     const id = uid()
     setPlan((p) => ({ ...p, markers: [...p.markers, { id, name: t.name, style: t.style, x: snap(cx - t.w / 2), y: snap(cy - t.h / 2), w: t.w, h: t.h }] }))
@@ -282,6 +286,10 @@ export default function Page() {
             Reset
           </button>
 
+          <button className={`seg-btn solo mobile-only${invOpen ? ' on' : ''}`} onClick={() => setInvOpen((o) => !o)} title="Open the inventory">
+            ▤ Items
+          </button>
+
           <button className={`seg-btn solo${showStats ? ' on' : ''}`} onClick={() => setShowStats((s) => !s)} title="Room areas & free floor space">
             📊 Stats
           </button>
@@ -320,7 +328,8 @@ export default function Page() {
       </header>
 
       <main className="workspace">
-        <div className="left">
+        {invOpen && <div className="sheet-backdrop" onClick={() => setInvOpen(false)} />}
+        <div className={`left${invOpen ? ' open' : ''}`}>
           <InventoryPanel
             plan={plan}
             setPlan={setPlan}

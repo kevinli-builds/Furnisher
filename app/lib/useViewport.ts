@@ -116,5 +116,5 @@ export function useViewport(plan: Plan) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [size])
 
-  return { hostRef, svgRef, size, view, viewRef, setView, scale, vw, vh, left, top, toCm, capture, fitView, zoomCentre }
+  return { hostRef, svgRef, size, view, viewRef, setView, scale, vw, vh, left, top, toCm, capture, fitView, zoomCentre, zoomAt }
 }

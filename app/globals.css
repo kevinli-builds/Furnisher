@@ -37,6 +37,12 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh; /* avoid mobile URL-bar jump */
+}
+
+/* Shown only on small screens (see media query). */
+.mobile-only {
+  display: none;
 }
 
 /* ── Top bar ─────────────────────────────────────────────────── */
@@ -982,26 +988,113 @@ textarea.field {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-/* ── Small screens ───────────────────────────────────────────── */
+/* ── Small screens (phones) ──────────────────────────────────── */
 @media (max-width: 760px) {
-  .workspace {
-    flex-direction: column;
-  }
-  .left,
-  .right {
-    width: 100%;
-    height: 40vh;
-    flex-shrink: 0;
-  }
-  .panel,
-  .settings {
-    border-left: none;
-    border-top: 1px solid var(--line);
-  }
-  .inventory {
-    border-right: none;
+  .mobile-only {
+    display: inline-flex;
   }
   .brand .tag {
     display: none;
+  }
+  .brand h1 {
+    font-size: 17px;
+  }
+
+  /* Compact top bar with a single horizontally-scrollable tool strip. */
+  .topbar {
+    flex-wrap: nowrap;
+    gap: 10px;
+    padding: 9px 12px;
+  }
+  .tools {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    flex: 1;
+    justify-content: flex-start;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .tools::-webkit-scrollbar {
+    display: none;
+  }
+  .seg-btn {
+    white-space: nowrap;
+  }
+
+  /* Canvas fills the screen; panels float over it as bottom sheets. */
+  .workspace {
+    position: relative;
+  }
+  .canvas-wrap {
+    padding: 8px;
+  }
+  .hint {
+    display: none;
+  }
+
+  .sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(40, 34, 26, 0.32);
+    z-index: 35;
+  }
+
+  /* Inventory → slide-up bottom sheet, toggled by the Items button. */
+  .left {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    height: 72vh;
+    z-index: 40;
+    transform: translateY(101%);
+    transition: transform 0.22s ease;
+    background: var(--panel);
+    border-top: 1px solid var(--line-strong);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -10px 30px rgba(60, 50, 35, 0.18);
+    overflow: hidden;
+  }
+  .left.open {
+    transform: none;
+  }
+  .inventory {
+    border-right: none;
+    height: 100%;
+  }
+
+  /* Settings → bottom sheet (auto-shows when one object is selected). */
+  .right {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    height: auto;
+    z-index: 38;
+  }
+  .settings {
+    position: relative;
+    inset: auto;
+    max-height: 62vh;
+    border-left: none;
+    border-top: 1px solid var(--line-strong);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -10px 30px rgba(60, 50, 35, 0.18);
+  }
+  .settings-body {
+    overflow-y: auto;
+  }
+
+  /* Floating overlays nudge in from the corners. */
+  .display-fab {
+    top: 14px;
+    left: 14px;
+  }
+  .stats-panel {
+    top: 14px;
+    right: 14px;
+    width: min(200px, 64vw);
   }
 }

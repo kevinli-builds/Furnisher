@@ -56,7 +56,11 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
   const [measure, setMeasure] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null)
   const [dragDims, setDragDims] = useState<{ x1: number; y1: number; x2: number; y2: number; label: string }[] | null>(null)
 
-  const { hostRef, svgRef, viewRef, setView, scale, vw, vh, left, top, toCm, capture, fitView, zoomCentre } = useViewport(plan)
+  const { hostRef, svgRef, viewRef, setView, scale, vw, vh, left, top, toCm, capture, fitView, zoomCentre, zoomAt } = useViewport(plan)
+
+  // Two-finger pinch-to-zoom (touch). Tracks active pointers; 2 down = pinch.
+  const pointers = useRef<Map<number, { x: number; y: number }>>(new Map())
+  const pinchDist = useRef<number | null>(null)
 
   const spaceRef = useRef(false)
   const [spaceHeld, setSpaceHeld] = useState(false)
@@ -161,6 +165,19 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
   // ── Capture phase: pan (space / middle mouse), measure, or door placement ─
   function onDownCapture(e: React.PointerEvent) {
     if (menu) setMenu(null)
+    if (e.pointerType === 'touch') {
+      pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+      if (pointers.current.size === 2) {
+        // Second finger down → start a pinch; abort any in-progress drag.
+        e.stopPropagation()
+        drag.current = null
+        setDraft(null)
+        setMarquee(null)
+        const [a, b] = [...pointers.current.values()]
+        pinchDist.current = Math.hypot(a.x - b.x, a.y - b.y)
+        return
+      }
+    }
     if (spaceRef.current || e.button === 1) {
       e.stopPropagation()
       drag.current = { kind: 'pan', cx0: e.clientX, cy0: e.clientY, vx0: viewRef.current.x, vy0: viewRef.current.y }
@@ -452,6 +469,17 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
 
   // ── Move / resize / pan / marquee ─────────────────────────────
   function onMove(e: React.PointerEvent) {
+    // Pinch-to-zoom: while two fingers are down, zoom around their midpoint.
+    if (e.pointerType === 'touch' && pointers.current.has(e.pointerId)) {
+      pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+      if (pinchDist.current !== null && pointers.current.size >= 2) {
+        const [a, b] = [...pointers.current.values()]
+        const dist = Math.hypot(a.x - b.x, a.y - b.y)
+        if (pinchDist.current > 0 && dist > 0) zoomAt((a.x + b.x) / 2, (a.y + b.y) / 2, dist / pinchDist.current)
+        pinchDist.current = dist
+        return
+      }
+    }
     if (onPointer) {
       const c = toCm(e)
       onPointer(c.x, c.y)
@@ -634,6 +662,10 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
   }
 
   function onUp(e: React.PointerEvent) {
+    if (e.pointerType === 'touch') {
+      pointers.current.delete(e.pointerId)
+      if (pointers.current.size < 2) pinchDist.current = null
+    }
     const d = drag.current
     // Recompute the final rect from the event (don't depend on React state,
     // which can lag a fast drag).
@@ -798,7 +830,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
         className="canvas"
         viewBox={`${left} ${top} ${vw} ${vh}`}
         preserveAspectRatio="xMidYMid meet"
-        style={spaceHeld ? { cursor: 'grab' } : undefined}
+        style={{ touchAction: 'none', ...(spaceHeld ? { cursor: 'grab' } : {}) }}
         onPointerDownCapture={onDownCapture}
         onPointerMove={onMove}
         onPointerUp={onUp}
