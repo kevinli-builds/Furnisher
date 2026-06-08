@@ -14,6 +14,7 @@ import SettingsPanel from './components/SettingsPanel'
 import AccountMenu from './components/AccountMenu'
 import ImportModal from './components/ImportModal'
 import ViewOptionsMenu from './components/ViewOptionsMenu'
+import StatsPanel from './components/StatsPanel'
 
 export default function Page() {
   const { plan, setPlan, applyRemote, undo, redo, replace, canUndo, canRedo } = usePlanHistory(defaultPlan())
@@ -21,6 +22,7 @@ export default function Page() {
   const [sel, setSel] = useState<Selection>([])
   const [mounted, setMounted] = useState(false)
   const [importMode, setImportMode] = useState<'blueprint' | 'furniture' | null>(null)
+  const [showStats, setShowStats] = useState(false)
   const [collabId, setCollabId] = useState<string | null>(null)
   const { peers, onPointer } = useCollab(collabId, plan, applyRemote)
   const clipboard = useRef<Pick<Plan, 'rooms' | 'doors' | 'furniture' | 'markers' | 'stairs'> | null>(null)
@@ -250,6 +252,10 @@ export default function Page() {
             Reset
           </button>
 
+          <button className={`seg-btn solo${showStats ? ' on' : ''}`} onClick={() => setShowStats((s) => !s)} title="Room areas & free floor space">
+            📊 Stats
+          </button>
+
           {peers.length > 0 && (
             <div className="presence" title={`${peers.length} collaborator${peers.length === 1 ? '' : 's'} online`}>
               {peers.slice(0, 5).map((p) => (
@@ -288,13 +294,14 @@ export default function Page() {
           <div className="display-fab">
             <ViewOptionsMenu plan={plan} setPlan={setPlan} />
           </div>
+          {showStats && <StatsPanel plan={plan} onClose={() => setShowStats(false)} />}
           <Canvas plan={plan} setPlan={setPlan} mode={mode} setMode={setMode} sel={sel} setSel={setSel} peers={peers} onPointer={onPointer} />
           <p className="hint">
             {mode === 'room' && 'Click and drag on the grid to draw a room.'}
             {mode === 'marker' && 'Click and drag to draw a labelled box — handy for framing each floor.'}
             {mode === 'door' && "Click a room's wall to place a door — it snaps onto the border. Drag to slide it along. (Switch to sliding in its settings.)"}
             {mode === 'window' && "Click a room's wall to place a window — it snaps onto the border."}
-            {mode === 'select' && 'Drag empty space to box-select · Shift-click to add · Space or middle-mouse drag to pan · Delete removes selection.'}
+            {mode === 'select' && 'Drag empty space to pan · Shift-drag to box-select · Shift-click to add · click again on a stack to cycle · Delete removes selection.'}
           </p>
         </div>
 

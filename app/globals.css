@@ -249,6 +249,70 @@ body {
   left: 26px;
   z-index: 20;
 }
+.stats-panel {
+  position: absolute;
+  top: 26px;
+  right: 26px;
+  z-index: 20;
+  width: 230px;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(60, 50, 35, 0.16);
+  overflow: hidden;
+}
+.stats-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.stats-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.stats-body {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.stats-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--ink);
+}
+.stats-row span {
+  color: var(--muted);
+}
+.stats-total strong {
+  color: var(--accent);
+}
+.stats-divider {
+  height: 1px;
+  background: var(--line);
+  margin: 4px 0;
+}
+.stats-room {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 12.5px;
+}
+.stats-room-name {
+  font-weight: 600;
+  color: var(--ink);
+}
+.stats-room-meta {
+  color: var(--muted);
+  font-size: 11.5px;
+}
 .canvas-host {
   flex: 1;
   min-height: 0;
