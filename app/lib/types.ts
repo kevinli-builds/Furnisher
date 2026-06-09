@@ -3,7 +3,7 @@
 // imperial/metric toggle is display-only — it never mutates stored values.
 
 export type Units = 'imperial' | 'metric'
-export type Mode = 'select' | 'room' | 'door' | 'window' | 'marker' | 'measure'
+export type Mode = 'select' | 'room' | 'door' | 'window' | 'marker' | 'measure' | 'light'
 
 // How the plan is drawn:
 //   schematic → flat "box + sticky-note" outlines, text only (most minimal)
@@ -82,6 +82,14 @@ export interface Marker {
   snap?: boolean // auto-snap to walls / other objects when dragged
 }
 
+// A ceiling / roof light: a point fixture that takes no floor space but emits a
+// glow in the lighting simulation. Not furniture (no footprint, no collisions).
+export interface Light {
+  id: string
+  x: number
+  y: number
+}
+
 export type StairRole = 'entry' | 'exit'
 
 // Stairs come as an entry+exit pair sharing a `link`; a dashed line is drawn
@@ -153,10 +161,11 @@ export interface Plan {
   furniture: Furniture[]
   markers: Marker[]
   stairs: Stair[]
+  lights: Light[]
 }
 
 export interface SelItem {
-  type: 'room' | 'door' | 'furniture' | 'marker' | 'stair'
+  type: 'room' | 'door' | 'furniture' | 'marker' | 'stair' | 'light'
   id: string
 }
 

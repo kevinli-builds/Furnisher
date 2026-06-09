@@ -28,6 +28,7 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
   const door = sel.type === 'door' ? plan.doors.find((d) => d.id === sel.id) : null
   const marker = sel.type === 'marker' ? plan.markers.find((m) => m.id === sel.id) : null
   const stair = sel.type === 'stair' ? plan.stairs.find((s) => s.id === sel.id) : null
+  const light = sel.type === 'light' ? plan.lights.find((l) => l.id === sel.id) : null
 
   function patchRoom(patch: Partial<NonNullable<typeof room>>) {
     setPlan((p) => ({ ...p, rooms: p.rooms.map((r) => (r.id === sel.id ? { ...r, ...patch } : r)) }))
@@ -55,6 +56,7 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
       if (sel.type === 'door') return { ...p, doors: p.doors.filter((d) => d.id !== sel.id) }
       if (sel.type === 'marker') return { ...p, markers: p.markers.filter((m) => m.id !== sel.id) }
       if (sel.type === 'stair') return { ...p, stairs: p.stairs.filter((s) => s.id !== sel.id) }
+      if (sel.type === 'light') return { ...p, lights: p.lights.filter((l) => l.id !== sel.id) }
       return { ...p, furniture: p.furniture.filter((f) => f.id !== sel.id) }
     })
     setSel([])
@@ -67,8 +69,8 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
   }
 
   const openingLabel = door ? (door.type === 'window' ? 'Window' : door.type === 'sliding' ? 'Sliding door' : 'Door') : ''
-  const title = room ? 'Room' : furn ? 'Furniture' : door ? openingLabel : marker ? 'Marker' : 'Stairs'
-  if (!room && !furn && !door && !marker && !stair) return null
+  const title = room ? 'Room' : furn ? 'Furniture' : door ? openingLabel : marker ? 'Marker' : light ? 'Ceiling light' : 'Stairs'
+  if (!room && !furn && !door && !marker && !stair && !light) return null
 
   return (
     <aside className="settings">
@@ -444,12 +446,18 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
           </section>
         )}
 
+        {light && (
+          <section className="sect">
+            <p className="sect-note">A ceiling light takes no floor space. Turn on Lighting (Display → Lighting) to see it wash the room.</p>
+          </section>
+        )}
+
         {/* Position (read-only — drag on the plan to move) */}
         <section className="sect">
           <label className="sect-label">Position</label>
           <p className="sect-note">
-            {formatLength(room?.x ?? furn?.x ?? marker?.x ?? stair?.x ?? door!.x, units)} ×{' '}
-            {formatLength(room?.y ?? furn?.y ?? marker?.y ?? stair?.y ?? door!.y, units)} from top-left. Drag on the plan to move.
+            {formatLength(room?.x ?? furn?.x ?? marker?.x ?? stair?.x ?? light?.x ?? door!.x, units)} ×{' '}
+            {formatLength(room?.y ?? furn?.y ?? marker?.y ?? stair?.y ?? light?.y ?? door!.y, units)} from top-left. Drag on the plan to move.
           </p>
         </section>
 

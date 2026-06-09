@@ -29,7 +29,7 @@ interface Props {
   onPointer?: (x: number, y: number) => void
 }
 
-type OrigPos = { t: 'room' | 'door' | 'furniture' | 'marker' | 'stair'; id: string; x: number; y: number }
+type OrigPos = { t: 'room' | 'door' | 'furniture' | 'marker' | 'stair' | 'light'; id: string; x: number; y: number }
 
 type Drag =
   | { kind: 'draw'; ox: number; oy: number; what: 'room' | 'marker' }
@@ -39,7 +39,7 @@ type Drag =
   | { kind: 'move-room'; id: string; sx: number; sy: number; ox: number; oy: number; pts?: Pt[]; moved?: boolean }
   | { kind: 'resize'; otype: 'room' | 'furniture' | 'marker' | 'stair'; id: string; hx: number; hy: number; sx: number; sy: number; ox: number; oy: number; ow: number; oh: number; rot: number }
   | { kind: 'move-node'; id: string; idx: number; sx: number; sy: number }
-  | { kind: 'move-furniture' | 'move-door' | 'move-marker' | 'move-stair'; id: string; sx: number; sy: number; ox: number; oy: number; moved?: boolean }
+  | { kind: 'move-furniture' | 'move-door' | 'move-marker' | 'move-stair' | 'move-light'; id: string; sx: number; sy: number; ox: number; oy: number; moved?: boolean }
   | { kind: 'resize-door'; id: string; orient: 'h' | 'v'; fixed: number }
   | { kind: 'rotate'; otype: 'furniture' | 'stair'; id: string; cx: number; cy: number }
   | { kind: 'measure' }
@@ -107,6 +107,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
   function pointHits(p: { x: number; y: number }): { item: SelItem; label: string }[] {
     const inBox = (x: number, y: number, w: number, h: number) => p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h
     const res: { item: SelItem; label: string }[] = []
+    for (const l of plan.lights) if (inBox(l.x - 16, l.y - 16, 32, 32)) res.push({ item: { type: 'light', id: l.id }, label: 'Ceiling light' })
     for (const f of plan.furniture) if (inBox(f.x, f.y, f.w, f.h)) res.push({ item: { type: 'furniture', id: f.id }, label: `Furniture · ${f.name}` })
     for (const s of plan.stairs) if (inBox(s.x, s.y, s.w, s.h)) res.push({ item: { type: 'stair', id: s.id }, label: `Stairs · ${s.role}` })
     for (const dd of plan.doors) {
@@ -194,6 +195,15 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
       capture(e)
       return
     }
+    if (mode === 'light') {
+      e.stopPropagation()
+      const p = toCm(e)
+      const id = uid()
+      setPlan((pl) => ({ ...pl, lights: [...pl.lights, { id, x: snap(p.x), y: snap(p.y) }] }))
+      setSel([{ type: 'light', id }])
+      setMode('select')
+      return
+    }
     if (mode === 'door' || mode === 'window') {
       e.stopPropagation()
       placeDoor(toCm(e), mode === 'window' ? 'window' : 'swing')
@@ -259,6 +269,9 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
       } else if (s.type === 'marker') {
         const m = plan.markers.find((m) => m.id === s.id)
         if (m) orig.push({ t: 'marker', id: s.id, x: m.x, y: m.y })
+      } else if (s.type === 'light') {
+        const l = plan.lights.find((l) => l.id === s.id)
+        if (l) orig.push({ t: 'light', id: s.id, x: l.x, y: l.y })
       } else {
         const st = plan.stairs.find((st) => st.id === s.id)
         if (st) orig.push({ t: 'stair', id: s.id, x: st.x, y: st.y })
@@ -401,6 +414,15 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
       const st = plan.stairs.find((s) => s.id === id)!
       const p = toCm(e)
       drag.current = { kind: 'move-stair', id, sx: p.x, sy: p.y, ox: st.x, oy: st.y }
+      capture(e)
+    })
+  }
+
+  function onLightDown(e: React.PointerEvent, id: string) {
+    onObjDown(e, { type: 'light', id }, () => {
+      const l = plan.lights.find((l) => l.id === id)!
+      const p = toCm(e)
+      drag.current = { kind: 'move-light', id, sx: p.x, sy: p.y, ox: l.x, oy: l.y }
       capture(e)
     })
   }
@@ -556,6 +578,10 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
           const o = d.orig.find((x) => x.t === 'stair' && x.id === st.id)
           return o ? { ...st, x: o.x + dx, y: o.y + dy } : st
         }),
+        lights: pl.lights.map((l) => {
+          const o = d.orig.find((x) => x.t === 'light' && x.id === l.id)
+          return o ? { ...l, x: o.x + dx, y: o.y + dy } : l
+        }),
       }))
       return
     }
@@ -593,7 +619,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
 
     // Flag a real displacement so onUp can tell a drag from a click (cycling).
     if (
-      (d.kind === 'move-room' || d.kind === 'move-furniture' || d.kind === 'move-door' || d.kind === 'move-marker' || d.kind === 'move-stair') &&
+      (d.kind === 'move-room' || d.kind === 'move-furniture' || d.kind === 'move-door' || d.kind === 'move-marker' || d.kind === 'move-stair' || d.kind === 'move-light') &&
       (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5)
     ) {
       d.moved = true
@@ -659,6 +685,8 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
       const sbb = bboxHalf(s0.w, s0.h, s0.rotation)
       setDragDims(wallDims(r.x + s0.w / 2 - sbb.hw, r.y + s0.h / 2 - sbb.hh, sbb.hw * 2, sbb.hh * 2))
       setPlan((pl) => ({ ...pl, stairs: pl.stairs.map((s) => (s.id === d.id ? { ...s, x: r.x, y: r.y } : s)) }))
+    } else if (d.kind === 'move-light') {
+      setPlan((pl) => ({ ...pl, lights: pl.lights.map((l) => (l.id === d.id ? { ...l, x: snap(d.ox + dx), y: snap(d.oy + dy) } : l)) }))
     }
   }
 
@@ -706,6 +734,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
         for (const r of plan.rooms) if (overlaps(box, { x: r.x, y: r.y, w: r.w, h: r.h })) hits.push({ type: 'room', id: r.id })
         for (const f of plan.furniture) if (overlaps(box, { x: f.x, y: f.y, w: f.w, h: f.h })) hits.push({ type: 'furniture', id: f.id })
         for (const s of plan.stairs) if (overlaps(box, { x: s.x, y: s.y, w: s.w, h: s.h })) hits.push({ type: 'stair', id: s.id })
+        for (const l of plan.lights) if (overlaps(box, { x: l.x - 8, y: l.y - 8, w: 16, h: 16 })) hits.push({ type: 'light', id: l.id })
         for (const dd of plan.doors) if (overlaps(box, doorBox(dd))) hits.push({ type: 'door', id: dd.id })
         setSel(hits)
       }
@@ -718,7 +747,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
       setSel([d.click])
     } else if (
       d &&
-      (d.kind === 'move-room' || d.kind === 'move-furniture' || d.kind === 'move-door' || d.kind === 'move-marker' || d.kind === 'move-stair') &&
+      (d.kind === 'move-room' || d.kind === 'move-furniture' || d.kind === 'move-door' || d.kind === 'move-marker' || d.kind === 'move-stair' || d.kind === 'move-light') &&
       !d.moved
     ) {
       // A no-move click on a stack of overlapping objects: advance the selection
@@ -1012,6 +1041,25 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
 
         {/* Lighting overlay: window cones (colour shifts with the sun) + lamp glows */}
         {plan.lighting && <LightingLayer cones={cones} glows={glows} coneColor={coneColor} />}
+
+        {/* Ceiling lights — point fixtures (no floor footprint) drawn above the glow */}
+        {plan.lights.map((l) => {
+          const active = inSel('light', l.id)
+          const r = 9 / scale
+          const ray = 15 / scale
+          return (
+            <g key={l.id} style={{ cursor: 'move' }} onPointerDown={(e) => onLightDown(e, l.id)}>
+              <circle cx={l.x} cy={l.y} r={20 / scale} fill="transparent" />
+              {[0, 45, 90, 135, 180, 225, 270, 315].map((a) => {
+                const rad = (a * Math.PI) / 180
+                return (
+                  <line key={a} x1={l.x + Math.cos(rad) * r * 1.4} y1={l.y + Math.sin(rad) * r * 1.4} x2={l.x + Math.cos(rad) * ray} y2={l.y + Math.sin(rad) * ray} stroke={active ? '#b5714e' : '#d8a44e'} strokeWidth={1.5} vectorEffect="non-scaling-stroke" pointerEvents="none" />
+                )
+              })}
+              <circle cx={l.x} cy={l.y} r={r} fill={active ? '#ffe9b0' : '#ffd87a'} stroke={active ? '#b5714e' : '#c79a3e'} strokeWidth={active ? 2.5 : 1.5} vectorEffect="non-scaling-stroke" pointerEvents="none" />
+            </g>
+          )
+        })}
 
         {/* Draft room */}
         {draft && (

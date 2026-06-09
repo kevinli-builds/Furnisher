@@ -27,7 +27,7 @@ export default function Page() {
   const [invOpen, setInvOpen] = useState(false) // mobile inventory bottom-sheet
   const [collabId, setCollabId] = useState<string | null>(null)
   const { peers, onPointer } = useCollab(collabId, plan, applyRemote)
-  const clipboard = useRef<Pick<Plan, 'rooms' | 'doors' | 'furniture' | 'markers' | 'stairs'> | null>(null)
+  const clipboard = useRef<Pick<Plan, 'rooms' | 'doors' | 'furniture' | 'markers' | 'stairs' | 'lights'> | null>(null)
 
   // Load from localStorage after mount (avoids SSR/hydration mismatch).
   useEffect(() => {
@@ -70,6 +70,7 @@ export default function Page() {
           furniture: plan.furniture.filter((f) => has('furniture', f.id)),
           markers: plan.markers.filter((m) => has('marker', m.id)),
           stairs: plan.stairs.filter((s) => has('stair', s.id)),
+          lights: plan.lights.filter((l) => has('light', l.id)),
         }
       }
       const paste = () => {
@@ -80,6 +81,7 @@ export default function Page() {
         const rooms = c.rooms.map((r) => ({ ...r, id: uid(), x: r.x + O, y: r.y + O }))
         const furniture = c.furniture.map((f) => ({ ...f, id: uid(), x: f.x + O, y: f.y + O }))
         const markers = c.markers.map((m) => ({ ...m, id: uid(), x: m.x + O, y: m.y + O }))
+        const lights = c.lights.map((l) => ({ ...l, id: uid(), x: l.x + O, y: l.y + O }))
         const doors = c.doors.map((d) => ({ ...d, id: uid(), x: d.x + O, y: d.y + O }))
         const stairs = c.stairs.map((s) => {
           let nl = linkMap.get(s.link)
@@ -96,6 +98,7 @@ export default function Page() {
           markers: [...p.markers, ...markers],
           doors: [...p.doors, ...doors],
           stairs: [...p.stairs, ...stairs],
+          lights: [...p.lights, ...lights],
         }))
         setSel([
           ...rooms.map((r) => ({ type: 'room' as const, id: r.id })),
@@ -103,8 +106,9 @@ export default function Page() {
           ...markers.map((m) => ({ type: 'marker' as const, id: m.id })),
           ...doors.map((d) => ({ type: 'door' as const, id: d.id })),
           ...stairs.map((s) => ({ type: 'stair' as const, id: s.id })),
+          ...lights.map((l) => ({ type: 'light' as const, id: l.id })),
         ])
-        clipboard.current = { rooms, furniture, markers, doors, stairs } // cascade on repeat paste
+        clipboard.current = { rooms, furniture, markers, doors, stairs, lights } // cascade on repeat paste
       }
 
       if (meta && (e.key === 'c' || e.key === 'C')) {
@@ -149,6 +153,7 @@ export default function Page() {
           furniture: p.furniture.map((f) => (has('furniture', f.id) ? { ...f, x: f.x + dx, y: f.y + dy } : f)),
           markers: p.markers.map((m) => (has('marker', m.id) ? { ...m, x: m.x + dx, y: m.y + dy } : m)),
           stairs: p.stairs.map((s) => (has('stair', s.id) ? { ...s, x: s.x + dx, y: s.y + dy } : s)),
+          lights: p.lights.map((l) => (has('light', l.id) ? { ...l, x: l.x + dx, y: l.y + dy } : l)),
         }))
         return
       }
@@ -164,6 +169,7 @@ export default function Page() {
           furniture: p.furniture.filter((f) => !has('furniture', f.id)),
           markers: p.markers.filter((m) => !has('marker', m.id)),
           stairs: p.stairs.filter((s) => !has('stair', s.id)),
+          lights: p.lights.filter((l) => !has('light', l.id)),
         }))
         setSel([])
       }
@@ -260,6 +266,9 @@ export default function Page() {
             <button className="seg-btn" onClick={addStairs} title="Add a linked entry + exit stair pair">
               ⟚ Stairs
             </button>
+            <button className={`seg-btn${mode === 'light' ? ' on' : ''}`} onClick={() => setMode('light')} title="Place a ceiling light (no floor space; lights up the room)">
+              ☀ Light
+            </button>
             <button className={`seg-btn${mode === 'measure' ? ' on' : ''}`} onClick={() => setMode('measure')} title="Drag to measure any distance">
               📏 Measure
             </button>
@@ -351,6 +360,7 @@ export default function Page() {
             {mode === 'marker' && 'Click and drag to draw a labelled box — handy for framing each floor.'}
             {mode === 'door' && "Click a room's wall to place a door — it snaps onto the border. Drag to slide it along. (Switch to sliding in its settings.)"}
             {mode === 'window' && "Click a room's wall to place a window — it snaps onto the border."}
+            {mode === 'light' && 'Click inside a room to place a ceiling light. It takes no floor space but lights the room in Lighting mode (Display → Lighting).'}
             {mode === 'measure' && 'Drag between two points to measure the distance. Drag a piece (in Select) to see live gaps to the walls.'}
             {mode === 'select' && 'Drag empty space to pan · Shift-drag to box-select · Shift-click to add · click again on a stack to cycle · arrow keys nudge (Shift = fine) · Delete removes.'}
           </p>

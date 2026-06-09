@@ -138,5 +138,10 @@ export function lampGlows(plan: Plan, sun: Sun | null): LightGlow[] {
     const room = roomAtPoint(cx, cy, plan.rooms)
     glows.push({ x: cx, y: cy, r: 130 + Math.max(f.w, f.h), op: dim, clip: room ? cornersToPoints(roomCorners(room)) : null })
   }
+  // Ceiling lights: a wider wash over the whole room, clipped to it.
+  for (const l of plan.lights ?? []) {
+    const room = roomAtPoint(l.x, l.y, plan.rooms)
+    glows.push({ x: l.x, y: l.y, r: 260, op: dim, clip: room ? cornersToPoints(roomCorners(room)) : null })
+  }
   return glows
 }

@@ -8,8 +8,8 @@ import { useAuth } from './auth'
 // ── Operation model ───────────────────────────────────────────
 // Live edits are broadcast as small per-object ops (not the whole plan), so two
 // people editing different things don't clobber each other.
-type Coll = 'rooms' | 'doors' | 'furniture' | 'markers' | 'stairs'
-const COLLS: Coll[] = ['rooms', 'doors', 'furniture', 'markers', 'stairs']
+type Coll = 'rooms' | 'doors' | 'furniture' | 'markers' | 'stairs' | 'lights'
+const COLLS: Coll[] = ['rooms', 'doors', 'furniture', 'markers', 'stairs', 'lights']
 const META_KEYS: (keyof Plan)[] = [
   'units',
   'viewMode',
