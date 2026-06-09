@@ -63,6 +63,8 @@ export interface Furniture {
   snap?: boolean // when dragging, hug a nearby room wall / other furniture (auto-snap)
   face?: boolean // when snapping, also rotate so the back sits against the wall
   price?: number // optional cost — feeds the budget summary
+  brightness?: number // glow-opacity multiplier when it's a light source (1 = default)
+  lightRadius?: number // glow radius in cm override when it's a light source
 }
 
 // Footprint outline of a piece. Absent = rectangular.
@@ -88,6 +90,8 @@ export interface Light {
   id: string
   x: number
   y: number
+  radius?: number // glow radius in cm (default 260)
+  brightness?: number // glow-opacity multiplier (1 = default)
 }
 
 export type StairRole = 'entry' | 'exit'

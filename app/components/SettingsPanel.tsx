@@ -45,6 +45,9 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
   function patchStair(patch: Partial<NonNullable<typeof stair>>) {
     setPlan((p) => ({ ...p, stairs: p.stairs.map((s) => (s.id === sel.id ? { ...s, ...patch } : s)) }))
   }
+  function patchLight(patch: Partial<NonNullable<typeof light>>) {
+    setPlan((p) => ({ ...p, lights: p.lights.map((l) => (l.id === sel.id ? { ...l, ...patch } : l)) }))
+  }
 
   function close() {
     setSel([])
@@ -346,6 +349,18 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
                   None
                 </button>
               </div>
+              {(furn.light ?? furnitureType(furn.type) === 'lamp') && (
+                <>
+                  <label className="sect-label" style={{ marginTop: 10 }}>
+                    Brightness · {Math.round((furn.brightness ?? 1) * 100)}%
+                  </label>
+                  <input type="range" className="slider" min={20} max={160} step={5} value={Math.round((furn.brightness ?? 1) * 100)} onChange={(e) => patchFurn({ brightness: Number(e.target.value) / 100 })} />
+                  <label className="sect-label" style={{ marginTop: 8 }}>
+                    Glow size · {formatLength(furn.lightRadius ?? 130 + Math.max(furn.w, furn.h), units)}
+                  </label>
+                  <input type="range" className="slider" min={80} max={460} step={10} value={Math.round(furn.lightRadius ?? 130 + Math.max(furn.w, furn.h))} onChange={(e) => patchFurn({ lightRadius: Number(e.target.value) })} />
+                </>
+              )}
             </section>
             <section className="sect">
               <label className="sect-label">Auto-snap</label>
@@ -447,9 +462,19 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
         )}
 
         {light && (
-          <section className="sect">
-            <p className="sect-note">A ceiling light takes no floor space. Turn on Lighting (Display → Lighting) to see it wash the room.</p>
-          </section>
+          <>
+            <section className="sect">
+              <label className="sect-label">Brightness · {Math.round((light.brightness ?? 1) * 100)}%</label>
+              <input type="range" className="slider" min={20} max={160} step={5} value={Math.round((light.brightness ?? 1) * 100)} onChange={(e) => patchLight({ brightness: Number(e.target.value) / 100 })} />
+            </section>
+            <section className="sect">
+              <label className="sect-label">Size · {formatLength(light.radius ?? 260, units)}</label>
+              <input type="range" className="slider" min={120} max={520} step={10} value={light.radius ?? 260} onChange={(e) => patchLight({ radius: Number(e.target.value) })} />
+            </section>
+            <section className="sect">
+              <p className="sect-note">A ceiling light takes no floor space. Turn on Lighting (Display → Lighting) to see it wash the room.</p>
+            </section>
+          </>
         )}
 
         {/* Position (read-only — drag on the plan to move) */}
