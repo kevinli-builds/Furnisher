@@ -8,10 +8,11 @@ import { DOOR_LEN, swingForCursor, doorBox, doorGeom } from '../lib/door'
 import { sunAt, sunColor, formatHour, windowCones, lampGlows } from '../lib/sun'
 import { computeWarnings } from '../lib/warnings'
 import { inRoom } from '../lib/stats'
-import { formatSize, formatLength } from '../lib/units'
+import { formatLength } from '../lib/units'
 import { furnitureType } from '../lib/furniture'
 import type { Peer } from '../lib/collab'
 import FurniturePiece from './FurniturePiece'
+import RoomShape from './RoomShape'
 import Stairs from './Stairs'
 import LightingLayer from './LightingLayer'
 import PeerCursors from './PeerCursors'
@@ -749,8 +750,6 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     return m < 0.5 || major - m < 0.5
   }
 
-  const roomName = 15
-  const roomDim = 12
 
   // Pair up stairs by link to draw the floor-transition connector.
   const stairLinks = new Map<string, { entry?: { x: number; y: number; w: number; h: number }; exit?: { x: number; y: number; w: number; h: number } }>()
@@ -892,92 +891,23 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
         {/* Rooms */}
         {plan.rooms.map((r) => {
           const active = inSel('room', r.id)
-          const showLabel = plan.roomLabels === 'always' || active || hoverRoom === r.id
-          const above = spaceAbove(r)
-          const dimY = above ? r.y - 7 : r.y + roomName + roomDim + 12
-          const nameY = above ? r.y - 7 - (roomDim + 3) : r.y + roomName + 6
-          const corners = roomCorners(r)
-          const isPoly = !!(r.points && r.points.length >= 3)
-          const fill = active ? 'rgba(181,113,78,0.06)' : 'rgba(74,65,54,0.02)'
-          const stroke = active ? '#b5714e' : '#b3a78f'
-          const sw = active ? 3 : 1.75
           return (
-            <g key={r.id} onPointerEnter={() => setHoverRoom(r.id)} onPointerLeave={() => setHoverRoom((h) => (h === r.id ? null : h))}>
-              {isPoly ? (
-                <polygon
-                  points={corners.map((c) => `${c.x},${c.y}`).join(' ')}
-                  fill={fill}
-                  stroke={stroke}
-                  strokeWidth={sw}
-                  vectorEffect="non-scaling-stroke"
-                  style={{ cursor: 'move' }}
-                  onPointerDown={(e) => onRoomDown(e, r.id)}
-                />
-              ) : (
-                <rect
-                  x={r.x}
-                  y={r.y}
-                  width={r.w}
-                  height={r.h}
-                  fill={fill}
-                  stroke={stroke}
-                  strokeWidth={sw}
-                  vectorEffect="non-scaling-stroke"
-                  style={{ cursor: 'move' }}
-                  onPointerDown={(e) => onRoomDown(e, r.id)}
-                />
-              )}
-              {showLabel && (
-                <>
-                  <text x={r.x + 10} y={nameY} fontSize={roomName} fill="#8a7e6b" fontWeight={500} pointerEvents="none">
-                    {r.name}
-                  </text>
-                  <text x={r.x + 10} y={dimY} fontSize={roomDim} fill="#a89c88" pointerEvents="none">
-                    {formatSize(r.w, r.h, units)}
-                  </text>
-                </>
-              )}
-              {active &&
-                sel.length === 1 &&
-                (isPoly ? (
-                  <>
-                    {/* Edge midpoints: click to insert a corner */}
-                    {corners.map((a, i) => {
-                      const b = corners[(i + 1) % corners.length]
-                      return (
-                        <circle
-                          key={`e${i}`}
-                          cx={(a.x + b.x) / 2}
-                          cy={(a.y + b.y) / 2}
-                          r={9}
-                          fill="#fff"
-                          stroke="#b5714e"
-                          strokeWidth={2}
-                          vectorEffect="non-scaling-stroke"
-                          style={{ cursor: 'copy' }}
-                          onPointerDown={(e) => insertNode(e, r.id, i)}
-                        />
-                      )
-                    })}
-                    {/* Vertices: drag to move, double-click to delete */}
-                    {corners.map((c, i) => (
-                      <circle
-                        key={`v${i}`}
-                        cx={c.x}
-                        cy={c.y}
-                        r={11}
-                        fill="#b5714e"
-                        vectorEffect="non-scaling-stroke"
-                        style={{ cursor: 'move' }}
-                        onPointerDown={(e) => onNodeDown(e, r.id, i)}
-                        onDoubleClick={(e) => deleteNode(e, r.id, i)}
-                      />
-                    ))}
-                  </>
-                ) : (
-                  resizeHandles('room', r.id, r.x, r.y, r.w, r.h)
-                ))}
-            </g>
+            <RoomShape
+              key={r.id}
+              r={r}
+              active={active}
+              showLabel={plan.roomLabels === 'always' || active || hoverRoom === r.id}
+              above={spaceAbove(r)}
+              units={units}
+              showHandles={active && sel.length === 1}
+              onEnter={setHoverRoom}
+              onLeave={(id) => setHoverRoom((h) => (h === id ? null : h))}
+              onDown={onRoomDown}
+              onNodeDown={onNodeDown}
+              onInsertNode={insertNode}
+              onDeleteNode={deleteNode}
+              rectHandles={resizeHandles('room', r.id, r.x, r.y, r.w, r.h)}
+            />
           )
         })}
 
