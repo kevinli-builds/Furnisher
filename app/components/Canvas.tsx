@@ -35,7 +35,7 @@ type OrigPos = { t: 'room' | 'door' | 'furniture' | 'marker' | 'stair' | 'light'
 type Drag =
   | { kind: 'draw'; ox: number; oy: number; what: 'room' | 'marker' }
   | { kind: 'marquee'; ox: number; oy: number }
-  | { kind: 'pan'; cx0: number; cy0: number; vx0: number; vy0: number; moved?: boolean; deselect?: boolean }
+  | { kind: 'pan'; cx0: number; cy0: number; vx0: number; vy0: number; moved?: boolean; deselect?: boolean; tapSelect?: SelItem }
   | { kind: 'move-sel'; sx: number; sy: number; orig: OrigPos[]; click: SelItem; moved: boolean }
   | { kind: 'move-room'; id: string; sx: number; sy: number; ox: number; oy: number; pts?: Pt[]; moved?: boolean }
   | { kind: 'resize'; otype: 'room' | 'furniture' | 'marker' | 'stair'; id: string; hx: number; hy: number; sx: number; sy: number; ox: number; oy: number; ow: number; oh: number; rot: number }
@@ -289,6 +289,14 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     prevSelRef.current = sel // remember what was selected before this press (for overlap cycling)
     if (e.shiftKey) {
       toggle(item)
+      return
+    }
+    // Touch (maps-style): a one-finger drag on an object that isn't already
+    // selected pans the grid; a tap selects it. Drag a selected object to move
+    // it. (Mouse keeps the immediate drag-to-move behaviour.)
+    if (e.pointerType === 'touch' && !inSel(item.type, item.id)) {
+      drag.current = { kind: 'pan', cx0: e.clientX, cy0: e.clientY, vx0: viewRef.current.x, vy0: viewRef.current.y, tapSelect: item }
+      capture(e)
       return
     }
     if (inSel(item.type, item.id) && sel.length > 1) {
@@ -746,9 +754,10 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
         setSel(hits)
       }
       setMarquee(null)
-    } else if (d?.kind === 'pan' && d.deselect && !d.moved) {
-      // A plain click on empty space (no pan) clears the selection.
-      setSel([])
+    } else if (d?.kind === 'pan' && !d.moved && (d.tapSelect || d.deselect)) {
+      // A tap that didn't pan: select the tapped object (touch) or, on empty
+      // space, clear the selection.
+      setSel(d.tapSelect ? [d.tapSelect] : [])
     } else if (d?.kind === 'move-sel' && !d.moved) {
       // Pressed (without dragging) a member of a multi-selection → narrow to it.
       setSel([d.click])
