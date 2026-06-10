@@ -356,8 +356,8 @@ export default function Page() {
           {showStats && <StatsPanel plan={plan} onClose={() => setShowStats(false)} />}
           <Canvas plan={plan} setPlan={setPlan} mode={mode} setMode={setMode} sel={sel} setSel={setSel} peers={peers} onPointer={onPointer} />
           <p className="hint">
-            {mode === 'room' && 'Click and drag on the grid to draw a room.'}
-            {mode === 'marker' && 'Click and drag to draw a labelled box — handy for framing each floor.'}
+            {mode === 'room' && 'Drag to size a room — or just tap to drop one, then resize/drag it.'}
+            {mode === 'marker' && 'Drag to draw a labelled box — or tap to drop one. Handy for framing each floor.'}
             {mode === 'door' && "Click a room's wall to place a door — it snaps onto the border. Drag to slide it along. (Switch to sliding in its settings.)"}
             {mode === 'window' && "Click a room's wall to place a window — it snaps onto the border."}
             {mode === 'light' && 'Click inside a room to place a ceiling light. It takes no floor space but lights the room in Lighting mode (Display → Lighting).'}

@@ -701,27 +701,33 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     // which can lag a fast drag).
     if (d?.kind === 'draw') {
       const p = toCm(e)
-      const x = Math.min(d.ox, snap(p.x))
-      const y = Math.min(d.oy, snap(p.y))
-      const w = Math.abs(snap(p.x) - d.ox)
-      const h = Math.abs(snap(p.y) - d.oy)
-      if (w >= MIN_ROOM && h >= MIN_ROOM) {
-        const id = uid()
-        if (d.what === 'marker') {
-          setPlan((pl) => ({ ...pl, markers: [...pl.markers, { id, name: `Floor ${pl.markers.length + 1}`, style: 'frame', x, y, w, h }] }))
-          setSel([{ type: 'marker', id }])
-        } else {
-          // Also save the drawn room to the Rooms inventory for reuse.
-          setPlan((pl) => {
-            const name = `Room ${pl.rooms.length + 1}`
-            return {
-              ...pl,
-              rooms: [...pl.rooms, { id, name, x, y, w, h }],
-              inventory: { ...pl.inventory, rooms: [...pl.inventory.rooms, { id: uid(), name, w, h }] },
-            }
-          })
-          setSel([{ type: 'room', id }])
-        }
+      let x = Math.min(d.ox, snap(p.x))
+      let y = Math.min(d.oy, snap(p.y))
+      let w = Math.abs(snap(p.x) - d.ox)
+      let h = Math.abs(snap(p.y) - d.oy)
+      // A tap (or too-small drag) drops a default-sized object centred on the
+      // tap — so on touch you can just tap to place, then resize/drag.
+      if (w < MIN_ROOM || h < MIN_ROOM) {
+        w = d.what === 'marker' ? 200 : 300
+        h = d.what === 'marker' ? 150 : 240
+        x = snap(d.ox - w / 2)
+        y = snap(d.oy - h / 2)
+      }
+      const id = uid()
+      if (d.what === 'marker') {
+        setPlan((pl) => ({ ...pl, markers: [...pl.markers, { id, name: `Floor ${pl.markers.length + 1}`, style: 'frame', x, y, w, h }] }))
+        setSel([{ type: 'marker', id }])
+      } else {
+        // Also save the drawn room to the Rooms inventory for reuse.
+        setPlan((pl) => {
+          const name = `Room ${pl.rooms.length + 1}`
+          return {
+            ...pl,
+            rooms: [...pl.rooms, { id, name, x, y, w, h }],
+            inventory: { ...pl.inventory, rooms: [...pl.inventory.rooms, { id: uid(), name, w, h }] },
+          }
+        })
+        setSel([{ type: 'room', id }])
       }
       setDraft(null)
     } else if (d?.kind === 'marquee') {
