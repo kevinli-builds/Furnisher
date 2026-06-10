@@ -57,6 +57,18 @@ export function diffPlan(prev: Plan, next: Plan): Op[] {
   return ops
 }
 
+// A colour that will be painted into SVG fill/stroke must be a plain colour
+// value — never url(...) (which can make the viewer's browser fetch an
+// attacker-controlled paint server) or other CSS tricks.
+const SAFE_COLOR = /^#[0-9a-fA-F]{3,8}$|^rgba?\([\d.,\s%]+\)$|^[a-zA-Z]{3,20}$/
+function sanitizeItem(item: Entity): Entity {
+  const it = item as Entity & Record<string, unknown>
+  if ('color' in it && (typeof it.color !== 'string' || !SAFE_COLOR.test(it.color as string))) {
+    return { ...it, color: '#d8c8a4' } as Entity
+  }
+  return item
+}
+
 // Validate + clean ops arriving from the network (the channel is only
 // semi-trusted): drop anything malformed, and only allow known meta keys.
 export function sanitizeOps(raw: unknown): Op[] {
@@ -66,7 +78,7 @@ export function sanitizeOps(raw: unknown): Op[] {
     if (!o || typeof o !== 'object') continue
     const op = o as Record<string, unknown>
     if (op.t === 'upsert' && COLLS.includes(op.c as Coll) && op.item && typeof op.item === 'object' && typeof (op.item as Entity).id === 'string') {
-      out.push({ t: 'upsert', c: op.c as Coll, item: op.item as Entity })
+      out.push({ t: 'upsert', c: op.c as Coll, item: sanitizeItem(op.item as Entity) })
     } else if (op.t === 'del' && COLLS.includes(op.c as Coll) && typeof op.id === 'string') {
       out.push({ t: 'del', c: op.c as Coll, id: op.id })
     } else if (op.t === 'meta' && op.fields && typeof op.fields === 'object') {
