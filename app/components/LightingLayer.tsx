@@ -27,9 +27,9 @@ export default function LightingLayer({ cones, glows, coneColor }: Props) {
         ))}
         {glows.map((g, i) => (
           <radialGradient key={`gg${i}`} id={`glow-${i}`} gradientUnits="userSpaceOnUse" cx={g.x} cy={g.y} r={g.r}>
-            <stop offset="0%" stopColor="#ffdf86" stopOpacity={g.op} />
-            <stop offset="70%" stopColor="#ffdf86" stopOpacity={g.op * 0.3} />
-            <stop offset="100%" stopColor="#ffdf86" stopOpacity={0} />
+            <stop offset="0%" stopColor={g.color} stopOpacity={g.op} />
+            <stop offset="70%" stopColor={g.color} stopOpacity={g.op * 0.3} />
+            <stop offset="100%" stopColor={g.color} stopOpacity={0} />
           </radialGradient>
         ))}
         {glows.map((g, i) => g.clip && (

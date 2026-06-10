@@ -119,12 +119,34 @@ export function windowCones(plan: Plan, sun: Sun | null): LightCone[] {
   return cones
 }
 
+// Colour-temperature → glow colour: warm amber (2700K) → soft neutral (4000K)
+// → cool daylight blue-white (6500K). Linear blend between the three stops.
+export function kelvinToColor(kelvin = 2700): string {
+  const stops: [number, [number, number, number]][] = [
+    [2700, [255, 216, 122]], // warm #ffd87a (matches the previous default glow)
+    [4000, [255, 243, 214]], // neutral
+    [6500, [222, 235, 255]], // cool
+  ]
+  const k = Math.max(stops[0][0], Math.min(stops[stops.length - 1][0], kelvin))
+  for (let i = 0; i < stops.length - 1; i++) {
+    const [k0, c0] = stops[i]
+    const [k1, c1] = stops[i + 1]
+    if (k <= k1) {
+      const t = (k - k0) / (k1 - k0)
+      const c = c0.map((v, j) => Math.round(v + (c1[j] - v) * t))
+      return `rgb(${c[0]}, ${c[1]}, ${c[2]})`
+    }
+  }
+  return 'rgb(255, 216, 122)'
+}
+
 // Radial glow from lamps / light-source furniture (brighter at night).
 export interface LightGlow {
   x: number
   y: number
   r: number
   op: number
+  color: string // glow colour (from the fixture's colour temperature)
   clip: string | null
 }
 
@@ -138,14 +160,15 @@ export function lampGlows(plan: Plan, sun: Sun | null): LightGlow[] {
     const room = roomAtPoint(cx, cy, plan.rooms)
     const r = f.lightRadius ?? 130 + Math.max(f.w, f.h)
     const op = Math.min(0.85, dim * (f.brightness ?? 1))
-    glows.push({ x: cx, y: cy, r, op, clip: room ? cornersToPoints(roomCorners(room)) : null })
+    glows.push({ x: cx, y: cy, r, op, color: kelvinToColor(f.kelvin), clip: room ? cornersToPoints(roomCorners(room)) : null })
   }
   // Ceiling lights: a wider wash over the whole room, clipped to it.
   for (const l of plan.lights ?? []) {
+    if (l.on === false) continue // switched off
     const room = roomAtPoint(l.x, l.y, plan.rooms)
     const r = l.radius ?? 260
     const op = Math.min(0.85, dim * (l.brightness ?? 1))
-    glows.push({ x: l.x, y: l.y, r, op, clip: room ? cornersToPoints(roomCorners(room)) : null })
+    glows.push({ x: l.x, y: l.y, r, op, color: kelvinToColor(l.kelvin), clip: room ? cornersToPoints(roomCorners(room)) : null })
   }
   return glows
 }

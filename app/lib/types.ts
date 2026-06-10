@@ -65,6 +65,7 @@ export interface Furniture {
   price?: number // optional cost — feeds the budget summary
   brightness?: number // glow-opacity multiplier when it's a light source (1 = default)
   lightRadius?: number // glow radius in cm override when it's a light source
+  kelvin?: number // colour temperature of the emitted light (2700 warm … 6500 cool)
 }
 
 // Footprint outline of a piece. Absent = rectangular.
@@ -92,6 +93,8 @@ export interface Light {
   y: number
   radius?: number // glow radius in cm (default 260)
   brightness?: number // glow-opacity multiplier (1 = default)
+  on?: boolean // switched on? (default true) — off = no glow, independent of time of day
+  kelvin?: number // colour temperature (2700 warm … 6500 cool); unset = warm default
 }
 
 export type StairRole = 'entry' | 'exit'

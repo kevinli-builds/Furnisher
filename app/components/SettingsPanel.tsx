@@ -352,6 +352,10 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
               {(furn.light ?? furnitureType(furn.type) === 'lamp') && (
                 <>
                   <label className="sect-label" style={{ marginTop: 10 }}>
+                    Colour · {furn.kelvin ?? 2700}K {(furn.kelvin ?? 2700) < 3300 ? '(warm)' : (furn.kelvin ?? 2700) < 5000 ? '(neutral)' : '(cool)'}
+                  </label>
+                  <input type="range" className="slider" min={2700} max={6500} step={100} value={furn.kelvin ?? 2700} onChange={(e) => patchFurn({ kelvin: Number(e.target.value) })} />
+                  <label className="sect-label" style={{ marginTop: 10 }}>
                     Brightness · {Math.round((furn.brightness ?? 1) * 100)}%
                   </label>
                   <input type="range" className="slider" min={20} max={160} step={5} value={Math.round((furn.brightness ?? 1) * 100)} onChange={(e) => patchFurn({ brightness: Number(e.target.value) / 100 })} />
@@ -463,6 +467,21 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
 
         {light && (
           <>
+            <section className="sect">
+              <label className="sect-label">Power</label>
+              <div className="seg full">
+                <button className={`seg-btn${light.on !== false ? ' on' : ''}`} onClick={() => patchLight({ on: true })}>
+                  On
+                </button>
+                <button className={`seg-btn${light.on === false ? ' on' : ''}`} onClick={() => patchLight({ on: false })}>
+                  Off
+                </button>
+              </div>
+            </section>
+            <section className="sect">
+              <label className="sect-label">Colour · {light.kelvin ?? 2700}K {(light.kelvin ?? 2700) < 3300 ? '(warm)' : (light.kelvin ?? 2700) < 5000 ? '(neutral)' : '(cool)'}</label>
+              <input type="range" className="slider" min={2700} max={6500} step={100} value={light.kelvin ?? 2700} onChange={(e) => patchLight({ kelvin: Number(e.target.value) })} />
+            </section>
             <section className="sect">
               <label className="sect-label">Brightness · {Math.round((light.brightness ?? 1) * 100)}%</label>
               <input type="range" className="slider" min={20} max={160} step={5} value={Math.round((light.brightness ?? 1) * 100)} onChange={(e) => patchLight({ brightness: Number(e.target.value) / 100 })} />
