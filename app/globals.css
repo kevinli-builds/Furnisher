@@ -1006,17 +1006,26 @@ textarea.field {
     font-size: 17px;
   }
 
-  /* Compact top bar with a single horizontally-scrollable tool strip. */
+  /* Slim title bar at top; the tools move to a thumb-reachable bottom bar. */
   .topbar {
     flex-wrap: nowrap;
     gap: 10px;
     padding: 9px 12px;
   }
   .tools {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 25;
     flex-wrap: nowrap;
     overflow-x: auto;
-    flex: 1;
     justify-content: flex-start;
+    gap: 8px;
+    padding: 8px 10px;
+    background: var(--panel);
+    border-top: 1px solid var(--line-strong);
+    box-shadow: 0 -4px 16px rgba(60, 50, 35, 0.08);
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }
@@ -1030,6 +1039,7 @@ textarea.field {
   /* Canvas fills the screen; panels float over it as bottom sheets. */
   .workspace {
     position: relative;
+    padding-bottom: 56px; /* clearance for the fixed bottom tool bar */
   }
   .canvas-wrap {
     padding: 8px;
@@ -1038,7 +1048,7 @@ textarea.field {
      without stealing vertical space. */
   .hint {
     position: absolute;
-    bottom: 16px;
+    bottom: 14px;
     left: 50%;
     transform: translateX(-50%);
     max-width: 92%;
