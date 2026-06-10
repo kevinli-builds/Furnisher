@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Plan } from '../lib/types'
-import { defaultPlan } from '../lib/storage'
+import { defaultPlan, normalizePlan } from '../lib/storage'
 import { supabaseEnabled } from '../lib/supabase'
 import { useAuth, signInWithGoogle, signOut } from '../lib/auth'
 import {
@@ -82,7 +82,7 @@ export default function AccountMenu({ plan, onLoadPlan, onProjectChange }: Props
           const row = await getProject(pid)
           if (row) {
             skipNextSave.current = true
-            onLoadPlan(row.data)
+            onLoadPlan(normalizePlan(row.data))
             rememberCurrent(row.id, row.name)
             flash('Joined shared plan')
           }
@@ -95,7 +95,7 @@ export default function AccountMenu({ plan, onLoadPlan, onProjectChange }: Props
           const row = await getProject(id)
           if (row) {
             skipNextSave.current = true
-            onLoadPlan(row.data)
+            onLoadPlan(normalizePlan(row.data))
             rememberCurrent(row.id, row.name)
           } else {
             localStorage.removeItem(CURRENT_KEY) // gone / no access
@@ -207,7 +207,7 @@ export default function AccountMenu({ plan, onLoadPlan, onProjectChange }: Props
 
   function openProject(row: ProjectRow) {
     skipNextSave.current = true
-    onLoadPlan(row.data)
+    onLoadPlan(normalizePlan(row.data))
     rememberCurrent(row.id, row.name)
     setOpen(false)
     flash(`Opened “${row.name}”`)
