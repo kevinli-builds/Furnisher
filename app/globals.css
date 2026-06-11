@@ -45,6 +45,9 @@ body {
 .mobile-only {
   display: none !important;
 }
+.mobile-tabbar {
+  display: none; /* shown as a fixed bottom bar on phones (media query) */
+}
 
 /* ── Top bar ─────────────────────────────────────────────────── */
 .topbar {
@@ -1072,20 +1075,14 @@ textarea.field {
     gap: 10px;
     padding: 9px 12px;
   }
+  /* Secondary actions (undo/redo, reset, stats, image, account) scroll in a
+     strip at the top; the primary tools live in the bottom tab bar. */
   .tools {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 25;
     flex-wrap: nowrap;
     overflow-x: auto;
-    justify-content: flex-start;
+    flex: 1;
+    justify-content: flex-end;
     gap: 8px;
-    padding: 8px 10px;
-    background: var(--panel);
-    border-top: 1px solid var(--line-strong);
-    box-shadow: 0 -4px 16px rgba(60, 50, 35, 0.08);
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }
@@ -1099,13 +1096,48 @@ textarea.field {
   /* Canvas fills the screen; panels float over it as bottom sheets. */
   .workspace {
     position: relative;
-    padding-bottom: 56px; /* clearance for the fixed bottom tool bar */
+    padding-bottom: 60px; /* clearance for the fixed bottom tab bar */
   }
   .canvas-wrap {
     padding: 8px;
   }
-  /* Float the hint as a compact pill over the canvas so it stays discoverable
-     without stealing vertical space. */
+
+  /* Primary actions: a fixed bottom tab bar, always visible (never scrolls). */
+  .mobile-tabbar {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    background: var(--panel);
+    border-top: 1px solid var(--line-strong);
+    box-shadow: 0 -4px 16px rgba(60, 50, 35, 0.1);
+    padding: 4px 6px;
+  }
+  .tab-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 7px 4px;
+    border: none;
+    background: none;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .tab-btn .tab-ico {
+    font-size: 19px;
+    line-height: 1;
+  }
+  .tab-btn.on {
+    color: var(--accent);
+  }
+
+  /* Float the hint as a compact pill over the canvas (above the tab bar). */
   .hint {
     position: absolute;
     bottom: 14px;
@@ -1123,23 +1155,27 @@ textarea.field {
     pointer-events: none;
   }
 
+  /* Sheets sit above the tab bar (bottom: 56px) so it stays visible/tappable. */
   .sheet-backdrop {
     position: fixed;
-    inset: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 56px;
     background: rgba(40, 34, 26, 0.32);
     z-index: 35;
   }
 
-  /* Inventory → slide-up bottom sheet, toggled by the Items button. */
+  /* Inventory → slide-up bottom sheet, toggled by the Inventory tab. */
   .left {
     position: fixed;
     left: 0;
     right: 0;
-    bottom: 0;
+    bottom: 56px;
     width: auto;
-    height: 72vh;
+    height: 62vh;
     z-index: 40;
-    transform: translateY(101%);
+    transform: translateY(120%);
     transition: transform 0.22s ease;
     background: var(--panel);
     border-top: 1px solid var(--line-strong);
@@ -1155,12 +1191,16 @@ textarea.field {
     height: 100%;
   }
 
+  .add-sheet {
+    bottom: 56px;
+  }
+
   /* Settings → bottom sheet (auto-shows when one object is selected). */
   .right {
     position: fixed;
     left: 0;
     right: 0;
-    bottom: 0;
+    bottom: 56px;
     width: auto;
     height: auto;
     z-index: 38;

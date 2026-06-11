@@ -291,19 +291,6 @@ export default function Page() {
             </button>
           </div>
 
-          {/* Mobile: Select · Add · Inventory */}
-          <div className="seg mobile-only">
-            <button className={`seg-btn${mode === 'select' && !addOpen ? ' on' : ''}`} onClick={() => { setMode('select'); setAddOpen(false) }}>
-              ↖ Select
-            </button>
-            <button className={`seg-btn${addOpen ? ' on' : ''}`} onClick={() => setAddOpen((o) => !o)}>
-              ＋ Add
-            </button>
-            <button className={`seg-btn${invOpen ? ' on' : ''}`} onClick={() => setInvOpen((o) => !o)}>
-              ▤ Inventory
-            </button>
-          </div>
-
           <div className="seg">
             <button className="seg-btn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)">
               ↶ Undo
@@ -420,6 +407,22 @@ export default function Page() {
           </div>
         )}
       </main>
+
+      {/* Mobile bottom tab bar — always-visible primary actions. */}
+      <nav className="mobile-tabbar">
+        <button className={`tab-btn${mode === 'select' && !addOpen && !invOpen ? ' on' : ''}`} onClick={() => { setMode('select'); setAddOpen(false); setInvOpen(false) }}>
+          <span className="tab-ico">↖</span>
+          Select
+        </button>
+        <button className={`tab-btn${addOpen ? ' on' : ''}`} onClick={() => { setAddOpen((o) => !o); setInvOpen(false) }}>
+          <span className="tab-ico">＋</span>
+          Add
+        </button>
+        <button className={`tab-btn${invOpen ? ' on' : ''}`} onClick={() => { setInvOpen((o) => !o); setAddOpen(false) }}>
+          <span className="tab-ico">▤</span>
+          Inventory
+        </button>
+      </nav>
 
       {importMode && <ImportModal mode={importMode} setPlan={setPlan} onClose={() => setImportMode(null)} />}
     </div>
