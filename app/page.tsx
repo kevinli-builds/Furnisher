@@ -26,6 +26,9 @@ export default function Page() {
   const [showStats, setShowStats] = useState(false)
   const [invOpen, setInvOpen] = useState(false) // mobile inventory bottom-sheet
   const [addOpen, setAddOpen] = useState(false) // mobile "Add" menu
+  const [invMode, setInvMode] = useState<'browse' | 'add'>('browse') // mobile inventory: browse-only vs add tools
+  const [settingsOpen, setSettingsOpen] = useState(false) // mobile: settings sheet opened via the gear
+  const [isMobile, setIsMobile] = useState(false)
   const [collabId, setCollabId] = useState<string | null>(null)
   const { peers, onPointer } = useCollab(collabId, plan, applyRemote)
   const clipboard = useRef<Pick<Plan, 'rooms' | 'doors' | 'furniture' | 'markers' | 'stairs' | 'lights'> | null>(null)
@@ -35,6 +38,20 @@ export default function Page() {
     replace(loadPlan())
     setMounted(true)
   }, [replace])
+
+  // Track phone-width so selection can be drag-first (settings via a gear) there.
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 760px)')
+    const on = () => setIsMobile(mq.matches)
+    on()
+    mq.addEventListener('change', on)
+    return () => mq.removeEventListener('change', on)
+  }, [])
+
+  // Changing the selection closes the (mobile) settings sheet.
+  useEffect(() => {
+    setSettingsOpen(false)
+  }, [sel])
 
   useEffect(() => {
     if (mounted) savePlan(plan)
@@ -229,7 +246,8 @@ export default function Page() {
   function chooseAdd(kind: 'room' | 'door' | 'window' | 'marker' | 'light' | 'measure' | 'furniture' | 'stairs') {
     setAddOpen(false)
     if (kind === 'furniture') {
-      setInvOpen(true) // furniture is placed from the inventory
+      setInvMode('add') // furniture is created/imported from the inventory's add tools
+      setInvOpen(true)
       return
     }
     if (kind === 'stairs') {
@@ -375,12 +393,14 @@ export default function Page() {
 
         <div className={`left${invOpen ? ' open' : ''}`}>
           <InventoryPanel
+            key={!isMobile || invMode === 'add' ? 'inv-add' : 'inv-browse'}
             plan={plan}
             setPlan={setPlan}
             onPlaceFurniture={placeFurnitureTemplate}
             onPlaceRoom={placeRoomTemplate}
             onPlaceMarker={placeMarkerTemplate}
             onImport={setImportMode}
+            showAdd={!isMobile || invMode === 'add'}
           />
         </div>
 
@@ -389,7 +409,18 @@ export default function Page() {
             <ViewOptionsMenu plan={plan} setPlan={setPlan} />
           </div>
           {showStats && <StatsPanel plan={plan} onClose={() => setShowStats(false)} />}
-          <Canvas plan={plan} setPlan={setPlan} mode={mode} setMode={setMode} sel={sel} setSel={setSel} peers={peers} onPointer={onPointer} />
+          <Canvas
+            plan={plan}
+            setPlan={setPlan}
+            mode={mode}
+            setMode={setMode}
+            sel={sel}
+            setSel={setSel}
+            peers={peers}
+            onPointer={onPointer}
+            gearForSettings={isMobile && sel.length === 1 && !settingsOpen}
+            onOpenSettings={() => setSettingsOpen(true)}
+          />
           <p className={`hint${mode === 'select' ? ' hint-select' : ''}`}>
             {mode === 'room' && 'Tap the grid to drop a room — or drag to size it. Then drag to move, or use the handles to resize.'}
             {mode === 'marker' && 'Tap to drop a labelled box — or drag to size it. Handy for framing each floor.'}
@@ -401,10 +432,13 @@ export default function Page() {
           </p>
         </div>
 
-        {sel.length === 1 && (
-          <div className="right">
-            <SettingsPanel key={`${sel[0].type}-${sel[0].id}`} plan={plan} setPlan={setPlan} sel={sel[0]} setSel={setSel} />
-          </div>
+        {sel.length === 1 && (!isMobile || settingsOpen) && (
+          <>
+            {isMobile && <div className="sheet-backdrop" onClick={() => setSettingsOpen(false)} />}
+            <div className="right">
+              <SettingsPanel key={`${sel[0].type}-${sel[0].id}`} plan={plan} setPlan={setPlan} sel={sel[0]} setSel={setSel} />
+            </div>
+          </>
         )}
       </main>
 
@@ -418,7 +452,7 @@ export default function Page() {
           <span className="tab-ico">＋</span>
           Add
         </button>
-        <button className={`tab-btn${invOpen ? ' on' : ''}`} onClick={() => { setInvOpen((o) => !o); setAddOpen(false) }}>
+        <button className={`tab-btn${invOpen ? ' on' : ''}`} onClick={() => { setInvOpen((o) => !o); setInvMode('browse'); setAddOpen(false) }}>
           <span className="tab-ico">▤</span>
           Inventory
         </button>

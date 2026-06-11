@@ -14,9 +14,10 @@ interface Props {
   onPlaceRoom: (t: RoomTemplate) => void
   onPlaceMarker: (t: MarkerTemplate) => void
   onImport: (mode: 'blueprint' | 'furniture') => void
+  showAdd?: boolean // false = browse-only (mobile Inventory tab); adding lives behind the Add button
 }
 
-export default function InventoryPanel({ plan, setPlan, onPlaceFurniture, onPlaceRoom, onPlaceMarker, onImport }: Props) {
+export default function InventoryPanel({ plan, setPlan, onPlaceFurniture, onPlaceRoom, onPlaceMarker, onImport, showAdd = true }: Props) {
   const { units } = plan
   const u = inputUnit(units)
   const [tab, setTab] = useState<'furniture' | 'rooms' | 'markers'>('furniture')
@@ -131,7 +132,7 @@ export default function InventoryPanel({ plan, setPlan, onPlaceFurniture, onPlac
 
       {tab === 'furniture' && (
         <>
-          <div className="add-form">
+          {showAdd && <div className="add-form">
             <label className="dim">
               <span>Type</span>
               <select className="field" value={ftype} onChange={(e) => pickType(e.target.value as FurnitureType)}>
@@ -186,13 +187,15 @@ export default function InventoryPanel({ plan, setPlan, onPlaceFurniture, onPlac
             <button className="btn" onClick={addFurn}>
               Save to inventory
             </button>
-          </div>
+          </div>}
 
           <div className="inv-grouphead">
-            <p className="inv-hint">Drag a piece onto the plan, or onto a group to move it.</p>
-            <button className="link-x" onClick={addGroup}>
-              + Group
-            </button>
+            <p className="inv-hint">{showAdd ? 'Drag a piece onto the plan, or onto a group to move it.' : 'Tap a piece to drop it on the plan.'}</p>
+            {showAdd && (
+              <button className="link-x" onClick={addGroup}>
+                + Group
+              </button>
+            )}
           </div>
 
           <div className="list">
@@ -233,7 +236,7 @@ export default function InventoryPanel({ plan, setPlan, onPlaceFurniture, onPlac
 
       {tab === 'rooms' && (
         <>
-          <div className="add-form">
+          {showAdd && <div className="add-form">
             <input className="field" placeholder="Name" value={rname} onChange={(e) => setRname(e.target.value)} />
             <div className="dim-row">
               <label className="dim">
@@ -248,7 +251,7 @@ export default function InventoryPanel({ plan, setPlan, onPlaceFurniture, onPlac
             <button className="btn" onClick={addRoom}>
               Save to inventory
             </button>
-          </div>
+          </div>}
 
           <p className="inv-hint">Drag a room onto the plan (or click to drop it in view).</p>
           <div className="list">
@@ -268,7 +271,7 @@ export default function InventoryPanel({ plan, setPlan, onPlaceFurniture, onPlac
 
       {tab === 'markers' && (
         <>
-          <div className="add-form">
+          {showAdd && <div className="add-form">
             <input className="field" placeholder="Name (e.g. Counters)" value={mname} onChange={(e) => setMname(e.target.value)} />
             <div className="dim-row">
               <label className="dim">
@@ -291,7 +294,7 @@ export default function InventoryPanel({ plan, setPlan, onPlaceFurniture, onPlac
             <button className="btn" onClick={addMarker}>
               Save to inventory
             </button>
-          </div>
+          </div>}
 
           <p className="inv-hint">Drag a marker onto the plan (or click to drop it in view).</p>
           <div className="list">
@@ -309,17 +312,19 @@ export default function InventoryPanel({ plan, setPlan, onPlaceFurniture, onPlac
         </>
       )}
 
-      <div className="inv-footer">
-        <span className="inv-footer-label">AI import</span>
-        <div className="inv-footer-btns">
-          <button className="icon-btn" onClick={() => onImport('blueprint')} title="Read a floor-plan image with Claude">
-            ⌖ Plan
-          </button>
-          <button className="icon-btn" onClick={() => onImport('furniture')} title="Read a furniture photo / link with Claude">
-            ⌖ Item
-          </button>
+      {showAdd && (
+        <div className="inv-footer">
+          <span className="inv-footer-label">AI import</span>
+          <div className="inv-footer-btns">
+            <button className="icon-btn" onClick={() => onImport('blueprint')} title="Read a floor-plan image with Claude">
+              ⌖ Plan
+            </button>
+            <button className="icon-btn" onClick={() => onImport('furniture')} title="Read a furniture photo / link with Claude">
+              ⌖ Item
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </aside>
   )
 }
