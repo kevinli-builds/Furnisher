@@ -25,6 +25,7 @@ export default function Page() {
   const [importMode, setImportMode] = useState<'blueprint' | 'furniture' | null>(null)
   const [showStats, setShowStats] = useState(false)
   const [invOpen, setInvOpen] = useState(false) // mobile inventory bottom-sheet
+  const [addOpen, setAddOpen] = useState(false) // mobile "Add" menu
   const [collabId, setCollabId] = useState<string | null>(null)
   const { peers, onPointer } = useCollab(collabId, plan, applyRemote)
   const clipboard = useRef<Pick<Plan, 'rooms' | 'doors' | 'furniture' | 'markers' | 'stairs' | 'lights'> | null>(null)
@@ -224,6 +225,21 @@ export default function Page() {
     setSel([{ type: 'marker', id }])
   }
 
+  // Mobile "Add" menu → route each choice to its tool / action, then close.
+  function chooseAdd(kind: 'room' | 'door' | 'window' | 'marker' | 'light' | 'measure' | 'furniture' | 'stairs') {
+    setAddOpen(false)
+    if (kind === 'furniture') {
+      setInvOpen(true) // furniture is placed from the inventory
+      return
+    }
+    if (kind === 'stairs') {
+      addStairs()
+      return
+    }
+    setSel([])
+    setMode(kind)
+  }
+
   // Add a linked entry+exit stair pair near the centre of existing content.
   function addStairs() {
     const { cx, cy } = contentCenter()
@@ -247,7 +263,8 @@ export default function Page() {
         </div>
 
         <div className="tools">
-          <div className="seg">
+          {/* Desktop: full set of tool buttons */}
+          <div className="seg desktop-only">
             <button className={`seg-btn${mode === 'select' ? ' on' : ''}`} onClick={() => setMode('select')}>
               ↖ Select
             </button>
@@ -274,6 +291,19 @@ export default function Page() {
             </button>
           </div>
 
+          {/* Mobile: Select · Add · Inventory */}
+          <div className="seg mobile-only">
+            <button className={`seg-btn${mode === 'select' && !addOpen ? ' on' : ''}`} onClick={() => { setMode('select'); setAddOpen(false) }}>
+              ↖ Select
+            </button>
+            <button className={`seg-btn${addOpen ? ' on' : ''}`} onClick={() => setAddOpen((o) => !o)}>
+              ＋ Add
+            </button>
+            <button className={`seg-btn${invOpen ? ' on' : ''}`} onClick={() => setInvOpen((o) => !o)}>
+              ▤ Inventory
+            </button>
+          </div>
+
           <div className="seg">
             <button className="seg-btn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)">
               ↶ Undo
@@ -293,10 +323,6 @@ export default function Page() {
             }}
           >
             Reset
-          </button>
-
-          <button className={`seg-btn solo mobile-only${invOpen ? ' on' : ''}`} onClick={() => setInvOpen((o) => !o)} title="Open the inventory">
-            ▤ Items
           </button>
 
           <button className={`seg-btn solo${showStats ? ' on' : ''}`} onClick={() => setShowStats((s) => !s)} title="Room areas & free floor space">
@@ -337,7 +363,29 @@ export default function Page() {
       </header>
 
       <main className="workspace">
-        {invOpen && <div className="sheet-backdrop" onClick={() => setInvOpen(false)} />}
+        {(invOpen || addOpen) && <div className="sheet-backdrop" onClick={() => { setInvOpen(false); setAddOpen(false) }} />}
+
+        {addOpen && (
+          <div className="add-sheet">
+            <div className="add-sheet-head">
+              <span>Add to plan</span>
+              <button className="settings-x" onClick={() => setAddOpen(false)} aria-label="Close">
+                ✕
+              </button>
+            </div>
+            <div className="add-grid">
+              <button onClick={() => chooseAdd('room')}>▭<span>Room</span></button>
+              <button onClick={() => chooseAdd('door')}>⌐<span>Door</span></button>
+              <button onClick={() => chooseAdd('window')}>⊟<span>Window</span></button>
+              <button onClick={() => chooseAdd('furniture')}>🛋<span>Furniture</span></button>
+              <button onClick={() => chooseAdd('marker')}>▢<span>Marker</span></button>
+              <button onClick={() => chooseAdd('stairs')}>⟚<span>Stairs</span></button>
+              <button onClick={() => chooseAdd('light')}>☀<span>Ceiling light</span></button>
+              <button onClick={() => chooseAdd('measure')}>📏<span>Measure</span></button>
+            </div>
+          </div>
+        )}
+
         <div className={`left${invOpen ? ' open' : ''}`}>
           <InventoryPanel
             plan={plan}
@@ -355,13 +403,13 @@ export default function Page() {
           </div>
           {showStats && <StatsPanel plan={plan} onClose={() => setShowStats(false)} />}
           <Canvas plan={plan} setPlan={setPlan} mode={mode} setMode={setMode} sel={sel} setSel={setSel} peers={peers} onPointer={onPointer} />
-          <p className="hint">
-            {mode === 'room' && 'Drag to size a room — or just tap to drop one, then resize/drag it.'}
-            {mode === 'marker' && 'Drag to draw a labelled box — or tap to drop one. Handy for framing each floor.'}
-            {mode === 'door' && "Click a room's wall to place a door — it snaps onto the border. Drag to slide it along. (Switch to sliding in its settings.)"}
-            {mode === 'window' && "Click a room's wall to place a window — it snaps onto the border."}
-            {mode === 'light' && 'Click inside a room to place a ceiling light. It takes no floor space but lights the room in Lighting mode (Display → Lighting).'}
-            {mode === 'measure' && 'Drag between two points to measure the distance. Drag a piece (in Select) to see live gaps to the walls.'}
+          <p className={`hint${mode === 'select' ? ' hint-select' : ''}`}>
+            {mode === 'room' && 'Tap the grid to drop a room — or drag to size it. Then drag to move, or use the handles to resize.'}
+            {mode === 'marker' && 'Tap to drop a labelled box — or drag to size it. Handy for framing each floor.'}
+            {mode === 'door' && "Tap a room's wall to place a door — it snaps onto the border. Drag to slide it along."}
+            {mode === 'window' && "Tap a room's wall to place a window — it snaps onto the border."}
+            {mode === 'light' && 'Tap inside a room to place a ceiling light. It takes no floor space but lights the room (Display → Lighting).'}
+            {mode === 'measure' && 'Drag between two points to measure the distance.'}
             {mode === 'select' && 'Drag empty space to pan · Shift-drag to box-select · Shift-click to add · click again on a stack to cycle · arrow keys nudge (Shift = fine) · Delete removes.'}
           </p>
         </div>

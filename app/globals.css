@@ -40,9 +40,10 @@ body {
   height: 100dvh; /* avoid mobile URL-bar jump */
 }
 
-/* Shown only on small screens (see media query). */
+/* Shown only on small screens (see media query). !important so it beats the
+   base display of whatever element it's on (e.g. .seg's inline-flex). */
 .mobile-only {
-  display: none;
+  display: none !important;
 }
 
 /* ── Top bar ─────────────────────────────────────────────────── */
@@ -997,13 +998,72 @@ textarea.field {
 /* ── Small screens (phones) ──────────────────────────────────── */
 @media (max-width: 760px) {
   .mobile-only {
-    display: inline-flex;
+    display: inline-flex !important;
+  }
+  .desktop-only {
+    display: none !important;
+  }
+  /* The select-mode hint is all keyboard shortcuts — useless on touch. */
+  .hint-select {
+    display: none;
   }
   .brand .tag {
     display: none;
   }
   .brand h1 {
     font-size: 17px;
+  }
+
+  /* "Add" action sheet — a short bottom sheet of things to place. */
+  .add-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 41;
+    background: var(--panel);
+    border-top: 1px solid var(--line-strong);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -10px 30px rgba(60, 50, 35, 0.18);
+    padding-bottom: 10px;
+  }
+  .add-sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+  .add-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 12px;
+  }
+  .add-grid button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 14px 4px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--panel);
+    font-size: 22px;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .add-grid button span {
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .add-grid button:active {
+    background: var(--accent-soft);
   }
 
   /* Slim title bar at top; the tools move to a thumb-reachable bottom bar. */
