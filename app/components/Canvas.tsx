@@ -12,6 +12,7 @@ import { formatLength } from '../lib/units'
 import { furnitureType } from '../lib/furniture'
 import type { Peer } from '../lib/collab'
 import CeilingLight from './CeilingLight'
+import Handles from './Handles'
 import FurniturePiece from './FurniturePiece'
 import RoomShape from './RoomShape'
 import Stairs from './Stairs'
@@ -115,6 +116,9 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
   useEffect(() => {
     if (mode !== 'measure') setMeasure(null)
   }, [mode])
+
+  // Clear any pending long-press timer on unmount.
+  useEffect(() => () => clearLongPress(), [])
 
   // Every object whose box contains a point, front-most first.
   function pointHits(p: { x: number; y: number }): { item: SelItem; label: string }[] {
@@ -884,55 +888,6 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
   const glows = plan.lighting ? lampGlows(plan, sun) : []
   const warn = plan.warnings === false ? null : computeWarnings(plan)
 
-  // Resize handles in the object's local box. On touch (compactHandles) show
-  // just the 4 corners at a bigger, screen-constant size; on desktop show all 8.
-  function resizeHandles(otype: 'room' | 'furniture' | 'marker' | 'stair', id: string, x: number, y: number, w: number, h: number) {
-    const HS = compactHandles ? 26 / scale : 16
-    const corners: { hx: number; hy: number; cx: number; cy: number; cur: string }[] = [
-      { hx: -1, hy: -1, cx: x, cy: y, cur: 'nwse-resize' },
-      { hx: 1, hy: -1, cx: x + w, cy: y, cur: 'nesw-resize' },
-      { hx: 1, hy: 1, cx: x + w, cy: y + h, cur: 'nwse-resize' },
-      { hx: -1, hy: 1, cx: x, cy: y + h, cur: 'nesw-resize' },
-    ]
-    const edges: { hx: number; hy: number; cx: number; cy: number; cur: string }[] = [
-      { hx: 0, hy: -1, cx: x + w / 2, cy: y, cur: 'ns-resize' },
-      { hx: 1, hy: 0, cx: x + w, cy: y + h / 2, cur: 'ew-resize' },
-      { hx: 0, hy: 1, cx: x + w / 2, cy: y + h, cur: 'ns-resize' },
-      { hx: -1, hy: 0, cx: x, cy: y + h / 2, cur: 'ew-resize' },
-    ]
-    const hs = compactHandles ? corners : [...corners, ...edges]
-    return hs.map((g, i) => (
-      <rect
-        key={`rh${i}`}
-        x={g.cx - HS / 2}
-        y={g.cy - HS / 2}
-        width={HS}
-        height={HS}
-        rx={compactHandles ? 3 / scale : 2}
-        fill="#fff"
-        stroke="#b5714e"
-        strokeWidth={2}
-        vectorEffect="non-scaling-stroke"
-        style={{ cursor: g.cur }}
-        onPointerDown={(e) => onResizeStart(e, otype, id, g.hx, g.hy)}
-      />
-    ))
-  }
-
-  // A rotate knob on a stalk above the piece's top edge (rotates with the piece).
-  function rotateHandle(otype: 'furniture' | 'stair', id: string, x: number, y: number, w: number, h: number) {
-    const hx = x + w / 2
-    const dist = (compactHandles ? 34 : 28) / scale
-    const hy = y - dist
-    const r = (compactHandles ? 11 : 7) / scale
-    return (
-      <g key="rot">
-        <line x1={hx} y1={y} x2={hx} y2={hy} stroke="#b5714e" strokeWidth={1.5} vectorEffect="non-scaling-stroke" pointerEvents="none" />
-        <circle cx={hx} cy={hy} r={r} fill="#fff" stroke="#b5714e" strokeWidth={2} vectorEffect="non-scaling-stroke" style={{ cursor: 'grab' }} onPointerDown={(e) => onRotateStart(e, otype, id)} />
-      </g>
-    )
-  }
-
   const bgCursor = spaceHeld ? 'grab' : mode === 'room' || mode === 'marker' || mode === 'measure' ? 'crosshair' : mode === 'door' || mode === 'window' ? 'copy' : 'grab'
 
   return (
@@ -996,7 +951,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
               <text x={m.x + 12} y={m.y + 22} fontSize={style === 'frame' ? 18 : 14} fill="#b3a488" fontWeight={700} pointerEvents="none">
                 {m.name}
               </text>
-              {active && sel.length === 1 && resizeHandles('marker', m.id, m.x, m.y, m.w, m.h)}
+              {active && sel.length === 1 && <Handles otype="marker" id={m.id} x={m.x} y={m.y} w={m.w} h={m.h} scale={scale} compact={compactHandles} onResizeStart={onResizeStart} />}
             </g>
           )
         })}
@@ -1019,7 +974,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
               onNodeDown={onNodeDown}
               onInsertNode={insertNode}
               onDeleteNode={deleteNode}
-              rectHandles={resizeHandles('room', r.id, r.x, r.y, r.w, r.h)}
+              rectHandles={<Handles otype="room" id={r.id} x={r.x} y={r.y} w={r.w} h={r.h} scale={scale} compact={compactHandles} onResizeStart={onResizeStart} />}
             />
           )
         })}
@@ -1082,10 +1037,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
               onLeave={(id) => setHoverFurn((h) => (h === id ? null : h))}
               handles={
                 active && sel.length === 1 ? (
-                  <>
-                    {resizeHandles('furniture', f.id, f.x, f.y, f.w, f.h)}
-                    {rotateHandle('furniture', f.id, f.x, f.y, f.w, f.h)}
-                  </>
+                  <Handles otype="furniture" id={f.id} x={f.x} y={f.y} w={f.w} h={f.h} scale={scale} compact={compactHandles} showRotate onResizeStart={onResizeStart} onRotate={onRotateStart} />
                 ) : null
               }
               warn={!!warn?.furniture.has(f.id)}
@@ -1113,10 +1065,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
               onDown={onStairDown}
               handles={
                 active && sel.length === 1 ? (
-                  <>
-                    {resizeHandles('stair', s.id, s.x, s.y, s.w, s.h)}
-                    {rotateHandle('stair', s.id, s.x, s.y, s.w, s.h)}
-                  </>
+                  <Handles otype="stair" id={s.id} x={s.x} y={s.y} w={s.w} h={s.h} scale={scale} compact={compactHandles} showRotate onResizeStart={onResizeStart} onRotate={onRotateStart} />
                 ) : null
               }
             />
