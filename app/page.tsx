@@ -179,17 +179,7 @@ export default function Page() {
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (typing || sel.length === 0) return
         e.preventDefault()
-        const has = (t: string, id: string) => sel.some((s) => s.type === t && s.id === id)
-        setPlan((p) => ({
-          ...p,
-          rooms: p.rooms.filter((r) => !has('room', r.id)),
-          doors: p.doors.filter((d) => !has('door', d.id)),
-          furniture: p.furniture.filter((f) => !has('furniture', f.id)),
-          markers: p.markers.filter((m) => !has('marker', m.id)),
-          stairs: p.stairs.filter((s) => !has('stair', s.id)),
-          lights: p.lights.filter((l) => !has('light', l.id)),
-        }))
-        setSel([])
+        deleteSelection()
       }
     }
     window.addEventListener('keydown', onKey)
@@ -240,6 +230,22 @@ export default function Page() {
     const id = uid()
     setPlan((p) => ({ ...p, markers: [...p.markers, { id, name: t.name, style: t.style, x: snap(cx - t.w / 2), y: snap(cy - t.h / 2), w: t.w, h: t.h }] }))
     setSel([{ type: 'marker', id }])
+  }
+
+  // Delete whatever is selected (keyboard Delete + the mobile trash button).
+  function deleteSelection() {
+    if (sel.length === 0) return
+    const has = (t: string, id: string) => sel.some((s) => s.type === t && s.id === id)
+    setPlan((p) => ({
+      ...p,
+      rooms: p.rooms.filter((r) => !has('room', r.id)),
+      doors: p.doors.filter((d) => !has('door', d.id)),
+      furniture: p.furniture.filter((f) => !has('furniture', f.id)),
+      markers: p.markers.filter((m) => !has('marker', m.id)),
+      stairs: p.stairs.filter((s) => !has('stair', s.id)),
+      lights: p.lights.filter((l) => !has('light', l.id)),
+    }))
+    setSel([])
   }
 
   // Mobile "Add" menu → route each choice to its tool / action, then close.
@@ -420,6 +426,7 @@ export default function Page() {
             onPointer={onPointer}
             gearForSettings={isMobile && sel.length === 1 && !settingsOpen}
             onOpenSettings={() => setSettingsOpen(true)}
+            onDeleteSelected={deleteSelection}
           />
           <p className={`hint${mode === 'select' ? ' hint-select' : ''}`}>
             {mode === 'room' && 'Tap the grid to drop a room — or drag to size it. Then drag to move, or use the handles to resize.'}

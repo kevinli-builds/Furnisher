@@ -30,6 +30,7 @@ interface Props {
   onPointer?: (x: number, y: number) => void
   gearForSettings?: boolean // mobile: show a gear by the selected object to open settings
   onOpenSettings?: () => void
+  onDeleteSelected?: () => void
 }
 
 type OrigPos = { t: 'room' | 'door' | 'furniture' | 'marker' | 'stair' | 'light'; id: string; x: number; y: number }
@@ -48,7 +49,7 @@ type Drag =
   | { kind: 'measure' }
   | null
 
-export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peers = [], onPointer, gearForSettings, onOpenSettings }: Props) {
+export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peers = [], onPointer, gearForSettings, onOpenSettings, onDeleteSelected }: Props) {
   const drag = useRef<Drag>(null)
   const [draft, setDraft] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   const [marquee, setMarquee] = useState<Box | null>(null)
@@ -816,36 +817,37 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     return !plan.rooms.some((o) => o.id !== r.id && o.x < r.x + r.w && o.x + o.w > r.x && o.y < r.y && o.y + o.h >= r.y - 2)
   }
 
-  // Top-right corner (cm) of the single selected object — anchors the mobile
-  // settings gear. Returns null if nothing (or more than one) is selected.
+  // Right-edge midpoint (cm) of the single selected object — anchors the mobile
+  // action cluster (gear + trash), clear of the corner resize handles. Null if
+  // nothing (or more than one) is selected.
   function selectedAnchor(): { x: number; y: number } | null {
     if (sel.length !== 1) return null
     const s = sel[0]
     if (s.type === 'furniture') {
       const f = plan.furniture.find((f) => f.id === s.id)
       if (!f) return null
-      const { hw, hh } = bboxHalf(f.w, f.h, f.rotation)
-      return { x: f.x + f.w / 2 + hw, y: f.y + f.h / 2 - hh }
+      const { hw } = bboxHalf(f.w, f.h, f.rotation)
+      return { x: f.x + f.w / 2 + hw, y: f.y + f.h / 2 }
     }
     if (s.type === 'stair') {
       const st = plan.stairs.find((st) => st.id === s.id)
       if (!st) return null
-      const { hw, hh } = bboxHalf(st.w, st.h, st.rotation)
-      return { x: st.x + st.w / 2 + hw, y: st.y + st.h / 2 - hh }
+      const { hw } = bboxHalf(st.w, st.h, st.rotation)
+      return { x: st.x + st.w / 2 + hw, y: st.y + st.h / 2 }
     }
     if (s.type === 'room') {
       const r = plan.rooms.find((r) => r.id === s.id)
-      return r ? { x: r.x + r.w, y: r.y } : null
+      return r ? { x: r.x + r.w, y: r.y + r.h / 2 } : null
     }
     if (s.type === 'marker') {
       const m = plan.markers.find((m) => m.id === s.id)
-      return m ? { x: m.x + m.w, y: m.y } : null
+      return m ? { x: m.x + m.w, y: m.y + m.h / 2 } : null
     }
     if (s.type === 'door') {
       const d = plan.doors.find((d) => d.id === s.id)
       if (!d) return null
       const b = doorBox(d)
-      return { x: b.x + b.w, y: b.y }
+      return { x: b.x + b.w, y: b.y + b.h / 2 }
     }
     const l = plan.lights.find((l) => l.id === s.id)
     return l ? { x: l.x, y: l.y } : null
@@ -1169,22 +1171,29 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
             )
           })()}
 
-        {/* Mobile: a gear by the selected object opens its settings */}
+        {/* Mobile: gear (settings) + trash (delete) stacked off the object's right edge */}
         {gearForSettings &&
           (() => {
             const a = selectedAnchor()
             if (!a) return null
-            const r = 14 / scale
-            const gx = a.x + r * 0.5
-            const gy = a.y - r * 0.5
-            return (
-              <g style={{ cursor: 'pointer' }} onPointerDown={(e) => { e.stopPropagation(); onOpenSettings?.() }}>
-                <circle cx={gx} cy={gy} r={r + 4 / scale} fill="transparent" />
-                <circle cx={gx} cy={gy} r={r} fill="#fff" stroke="#b5714e" strokeWidth={2} vectorEffect="non-scaling-stroke" />
-                <text x={gx} y={gy} fontSize={16 / scale} textAnchor="middle" dominantBaseline="central" pointerEvents="none">
-                  ⚙
+            const r = 15 / scale
+            const cx = a.x + r + 8 / scale
+            const gy = a.y - (r + 3 / scale) // gear above
+            const ty = a.y + (r + 3 / scale) // trash below
+            const btn = (cy: number, glyph: string, color: string, onTap: () => void) => (
+              <g style={{ cursor: 'pointer' }} onPointerDown={(e) => { e.stopPropagation(); onTap() }}>
+                <circle cx={cx} cy={cy} r={r + 5 / scale} fill="transparent" />
+                <circle cx={cx} cy={cy} r={r} fill="#fff" stroke={color} strokeWidth={2} vectorEffect="non-scaling-stroke" />
+                <text x={cx} y={cy} fontSize={16 / scale} textAnchor="middle" dominantBaseline="central" pointerEvents="none">
+                  {glyph}
                 </text>
               </g>
+            )
+            return (
+              <>
+                {btn(gy, '⚙', '#b5714e', () => onOpenSettings?.())}
+                {btn(ty, '🗑', '#d4564f', () => onDeleteSelected?.())}
+              </>
             )
           })()}
 
