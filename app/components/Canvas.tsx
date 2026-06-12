@@ -67,6 +67,14 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
   // Two-finger pinch-to-zoom (touch). Tracks active pointers; 2 down = pinch.
   const pointers = useRef<Map<number, { x: number; y: number }>>(new Map())
   const pinchDist = useRef<number | null>(null)
+  // Long-press (touch) toggles an object in/out of a multi-selection.
+  const longPress = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lpStart = useRef<{ x: number; y: number } | null>(null)
+  const clearLongPress = () => {
+    if (longPress.current) clearTimeout(longPress.current)
+    longPress.current = null
+    lpStart.current = null
+  }
 
   const spaceRef = useRef(false)
   const [spaceHeld, setSpaceHeld] = useState(false)
@@ -295,6 +303,18 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
       toggle(item)
       return
     }
+    // Touch: a stationary long-press toggles the object in/out of the selection
+    // (multi-select) — the only way to select several at once without a keyboard.
+    if (e.pointerType === 'touch') {
+      lpStart.current = { x: e.clientX, y: e.clientY }
+      longPress.current = setTimeout(() => {
+        toggle(item)
+        drag.current = null // cancel the pending pan / move
+        setSnapGuide(null)
+        setDragDims(null)
+        clearLongPress()
+      }, 450)
+    }
     // Touch (maps-style): a one-finger drag on an object that isn't already
     // selected pans the grid; a tap selects it. Drag a selected object to move
     // it. (Mouse keeps the immediate drag-to-move behaviour.)
@@ -505,6 +525,8 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
 
   // ── Move / resize / pan / marquee ─────────────────────────────
   function onMove(e: React.PointerEvent) {
+    // Moving the finger cancels a pending long-press (it's a drag, not a hold).
+    if (longPress.current && lpStart.current && (Math.abs(e.clientX - lpStart.current.x) > 8 || Math.abs(e.clientY - lpStart.current.y) > 8)) clearLongPress()
     // Pinch-to-zoom: while two fingers are down, zoom around their midpoint.
     if (e.pointerType === 'touch' && pointers.current.has(e.pointerId)) {
       pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
@@ -704,6 +726,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
   }
 
   function onUp(e: React.PointerEvent) {
+    clearLongPress()
     if (e.pointerType === 'touch') {
       pointers.current.delete(e.pointerId)
       if (pointers.current.size < 2) pinchDist.current = null

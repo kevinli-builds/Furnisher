@@ -450,6 +450,15 @@ export default function Page() {
         )}
       </main>
 
+      {/* Mobile multi-select action bar (long-press objects to build a selection). */}
+      {isMobile && sel.length > 1 && (
+        <div className="multisel-bar">
+          <span>{sel.length} selected</span>
+          <button onClick={deleteSelection}>🗑 Delete</button>
+          <button onClick={() => setSel([])}>Clear</button>
+        </div>
+      )}
+
       {/* Mobile bottom tab bar — always-visible primary actions. */}
       <nav className="mobile-tabbar">
         <button className={`tab-btn${mode === 'select' && !addOpen && !invOpen ? ' on' : ''}`} onClick={() => { setMode('select'); setAddOpen(false); setInvOpen(false) }}>

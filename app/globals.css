@@ -48,6 +48,35 @@ body {
 .mobile-tabbar {
   display: none; /* shown as a fixed bottom bar on phones (media query) */
 }
+/* Mobile multi-select action bar (only rendered on phones, JS-gated). */
+.multisel-bar {
+  position: fixed;
+  top: 58px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 32;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 5px 8px 5px 14px;
+  box-shadow: 0 4px 16px rgba(60, 50, 35, 0.16);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.multisel-bar button {
+  border: none;
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
 
 /* ── Top bar ─────────────────────────────────────────────────── */
 .topbar {
