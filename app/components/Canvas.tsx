@@ -31,6 +31,7 @@ interface Props {
   gearForSettings?: boolean // mobile: show a gear by the selected object to open settings
   onOpenSettings?: () => void
   onDeleteSelected?: () => void
+  compactHandles?: boolean // mobile: fewer, bigger resize handles for touch
 }
 
 type OrigPos = { t: 'room' | 'door' | 'furniture' | 'marker' | 'stair' | 'light'; id: string; x: number; y: number }
@@ -49,7 +50,7 @@ type Drag =
   | { kind: 'measure' }
   | null
 
-export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peers = [], onPointer, gearForSettings, onOpenSettings, onDeleteSelected }: Props) {
+export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peers = [], onPointer, gearForSettings, onOpenSettings, onDeleteSelected, compactHandles }: Props) {
   const drag = useRef<Drag>(null)
   const [draft, setDraft] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   const [marquee, setMarquee] = useState<Box | null>(null)
@@ -860,19 +861,23 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
   const glows = plan.lighting ? lampGlows(plan, sun) : []
   const warn = plan.warnings === false ? null : computeWarnings(plan)
 
-  // 8 resize handles (corners + edge midpoints) in the object's local box.
+  // Resize handles in the object's local box. On touch (compactHandles) show
+  // just the 4 corners at a bigger, screen-constant size; on desktop show all 8.
   function resizeHandles(otype: 'room' | 'furniture' | 'marker' | 'stair', id: string, x: number, y: number, w: number, h: number) {
-    const HS = 16
-    const hs: { hx: number; hy: number; cx: number; cy: number; cur: string }[] = [
+    const HS = compactHandles ? 26 / scale : 16
+    const corners: { hx: number; hy: number; cx: number; cy: number; cur: string }[] = [
       { hx: -1, hy: -1, cx: x, cy: y, cur: 'nwse-resize' },
       { hx: 1, hy: -1, cx: x + w, cy: y, cur: 'nesw-resize' },
       { hx: 1, hy: 1, cx: x + w, cy: y + h, cur: 'nwse-resize' },
       { hx: -1, hy: 1, cx: x, cy: y + h, cur: 'nesw-resize' },
+    ]
+    const edges: { hx: number; hy: number; cx: number; cy: number; cur: string }[] = [
       { hx: 0, hy: -1, cx: x + w / 2, cy: y, cur: 'ns-resize' },
       { hx: 1, hy: 0, cx: x + w, cy: y + h / 2, cur: 'ew-resize' },
       { hx: 0, hy: 1, cx: x + w / 2, cy: y + h, cur: 'ns-resize' },
       { hx: -1, hy: 0, cx: x, cy: y + h / 2, cur: 'ew-resize' },
     ]
+    const hs = compactHandles ? corners : [...corners, ...edges]
     return hs.map((g, i) => (
       <rect
         key={`rh${i}`}
@@ -880,7 +885,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
         y={g.cy - HS / 2}
         width={HS}
         height={HS}
-        rx={2}
+        rx={compactHandles ? 3 / scale : 2}
         fill="#fff"
         stroke="#b5714e"
         strokeWidth={2}
@@ -894,12 +899,13 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
   // A rotate knob on a stalk above the piece's top edge (rotates with the piece).
   function rotateHandle(otype: 'furniture' | 'stair', id: string, x: number, y: number, w: number, h: number) {
     const hx = x + w / 2
-    const dist = 28 / scale
+    const dist = (compactHandles ? 34 : 28) / scale
     const hy = y - dist
+    const r = (compactHandles ? 11 : 7) / scale
     return (
       <g key="rot">
         <line x1={hx} y1={y} x2={hx} y2={hy} stroke="#b5714e" strokeWidth={1.5} vectorEffect="non-scaling-stroke" pointerEvents="none" />
-        <circle cx={hx} cy={hy} r={7 / scale} fill="#fff" stroke="#b5714e" strokeWidth={2} vectorEffect="non-scaling-stroke" style={{ cursor: 'grab' }} onPointerDown={(e) => onRotateStart(e, otype, id)} />
+        <circle cx={hx} cy={hy} r={r} fill="#fff" stroke="#b5714e" strokeWidth={2} vectorEffect="non-scaling-stroke" style={{ cursor: 'grab' }} onPointerDown={(e) => onRotateStart(e, otype, id)} />
       </g>
     )
   }
