@@ -6,6 +6,7 @@ import { uid, snap } from '../lib/geometry'
 import { inputUnit, toCm, fromCm, formatSize } from '../lib/units'
 import { SWATCHES } from '../lib/palette'
 import { FURNITURE_TYPES, FURNITURE_META, type FurnitureType } from '../lib/furniture'
+import { CATALOG, type CatalogItem } from '../lib/catalog'
 
 interface Props {
   plan: Plan
@@ -99,6 +100,16 @@ export default function InventoryPanel({ plan, setPlan, onPlaceFurniture, onPlac
   function dragStart(e: React.DragEvent, kind: 'furniture' | 'room' | 'marker', template: object) {
     e.dataTransfer.setData('application/furnisher-item', JSON.stringify({ kind, template }))
     e.dataTransfer.effectAllowed = 'copy'
+  }
+
+  function catalogCard(item: CatalogItem) {
+    const t: FurnTemplate = { id: item.name, name: item.name, type: item.type, w: item.w, h: item.h, color: SWATCHES[0] }
+    return (
+      <div key={item.name} className="inv-card" draggable onDragStart={(e) => dragStart(e, 'furniture', t)} onClick={() => onPlaceFurniture(t)} title="Drag onto the plan, or tap to place">
+        <span className="item-name">{item.name}</span>
+        <span className="item-size">{formatSize(item.w, item.h, units)}</span>
+      </div>
+    )
   }
 
   function furnCard(t: FurnTemplate) {
@@ -231,6 +242,16 @@ export default function InventoryPanel({ plan, setPlan, onPlaceFurniture, onPlac
                   )
                 })}
           </div>
+
+          <div className="inv-grouphead" style={{ marginTop: 10 }}>
+            <p className="inv-hint">Catalog — common pieces at real sizes. Tap to drop one on the plan.</p>
+          </div>
+          {CATALOG.map((cat) => (
+            <div key={cat.group} className="inv-group">
+              <div className="inv-group-name">{cat.group}</div>
+              {cat.items.map(catalogCard)}
+            </div>
+          ))}
         </>
       )}
 
