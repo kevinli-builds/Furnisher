@@ -1,7 +1,7 @@
 import type { Plan } from './types'
 
 // Bounding box (cm) covering every object in the plan.
-function contentBounds(plan: Plan): { x: number; y: number; w: number; h: number } {
+export function contentBounds(plan: Plan): { x: number; y: number; w: number; h: number } {
   const xs: number[] = []
   const ys: number[] = []
   const xe: number[] = []

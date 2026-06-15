@@ -16,6 +16,7 @@ import ImportModal from './components/ImportModal'
 import ViewOptionsMenu from './components/ViewOptionsMenu'
 import StatsPanel from './components/StatsPanel'
 import { exportPng } from './lib/exportImage'
+import { printPlan } from './lib/print'
 
 export default function Page() {
   const { plan, setPlan, applyRemote, undo, redo, replace, canUndo, canRedo } = usePlanHistory(defaultPlan())
@@ -349,6 +350,17 @@ export default function Page() {
             }}
           >
             ⤓ Image
+          </button>
+
+          <button
+            className="seg-btn solo"
+            title="Print / save as PDF — to scale, one page"
+            onClick={() => {
+              setSel([]) // drop selection so handles aren't captured
+              requestAnimationFrame(() => printPlan(plan))
+            }}
+          >
+            🖨 PDF
           </button>
 
           {peers.length > 0 && (
