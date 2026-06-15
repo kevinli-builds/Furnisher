@@ -213,6 +213,41 @@ export function snapBBox(
   return { cx: ncx, cy: ncy, gx, gy }
 }
 
+// Smart-alignment snap: match the dragged box's left / centre / right (and top /
+// centre / bottom) to candidate lines (other objects' edges + centres + walls).
+// Returns the aligned centre and the matched guide coords (null = no match).
+export function alignBBox(
+  cx: number,
+  cy: number,
+  hw: number,
+  hh: number,
+  vLines: number[],
+  hLines: number[],
+  tol: number,
+): { cx: number; cy: number; gx: number | null; gy: number | null } {
+  let ncx = cx
+  let ncy = cy
+  let gx: number | null = null
+  let gy: number | null = null
+  let bx = tol
+  let by = tol
+  const xs = [cx - hw, cx, cx + hw] // left, centre, right
+  const ys = [cy - hh, cy, cy + hh] // top, centre, bottom
+  for (const vx of vLines) {
+    for (const px of xs) {
+      const d = Math.abs(px - vx)
+      if (d < bx) { bx = d; ncx = cx + (vx - px); gx = vx }
+    }
+  }
+  for (const hy of hLines) {
+    for (const py of ys) {
+      const d = Math.abs(py - hy)
+      if (d < by) { by = d; ncy = cy + (hy - py); gy = hy }
+    }
+  }
+  return { cx: ncx, cy: ncy, gx, gy }
+}
+
 // Pick the wall a piece should back onto: the one its depth (h) edge is closest
 // to, within `tol`. Facing a wall always puts the depth perpendicular to it, so
 // the perpendicular half-extent is always h/2 whichever wall. Returns the cardinal

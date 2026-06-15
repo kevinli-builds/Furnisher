@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { Plan, Mode, Selection, SelItem, Door, Pt } from '../lib/types'
-import { snap, uid, snapDoorToWalls, bboxHalf, snapBBox, faceSnap, overlaps, gridStep, roomCorners, bboxOf, resizeRect, MIN_ROOM, type Box } from '../lib/geometry'
+import { snap, uid, snapDoorToWalls, bboxHalf, snapBBox, alignBBox, faceSnap, overlaps, gridStep, roomCorners, bboxOf, resizeRect, MIN_ROOM, type Box } from '../lib/geometry'
 import { useViewport } from '../lib/useViewport'
 import { DOOR_LEN, swingForCursor, doorBox, doorGeom } from '../lib/door'
 import { sunAt, sunColor, formatHour, windowCones, lampGlows } from '../lib/sun'
@@ -509,6 +509,49 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     }
   }
 
+  // Smart-alignment snap (always on, for pieces without wall-snap): nudge the
+  // dragged object so an edge/centre lines up with another object's edge/centre
+  // or a wall, drawing a guide line. Falls back to the grid when nothing aligns.
+  function alignMove(obj: { id: string; x: number; y: number; w: number; h: number; rotation?: number }, rawX: number, rawY: number): { x: number; y: number } {
+    const { w, h } = obj
+    const { hw, hh } = bboxHalf(w, h, obj.rotation ?? 0)
+    const vLines: number[] = []
+    const hLines: number[] = []
+    const addBox = (x: number, y: number, bw: number, bh: number) => {
+      vLines.push(x, x + bw / 2, x + bw)
+      hLines.push(y, y + bh / 2, y + bh)
+    }
+    for (const r of plan.rooms) addBox(r.x, r.y, r.w, r.h)
+    for (const f of plan.furniture)
+      if (f.id !== obj.id) {
+        const b = bboxHalf(f.w, f.h, f.rotation)
+        addBox(f.x + f.w / 2 - b.hw, f.y + f.h / 2 - b.hh, b.hw * 2, b.hh * 2)
+      }
+    for (const m of plan.markers) if (m.id !== obj.id) addBox(m.x, m.y, m.w, m.h)
+    for (const s of plan.stairs)
+      if (s.id !== obj.id) {
+        const b = bboxHalf(s.w, s.h, s.rotation)
+        addBox(s.x + s.w / 2 - b.hw, s.y + s.h / 2 - b.hh, b.hw * 2, b.hh * 2)
+      }
+    for (const l of plan.lights) if (l.id !== obj.id) addBox(l.x, l.y, 0, 0)
+
+    const cx = rawX + w / 2
+    const cy = rawY + h / 2
+    const a = alignBBox(cx, cy, hw, hh, vLines, hLines, 8 / (scale || 1))
+    setSnapGuide(a.gx !== null || a.gy !== null ? { gx: a.gx, gy: a.gy } : null)
+    return {
+      x: a.gx !== null ? a.cx - w / 2 : snap(rawX),
+      y: a.gy !== null ? a.cy - h / 2 : snap(rawY),
+    }
+  }
+
+  // Move helper: wall-snap when the piece (or global) has snap on, else smart
+  // alignment. Returns the resolved x/y (+ rotation from face-snap).
+  function moveResolve(obj: { id: string; x: number; y: number; w: number; h: number; rotation?: number; snap?: boolean; face?: boolean }, rawX: number, rawY: number, kind: 'furniture' | 'marker' | 'stair'): { x: number; y: number; rotation?: number } {
+    if (obj.snap || plan.snapAll) return snapMove(obj, rawX, rawY, kind)
+    return alignMove(obj, rawX, rawY)
+  }
+
   // Live gap labels from a dragged piece's bounding box to its room's walls.
   function wallDims(bx: number, by: number, bw: number, bh: number): { x1: number; y1: number; x2: number; y2: number; label: string }[] {
     const pcx = bx + bw / 2
@@ -694,7 +737,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     } else if (d.kind === 'move-furniture') {
       const f0 = plan.furniture.find((f) => f.id === d.id)
       if (!f0) return
-      const m = snapMove(f0, d.ox + dx, d.oy + dy, 'furniture')
+      const m = moveResolve(f0, d.ox + dx, d.oy + dy, 'furniture')
       const fbb = bboxHalf(f0.w, f0.h, m.rotation ?? f0.rotation)
       setDragDims(wallDims(m.x + f0.w / 2 - fbb.hw, m.y + f0.h / 2 - fbb.hh, fbb.hw * 2, fbb.hh * 2))
       setPlan((pl) => ({ ...pl, furniture: pl.furniture.map((f) => (f.id === d.id ? { ...f, x: m.x, y: m.y, rotation: m.rotation ?? f.rotation } : f)) }))
@@ -714,13 +757,13 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     } else if (d.kind === 'move-marker') {
       const m0 = plan.markers.find((m) => m.id === d.id)
       if (!m0) return
-      const r = snapMove(m0, d.ox + dx, d.oy + dy, 'marker')
+      const r = moveResolve(m0, d.ox + dx, d.oy + dy, 'marker')
       setDragDims(wallDims(r.x, r.y, m0.w, m0.h))
       setPlan((pl) => ({ ...pl, markers: pl.markers.map((m) => (m.id === d.id ? { ...m, x: r.x, y: r.y } : m)) }))
     } else if (d.kind === 'move-stair') {
       const s0 = plan.stairs.find((s) => s.id === d.id)
       if (!s0) return
-      const r = snapMove(s0, d.ox + dx, d.oy + dy, 'stair')
+      const r = moveResolve(s0, d.ox + dx, d.oy + dy, 'stair')
       const sbb = bboxHalf(s0.w, s0.h, s0.rotation)
       setDragDims(wallDims(r.x + s0.w / 2 - sbb.hw, r.y + s0.h / 2 - sbb.hh, sbb.hw * 2, sbb.hh * 2))
       setPlan((pl) => ({ ...pl, stairs: pl.stairs.map((s) => (s.id === d.id ? { ...s, x: r.x, y: r.y } : s)) }))
