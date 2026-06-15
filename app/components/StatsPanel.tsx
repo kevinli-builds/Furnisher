@@ -5,13 +5,17 @@ import { computeStats, formatArea, formatPrice } from '../lib/stats'
 
 interface Props {
   plan: Plan
+  setPlan: React.Dispatch<React.SetStateAction<Plan>>
   onClose: () => void
 }
 
 // Floating read-out of room areas, furniture footprint, and free floor space.
-export default function StatsPanel({ plan, onClose }: Props) {
+export default function StatsPanel({ plan, setPlan, onClose }: Props) {
   const s = computeStats(plan)
   const u = plan.units
+  const budget = plan.budget
+  const remaining = budget != null ? budget - s.totalCost : 0
+  const over = budget != null && remaining < 0
   return (
     <div className="stats-panel">
       <div className="stats-head">
@@ -37,6 +41,25 @@ export default function StatsPanel({ plan, onClose }: Props) {
           <div className="stats-row stats-total">
             <span>Total cost</span>
             <strong>{formatPrice(s.totalCost)}</strong>
+          </div>
+        )}
+        <div className="stats-row">
+          <span>Budget</span>
+          <input
+            className="stats-budget"
+            inputMode="decimal"
+            placeholder="set target"
+            defaultValue={budget ?? ''}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value)
+              setPlan((p) => ({ ...p, budget: Number.isFinite(v) && v > 0 ? v : undefined }))
+            }}
+          />
+        </div>
+        {budget != null && (
+          <div className={`stats-row stats-total${over ? ' stats-over' : ''}`}>
+            <span>{over ? 'Over budget' : 'Remaining'}</span>
+            <strong>{formatPrice(Math.abs(remaining))}</strong>
           </div>
         )}
         {s.rooms.length > 0 && <div className="stats-divider" />}

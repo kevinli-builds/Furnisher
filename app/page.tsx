@@ -414,7 +414,7 @@ export default function Page() {
           <div className="display-fab">
             <ViewOptionsMenu plan={plan} setPlan={setPlan} />
           </div>
-          {showStats && <StatsPanel plan={plan} onClose={() => setShowStats(false)} />}
+          {showStats && <StatsPanel plan={plan} setPlan={setPlan} onClose={() => setShowStats(false)} />}
           <Canvas
             plan={plan}
             setPlan={setPlan}

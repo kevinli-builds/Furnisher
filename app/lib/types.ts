@@ -159,6 +159,7 @@ export interface Plan {
   latitude?: number // geographic latitude for sun-height accuracy
   snapAll?: boolean // global auto-snap: every dragged object hugs walls/objects
   warnings?: boolean // show collision / clearance warnings (default on)
+  budget?: number // optional spend target — Stats shows remaining / over-budget
   blueprintUrl?: string // optional link to the listing / source blueprint
   inventory: Inventory
   width: number // overall canvas extent (cm)

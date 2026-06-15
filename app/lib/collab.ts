@@ -21,6 +21,7 @@ const META_KEYS: (keyof Plan)[] = [
   'sunTime',
   'latitude',
   'blueprintUrl',
+  'budget',
   'width',
   'height',
   'inventory',

@@ -334,6 +334,20 @@ body {
 .stats-total strong {
   color: var(--accent);
 }
+.stats-budget {
+  width: 92px;
+  text-align: right;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 3px 7px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  background: var(--panel);
+  color: var(--ink);
+}
+.stats-over strong {
+  color: var(--danger);
+}
 .stats-divider {
   height: 1px;
   background: var(--line);
