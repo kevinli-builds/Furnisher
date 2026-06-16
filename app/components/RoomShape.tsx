@@ -2,6 +2,7 @@
 
 import type { Room, Units } from '../lib/types'
 import { roomCorners } from '../lib/geometry'
+import { roomColor } from '../lib/roomTypes'
 import { formatSize } from '../lib/units'
 
 const NAME = 15 // label font sizes
@@ -31,15 +32,17 @@ export default function RoomShape({ r, active, showLabel, above, units, showHand
   const nameY = above ? r.y - 7 - (DIM + 3) : r.y + NAME + 6
   const corners = roomCorners(r)
   const isPoly = !!(r.points && r.points.length >= 3)
-  const fill = active ? 'rgba(181,113,78,0.06)' : 'rgba(74,65,54,0.02)'
-  const stroke = active ? '#b5714e' : '#b3a78f'
+  const tint = roomColor(r)
+  const fill = tint ?? (active ? 'rgba(181,113,78,0.06)' : 'rgba(74,65,54,0.02)')
+  const fillOpacity = tint ? (active ? 0.22 : 0.14) : undefined
+  const stroke = active ? '#b5714e' : tint ?? '#b3a78f'
   const sw = active ? 3 : 1.75
   return (
     <g onPointerEnter={() => onEnter(r.id)} onPointerLeave={() => onLeave(r.id)}>
       {isPoly ? (
-        <polygon points={corners.map((c) => `${c.x},${c.y}`).join(' ')} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect="non-scaling-stroke" style={{ cursor: 'move' }} onPointerDown={(e) => onDown(e, r.id)} />
+        <polygon points={corners.map((c) => `${c.x},${c.y}`).join(' ')} fill={fill} fillOpacity={fillOpacity} stroke={stroke} strokeWidth={sw} vectorEffect="non-scaling-stroke" style={{ cursor: 'move' }} onPointerDown={(e) => onDown(e, r.id)} />
       ) : (
-        <rect x={r.x} y={r.y} width={r.w} height={r.h} fill={fill} stroke={stroke} strokeWidth={sw} vectorEffect="non-scaling-stroke" style={{ cursor: 'move' }} onPointerDown={(e) => onDown(e, r.id)} />
+        <rect x={r.x} y={r.y} width={r.w} height={r.h} fill={fill} fillOpacity={fillOpacity} stroke={stroke} strokeWidth={sw} vectorEffect="non-scaling-stroke" style={{ cursor: 'move' }} onPointerDown={(e) => onDown(e, r.id)} />
       )}
       {showLabel && (
         <>

@@ -26,6 +26,8 @@ export interface Room {
   w: number
   h: number
   points?: Pt[] // polygon vertices (absolute cm); absent = plain rectangle
+  roomType?: string // a ROOM_TYPES key, or 'custom'; absent = neutral
+  color?: string // custom tint (when roomType === 'custom')
 }
 
 // A wall opening: a swinging door, a sliding door, or a window.

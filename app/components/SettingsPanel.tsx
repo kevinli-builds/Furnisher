@@ -4,6 +4,7 @@ import type { Plan, Selection, SelItem, Rotation } from '../lib/types'
 import { snap } from '../lib/geometry'
 import { inputUnit, toCm, fromCm, formatLength } from '../lib/units'
 import { SWATCHES } from '../lib/palette'
+import { ROOM_TYPES } from '../lib/roomTypes'
 import { FURNITURE_TYPES, FURNITURE_META, furnitureType, type FurnitureType } from '../lib/furniture'
 import { safeUrl } from '../lib/url'
 
@@ -149,7 +150,7 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
                 <p className="sect-note">Drag corner dots to reshape · white edge dots add a corner · double-click a corner to remove it.</p>
                 <button
                   className="btn-ghost"
-                  onClick={() => setPlan((p) => ({ ...p, rooms: p.rooms.map((r) => (r.id === sel.id ? { id: r.id, name: r.name, x: r.x, y: r.y, w: r.w, h: r.h } : r)) }))}
+                  onClick={() => setPlan((p) => ({ ...p, rooms: p.rooms.map((r) => (r.id === sel.id ? { id: r.id, name: r.name, x: r.x, y: r.y, w: r.w, h: r.h, roomType: r.roomType, color: r.color } : r)) }))}
                 >
                   Reset to rectangle
                 </button>
@@ -173,6 +174,52 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
                   Make non-square
                 </button>
               </>
+            )}
+          </section>
+        )}
+
+        {/* Room type — sets a soft colour tint */}
+        {room && (
+          <section className="sect">
+            <label className="sect-label">Type</label>
+            <select
+              className="field"
+              value={room.roomType ?? ''}
+              onChange={(e) => {
+                const v = e.target.value
+                if (!v) patchRoom({ roomType: undefined, color: undefined })
+                else if (v === 'custom') patchRoom({ roomType: 'custom', color: room.color ?? SWATCHES[0] })
+                else patchRoom({ roomType: v, color: undefined })
+              }}
+            >
+              <option value="">None (neutral)</option>
+              {ROOM_TYPES.map((t) => (
+                <option key={t.key} value={t.key}>
+                  {t.label}
+                </option>
+              ))}
+              <option value="custom">Custom…</option>
+            </select>
+            {room.roomType === 'custom' && (
+              <div className="swatches" style={{ marginTop: 8 }}>
+                {SWATCHES.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className={`swatch${room.color === s ? ' on' : ''}`}
+                    style={{ background: s }}
+                    onClick={() => patchRoom({ color: s })}
+                    aria-label={`colour ${s}`}
+                  />
+                ))}
+                <input
+                  type="color"
+                  className="swatch swatch-custom"
+                  value={room.color ?? SWATCHES[0]}
+                  onChange={(e) => patchRoom({ color: e.target.value })}
+                  title="Custom colour"
+                />
+              </div>
             )}
           </section>
         )}
