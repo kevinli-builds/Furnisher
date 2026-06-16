@@ -1,4 +1,5 @@
 import type { Plan } from './types'
+import { safeColorField } from './sanitize'
 
 const KEY = 'furnisher.plan.v1'
 
@@ -49,14 +50,16 @@ export function normalizePlan(parsed: Partial<Plan> | null | undefined): Plan {
     blueprintUrl: typeof parsed.blueprintUrl === 'string' ? parsed.blueprintUrl : undefined,
     width: parsed.width || 1200,
     height: parsed.height || 900,
-    rooms: parsed.rooms ?? [],
+    // Colours reach SVG/CSS sinks — sanitize any that arrived from an untrusted
+    // plan (shared project / tampered cloud row). See lib/sanitize.ts.
+    rooms: (parsed.rooms ?? []).map(safeColorField),
     doors: parsed.doors ?? [],
-    furniture: parsed.furniture ?? [],
+    furniture: (parsed.furniture ?? []).map(safeColorField),
     markers: parsed.markers ?? [],
     stairs: parsed.stairs ?? [],
     lights: parsed.lights ?? [],
     inventory: {
-      furniture: parsed.inventory?.furniture ?? [],
+      furniture: (parsed.inventory?.furniture ?? []).map(safeColorField),
       rooms: parsed.inventory?.rooms ?? [],
       markers: parsed.inventory?.markers ?? [],
       groups: parsed.inventory?.groups ?? ['General'],

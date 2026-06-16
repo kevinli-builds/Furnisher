@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Plan } from './types'
 import { supabase } from './supabase'
 import { useAuth } from './auth'
+import { safeColorField } from './sanitize'
 
 // ── Operation model ───────────────────────────────────────────
 // Live edits are broadcast as small per-object ops (not the whole plan), so two
@@ -58,16 +59,10 @@ export function diffPlan(prev: Plan, next: Plan): Op[] {
   return ops
 }
 
-// A colour that will be painted into SVG fill/stroke must be a plain colour
-// value — never url(...) (which can make the viewer's browser fetch an
-// attacker-controlled paint server) or other CSS tricks.
-const SAFE_COLOR = /^#[0-9a-fA-F]{3,8}$|^rgba?\([\d.,\s%]+\)$|^[a-zA-Z]{3,20}$/
+// Inbound ops carry colours that get painted into SVG fill/stroke; sanitize them
+// (shared with the plan-load path) so a hostile peer can't inject url(...) etc.
 function sanitizeItem(item: Entity): Entity {
-  const it = item as Entity & Record<string, unknown>
-  if ('color' in it && (typeof it.color !== 'string' || !SAFE_COLOR.test(it.color as string))) {
-    return { ...it, color: '#d8c8a4' } as Entity
-  }
-  return item
+  return safeColorField(item as Entity & { color?: string }) as Entity
 }
 
 // Validate + clean ops arriving from the network (the channel is only
