@@ -1165,6 +1165,45 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
           )
         })}
 
+        {/* Clearance: red dimension lines flagging too-narrow walkways */}
+        {warn?.gaps.map((g, i) => {
+          const horiz = Math.abs(g.y2 - g.y1) < 0.5
+          const t = 6 / scale
+          const lx = (g.x1 + g.x2) / 2 + (horiz ? 0 : 8 / scale)
+          const ly = (g.y1 + g.y2) / 2 - (horiz ? 6 / scale : 0)
+          return (
+            <g key={`gap${i}`} pointerEvents="none">
+              <line x1={g.x1} y1={g.y1} x2={g.x2} y2={g.y2} stroke="#c0392b" strokeWidth={1.5} strokeDasharray="5 3" vectorEffect="non-scaling-stroke" />
+              {horiz ? (
+                <>
+                  <line x1={g.x1} y1={g.y1 - t} x2={g.x1} y2={g.y1 + t} stroke="#c0392b" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+                  <line x1={g.x2} y1={g.y2 - t} x2={g.x2} y2={g.y2 + t} stroke="#c0392b" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+                </>
+              ) : (
+                <>
+                  <line x1={g.x1 - t} y1={g.y1} x2={g.x1 + t} y2={g.y1} stroke="#c0392b" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+                  <line x1={g.x2 - t} y1={g.y2} x2={g.x2 + t} y2={g.y2} stroke="#c0392b" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+                </>
+              )}
+              <text
+                x={lx}
+                y={ly}
+                fontSize={12 / scale}
+                fill="#c0392b"
+                fontWeight={700}
+                textAnchor={horiz ? 'middle' : 'start'}
+                dominantBaseline={horiz ? 'auto' : 'central'}
+                style={{ paintOrder: 'stroke' }}
+                stroke="#fdfbf7"
+                strokeWidth={3.5 / scale}
+                strokeLinejoin="round"
+              >
+                {formatLength(g.dist, units)}
+              </text>
+            </g>
+          )
+        })}
+
         {/* Measure tool: a measured line with a distance label */}
         {measure &&
           (() => {
