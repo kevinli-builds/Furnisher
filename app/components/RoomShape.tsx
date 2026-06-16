@@ -56,7 +56,7 @@ export default function RoomShape({ r, active, showLabel, above, units, showHand
       )}
       {showHandles &&
         (isPoly ? (
-          <>
+          <g className="export-hide">
             {/* Edge midpoints: click to insert a corner */}
             {corners.map((a, i) => {
               const b = corners[(i + 1) % corners.length]
@@ -68,7 +68,7 @@ export default function RoomShape({ r, active, showLabel, above, units, showHand
             {corners.map((c, i) => (
               <circle key={`v${i}`} cx={c.x} cy={c.y} r={11} fill="#b5714e" vectorEffect="non-scaling-stroke" style={{ cursor: 'move' }} onPointerDown={(e) => onNodeDown(e, r.id, i)} onDoubleClick={(e) => onDeleteNode(e, r.id, i)} />
             ))}
-          </>
+          </g>
         ) : (
           rectHandles
         ))}

@@ -1040,7 +1040,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
           const g = doorGeom(doorGhost.x, doorGhost.y, DOOR_LEN, doorGhost.orientation, doorGhost.swing, 1)
           const horiz = doorGhost.orientation === 'h'
           return (
-            <g pointerEvents="none" opacity={0.65}>
+            <g className="export-hide" pointerEvents="none" opacity={0.65}>
               <line x1={g.ax} y1={g.ay} x2={g.bx} y2={g.by} stroke="#b5714e" strokeWidth={6} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
               {doorGhost.type === 'window' ? (
                 horiz ? (
@@ -1135,10 +1135,10 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
 
         {/* Auto-snap guide line(s) — shown while a snapping piece hugs a wall */}
         {snapGuide?.gx != null && (
-          <line x1={snapGuide.gx} y1={top} x2={snapGuide.gx} y2={top + vh} stroke="#b5714e" strokeWidth={1} strokeDasharray="5 4" vectorEffect="non-scaling-stroke" pointerEvents="none" />
+          <line className="export-hide" x1={snapGuide.gx} y1={top} x2={snapGuide.gx} y2={top + vh} stroke="#b5714e" strokeWidth={1} strokeDasharray="5 4" vectorEffect="non-scaling-stroke" pointerEvents="none" />
         )}
         {snapGuide?.gy != null && (
-          <line x1={left} y1={snapGuide.gy} x2={left + vw} y2={snapGuide.gy} stroke="#b5714e" strokeWidth={1} strokeDasharray="5 4" vectorEffect="non-scaling-stroke" pointerEvents="none" />
+          <line className="export-hide" x1={left} y1={snapGuide.gy} x2={left + vw} y2={snapGuide.gy} stroke="#b5714e" strokeWidth={1} strokeDasharray="5 4" vectorEffect="non-scaling-stroke" pointerEvents="none" />
         )}
 
         {/* Live gap dimensions while dragging a piece */}
@@ -1172,7 +1172,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
           const lx = (g.x1 + g.x2) / 2 + (horiz ? 0 : 8 / scale)
           const ly = (g.y1 + g.y2) / 2 - (horiz ? 6 / scale : 0)
           return (
-            <g key={`gap${i}`} pointerEvents="none">
+            <g key={`gap${i}`} className="export-hide" pointerEvents="none">
               <line x1={g.x1} y1={g.y1} x2={g.x2} y2={g.y2} stroke="#c0392b" strokeWidth={1.5} strokeDasharray="5 3" vectorEffect="non-scaling-stroke" />
               {horiz ? (
                 <>
@@ -1209,7 +1209,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
           (() => {
             const dist = Math.hypot(measure.x2 - measure.x1, measure.y2 - measure.y1)
             return (
-              <g pointerEvents="none">
+              <g className="export-hide" pointerEvents="none">
                 <line x1={measure.x1} y1={measure.y1} x2={measure.x2} y2={measure.y2} stroke="#b5714e" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
                 <circle cx={measure.x1} cy={measure.y1} r={3 / scale} fill="#b5714e" />
                 <circle cx={measure.x2} cy={measure.y2} r={3 / scale} fill="#b5714e" />
@@ -1250,10 +1250,10 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
               </g>
             )
             return (
-              <>
+              <g className="export-hide">
                 {btn(gy, '⚙', '#b5714e', () => onOpenSettings?.())}
                 {btn(ty, '🗑', '#d4564f', () => onDeleteSelected?.())}
-              </>
+              </g>
             )
           })()}
 

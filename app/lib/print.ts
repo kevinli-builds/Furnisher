@@ -1,5 +1,5 @@
 import type { Plan } from './types'
-import { contentBounds } from './exportImage'
+import { contentBounds, stripChrome } from './exportImage'
 
 const NS = 'http://www.w3.org/2000/svg'
 // Nice architectural scale denominators (1:n). We pick the smallest that fits.
@@ -15,6 +15,7 @@ export function printPlan(plan: Plan): void {
   const live = document.querySelector('.canvas-host svg') as SVGSVGElement | null
   if (!live) return
   const clone = live.cloneNode(true) as SVGSVGElement
+  stripChrome(clone)
 
   const b = contentBounds(plan)
   const pad = 40

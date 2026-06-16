@@ -3,7 +3,7 @@ import type { Peer } from '../lib/collab'
 // Live collaborator cursors, drawn at a constant on-screen size (1/scale).
 export default function PeerCursors({ peers, scale }: { peers: Peer[]; scale: number }) {
   return (
-    <>
+    <g className="export-hide">
       {peers.map((pr) =>
         pr.x == null || pr.y == null ? null : (
           <g key={pr.id} pointerEvents="none">
@@ -14,6 +14,6 @@ export default function PeerCursors({ peers, scale }: { peers: Peer[]; scale: nu
           </g>
         ),
       )}
-    </>
+    </g>
   )
 }

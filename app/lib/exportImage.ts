@@ -1,5 +1,12 @@
 import type { Plan } from './types'
 
+// Remove transient on-screen chrome (selection handles, clearance/warning
+// overlays, the measure line, snap guides, peer cursors, mobile buttons) from a
+// cloned SVG so exports show only the plan itself.
+export function stripChrome(svg: SVGSVGElement): void {
+  svg.querySelectorAll('.export-hide').forEach((n) => n.remove())
+}
+
 // Bounding box (cm) covering every object in the plan.
 export function contentBounds(plan: Plan): { x: number; y: number; w: number; h: number } {
   const xs: number[] = []
@@ -26,6 +33,7 @@ export async function exportPng(plan: Plan, filename = 'furnisher-plan.png'): Pr
   const live = document.querySelector('.canvas-host svg') as SVGSVGElement | null
   if (!live) return
   const clone = live.cloneNode(true) as SVGSVGElement
+  stripChrome(clone)
 
   const b = contentBounds(plan)
   const pad = 40

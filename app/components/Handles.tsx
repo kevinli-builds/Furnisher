@@ -37,7 +37,7 @@ export default function Handles({ otype, id, x, y, w, h, scale, compact, showRot
   const rDist = (compact ? 34 : 28) / scale
   const rR = (compact ? 11 : 7) / scale
   return (
-    <>
+    <g className="export-hide">
       {hs.map((g, i) => (
         <rect
           key={`rh${i}`}
@@ -60,6 +60,6 @@ export default function Handles({ otype, id, x, y, w, h, scale, compact, showRot
           <circle cx={x + w / 2} cy={y - rDist} r={rR} fill="#fff" stroke="#b5714e" strokeWidth={2} vectorEffect="non-scaling-stroke" style={{ cursor: 'grab' }} onPointerDown={(e) => onRotate(e, otype as 'furniture' | 'stair', id)} />
         </g>
       )}
-    </>
+    </g>
   )
 }
