@@ -440,6 +440,7 @@ export default function Page() {
             onOpenSettings={() => setSettingsOpen(true)}
             onDeleteSelected={deleteSelection}
             compactHandles={isMobile}
+            isMobile={isMobile}
           />
           <p className={`hint${mode === 'select' ? ' hint-select' : ''}`}>
             {mode === 'room' && 'Tap the grid to drop a room — or drag to size it. Then drag to move, or use the handles to resize.'}
