@@ -31,6 +31,11 @@ export default function Opening({ door: d, active, showHandles, onDown, onResize
           const g = doorGeom(d.x, d.y, d.length, d.orientation, d.swing, d.hinge ?? 1)
           return (
             <>
+              {/* fat invisible hit bands over the swing leaf + arc — the visible door
+                  is mostly off the wall line, so without these a tap misses it
+                  (especially on touch / once the surrounding room is deleted) */}
+              <path d={g.leaf} stroke="transparent" strokeWidth={20} strokeLinecap="round" vectorEffect="non-scaling-stroke" fill="none" pointerEvents="stroke" />
+              <path d={g.arc} stroke="transparent" strokeWidth={20} vectorEffect="non-scaling-stroke" fill="none" pointerEvents="stroke" />
               <path d={g.leaf} stroke={color} strokeWidth={3} vectorEffect="non-scaling-stroke" fill="none" />
               <path d={g.arc} stroke={color} strokeWidth={1.5} strokeDasharray="4 3" vectorEffect="non-scaling-stroke" fill="none" />
               {active && <circle cx={g.hx} cy={g.hy} r={6} fill="#b5714e" vectorEffect="non-scaling-stroke" />}
