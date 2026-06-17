@@ -33,7 +33,6 @@ interface Props {
   onOpenSettings?: () => void
   onDeleteSelected?: () => void
   compactHandles?: boolean // mobile: fewer, bigger resize handles for touch
-  isMobile?: boolean // touch layout: revert to select after placing one room/marker
 }
 
 type OrigPos = { t: 'room' | 'door' | 'furniture' | 'marker' | 'stair' | 'light'; id: string; x: number; y: number }
@@ -52,7 +51,7 @@ type Drag =
   | { kind: 'measure' }
   | null
 
-export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peers = [], onPointer, gearForSettings, onOpenSettings, onDeleteSelected, compactHandles, isMobile }: Props) {
+export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peers = [], onPointer, gearForSettings, onOpenSettings, onDeleteSelected, compactHandles }: Props) {
   const drag = useRef<Drag>(null)
   const [draft, setDraft] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   const [marquee, setMarquee] = useState<Box | null>(null)
@@ -813,9 +812,9 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
         setSel([{ type: 'room', id }])
       }
       setDraft(null)
-      // On touch, drop straight back to select so one tap places one room/marker
-      // (instead of staying armed and adding more on every subsequent tap).
-      if (isMobile) setMode('select')
+      // Drop straight back to select so one placement = one room/marker, matching
+      // every other add tool (door/window/light). Re-arm from the toolbar to add more.
+      setMode('select')
     } else if (d?.kind === 'marquee') {
       const p = toCm(e)
       const box: Box = { x: Math.min(d.ox, p.x), y: Math.min(d.oy, p.y), w: Math.abs(p.x - d.ox), h: Math.abs(p.y - d.oy) }
