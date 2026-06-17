@@ -250,10 +250,15 @@ export default function Page() {
   }
 
   // Mobile "Add" menu → route each choice to its tool / action, then close.
-  function chooseAdd(kind: 'room' | 'door' | 'window' | 'marker' | 'light' | 'measure' | 'furniture' | 'stairs') {
+  function chooseAdd(kind: 'room' | 'door' | 'window' | 'marker' | 'light' | 'measure' | 'furniture' | 'stairs' | 'import') {
     setAddOpen(false)
     if (kind === 'furniture') {
-      setInvMode('add') // furniture is created/imported from the inventory's add tools
+      setInvMode('browse') // open the browsable catalog; AI import / custom pieces are their own entry
+      setInvOpen(true)
+      return
+    }
+    if (kind === 'import') {
+      setInvMode('add') // the build-a-piece form + AI import (plan / item) tools
       setInvOpen(true)
       return
     }
@@ -401,6 +406,7 @@ export default function Page() {
               <button onClick={() => chooseAdd('door')}>⌐<span>Door</span></button>
               <button onClick={() => chooseAdd('window')}>⊟<span>Window</span></button>
               <button onClick={() => chooseAdd('furniture')}>🛋<span>Furniture</span></button>
+              <button onClick={() => chooseAdd('import')}>⌖<span>AI import</span></button>
               <button onClick={() => chooseAdd('marker')}>▢<span>Marker</span></button>
               <button onClick={() => chooseAdd('stairs')}>⟚<span>Stairs</span></button>
               <button onClick={() => chooseAdd('light')}>☀<span>Ceiling light</span></button>
