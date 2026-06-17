@@ -18,7 +18,6 @@ export interface ClearanceGap {
 export interface Warnings {
   furniture: Set<string>
   doors: Set<string>
-  gaps: ClearanceGap[]
 }
 
 export const CLEARANCE = 90 // comfortable walkway (cm ≈ 36")
@@ -94,33 +93,27 @@ export function computeWarnings(plan: Plan): Warnings {
     if (solids.some((f) => overlaps(sb, box(f)))) doors.add(d.id)
   }
 
-  // Clearance: too-narrow walkways between facing furniture, and between a piece
-  // and the room wall it faces (room bbox — a fair proxy for polygon rooms too).
+  return { furniture, doors }
+}
+
+// Bulky pieces that act as real circulation obstacles — clearance only checks
+// gaps BETWEEN two of these. Seating, accent, and floor pieces are excluded:
+// chairs tuck under tables, nightstands hug beds, coffee tables sit by sofas,
+// etc. — all intentional adjacencies that made the old check far too noisy.
+const OBSTACLE: ReadonlySet<string> = new Set(['sofa', 'bed', 'diningTable', 'desk', 'dresser', 'wardrobe', 'bookshelf', 'fridge', 'stove', 'bathtub'])
+
+// Clearance check (opt-in): too-narrow walkways between two bulky pieces. No
+// furniture-to-wall check — a piece sitting near a wall is normal and was the
+// biggest false-positive source (e.g. a bed beside a wall).
+export function computeClearance(plan: Plan): ClearanceGap[] {
+  const obstacles = plan.furniture.filter((f) => OBSTACLE.has(furnitureType(f.type)))
+  const box = (o: { x: number; y: number; w: number; h: number }): Box => ({ x: o.x, y: o.y, w: o.w, h: o.h })
   const gaps: ClearanceGap[] = []
-  for (let i = 0; i < solids.length; i++) {
-    for (let j = i + 1; j < solids.length; j++) {
-      const g = facingGap(box(solids[i]), box(solids[j]))
+  for (let i = 0; i < obstacles.length; i++) {
+    for (let j = i + 1; j < obstacles.length; j++) {
+      const g = facingGap(box(obstacles[i]), box(obstacles[j]))
       if (g) gaps.push(g)
     }
   }
-  for (const f of solids) {
-    const fb = box(f)
-    const cx = f.x + f.w / 2
-    const cy = f.y + f.h / 2
-    const r = plan.rooms.find((rm) => inRoom(cx, cy, rm))
-    if (!r) continue
-    if (cy > r.y && cy < r.y + r.h) {
-      const gl = fb.x - r.x
-      if (gl > MIN_GAP && gl < CLEARANCE) gaps.push({ x1: r.x, y1: cy, x2: fb.x, y2: cy, dist: gl })
-      const gr = r.x + r.w - (fb.x + fb.w)
-      if (gr > MIN_GAP && gr < CLEARANCE) gaps.push({ x1: fb.x + fb.w, y1: cy, x2: r.x + r.w, y2: cy, dist: gr })
-    }
-    if (cx > r.x && cx < r.x + r.w) {
-      const gt = fb.y - r.y
-      if (gt > MIN_GAP && gt < CLEARANCE) gaps.push({ x1: cx, y1: r.y, x2: cx, y2: fb.y, dist: gt })
-      const gb = r.y + r.h - (fb.y + fb.h)
-      if (gb > MIN_GAP && gb < CLEARANCE) gaps.push({ x1: cx, y1: fb.y + fb.h, x2: cx, y2: r.y + r.h, dist: gb })
-    }
-  }
-  return { furniture, doors, gaps }
+  return gaps
 }

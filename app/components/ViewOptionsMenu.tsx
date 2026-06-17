@@ -88,6 +88,14 @@ export default function ViewOptionsMenu({ plan, setPlan }: Props) {
               Off
             </Seg>
           </Row>
+          <Row label="Clearance">
+            <Seg on={!!plan.clearance} onClick={() => set({ clearance: true })}>
+              On
+            </Seg>
+            <Seg on={!plan.clearance} onClick={() => set({ clearance: false })}>
+              Off
+            </Seg>
+          </Row>
           <Row label="Lighting">
             <Seg on={!!plan.lighting} onClick={() => set({ lighting: true })}>
               On

@@ -6,7 +6,7 @@ import { snap, uid, snapDoorToWalls, bboxHalf, snapBBox, alignBBox, faceSnap, ov
 import { useViewport } from '../lib/useViewport'
 import { DOOR_LEN, swingForCursor, doorBox, doorGeom } from '../lib/door'
 import { sunAt, sunColor, formatHour, windowCones, lampGlows } from '../lib/sun'
-import { computeWarnings } from '../lib/warnings'
+import { computeWarnings, computeClearance } from '../lib/warnings'
 import { inRoom } from '../lib/stats'
 import { formatLength } from '../lib/units'
 import { furnitureType } from '../lib/furniture'
@@ -933,6 +933,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
   const cones = plan.lighting ? windowCones(plan, sun) : []
   const glows = plan.lighting ? lampGlows(plan, sun) : []
   const warn = plan.warnings === false ? null : computeWarnings(plan)
+  const gaps = plan.clearance ? computeClearance(plan) : []
 
   const bgCursor = spaceHeld ? 'grab' : mode === 'room' || mode === 'marker' || mode === 'measure' ? 'crosshair' : mode === 'door' || mode === 'window' ? 'copy' : 'grab'
 
@@ -1169,7 +1170,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
         })}
 
         {/* Clearance: red dimension lines flagging too-narrow walkways */}
-        {warn?.gaps.map((g, i) => {
+        {gaps.map((g, i) => {
           const horiz = Math.abs(g.y2 - g.y1) < 0.5
           const t = 6 / scale
           const lx = (g.x1 + g.x2) / 2 + (horiz ? 0 : 8 / scale)
