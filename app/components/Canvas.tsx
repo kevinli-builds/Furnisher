@@ -33,6 +33,7 @@ interface Props {
   onOpenSettings?: () => void
   onDeleteSelected?: () => void
   compactHandles?: boolean // mobile: fewer, bigger resize handles for touch
+  resetSignal?: number // bump to force-clear stuck multi-touch / drag state (emergency hatch)
 }
 
 type OrigPos = { t: 'room' | 'door' | 'furniture' | 'marker' | 'stair' | 'light'; id: string; x: number; y: number }
@@ -51,7 +52,7 @@ type Drag =
   | { kind: 'measure' }
   | null
 
-export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peers = [], onPointer, gearForSettings, onOpenSettings, onDeleteSelected, compactHandles }: Props) {
+export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peers = [], onPointer, gearForSettings, onOpenSettings, onDeleteSelected, compactHandles, resetSignal }: Props) {
   const drag = useRef<Drag>(null)
   const [draft, setDraft] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
   const [marquee, setMarquee] = useState<Box | null>(null)
@@ -119,6 +120,22 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
 
   // Clear any pending long-press timer on unmount.
   useEffect(() => () => clearLongPress(), [])
+
+  // Emergency hatch: the external "Select" button bumps resetSignal to clear any
+  // stuck interaction state — chiefly a multi-touch gesture that ended without a
+  // pointerup (so the canvas still thinks two fingers are down and keeps pinching).
+  useEffect(() => {
+    pointers.current.clear()
+    pinchDist.current = null
+    drag.current = null
+    clearLongPress()
+    setDraft(null)
+    setMarquee(null)
+    setSnapGuide(null)
+    setDragDims(null)
+    setDoorGhost(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resetSignal])
 
   // Every object whose box contains a point, front-most first.
   function pointHits(p: { x: number; y: number }): { item: SelItem; label: string }[] {
@@ -858,6 +875,24 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     svgRef.current?.releasePointerCapture(e.pointerId)
   }
 
+  // A pointer the browser took away (palm rejection, an OS gesture, an interrupted
+  // multi-touch). pointerup never fires for it, so without this the finger lingers
+  // in `pointers` and the canvas stays stuck in pinch mode. Clean up, don't finalize.
+  function onCancel(e: React.PointerEvent) {
+    clearLongPress()
+    if (e.pointerType === 'touch') {
+      pointers.current.delete(e.pointerId)
+      if (pointers.current.size < 2) pinchDist.current = null
+    }
+    drag.current = null
+    setDraft(null)
+    setMarquee(null)
+    setSnapGuide(null)
+    setDragDims(null)
+    setDoorGhost(null)
+    svgRef.current?.releasePointerCapture(e.pointerId)
+  }
+
   // ── Grid lines ────────────────────────────────────────────────
   const minor = gridStep(scale, units)
   const major = minor * 4
@@ -948,6 +983,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
         onPointerDownCapture={onDownCapture}
         onPointerMove={onMove}
         onPointerUp={onUp}
+        onPointerCancel={onCancel}
         onPointerLeave={() => setDoorGhost(null)}
         onContextMenu={onContextMenu}
         onDragOver={onDragOver}

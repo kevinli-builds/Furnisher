@@ -30,6 +30,16 @@ export default function Page() {
   const [invMode, setInvMode] = useState<'browse' | 'add'>('browse') // mobile inventory: browse-only vs add tools
   const [settingsOpen, setSettingsOpen] = useState(false) // mobile: settings sheet opened via the gear
   const [isMobile, setIsMobile] = useState(false)
+  const [resetSignal, setResetSignal] = useState(0) // bump → Canvas clears stuck multi-touch/drag state
+
+  // Drop to Select and clear any stuck interaction state (the emergency hatch for
+  // a touch gesture that left the canvas thinking fingers are still down).
+  function goSelect() {
+    setMode('select')
+    setAddOpen(false)
+    setInvOpen(false)
+    setResetSignal((n) => n + 1)
+  }
   const [collabId, setCollabId] = useState<string | null>(null)
   const { peers, onPointer } = useCollab(collabId, plan, applyRemote)
   const clipboard = useRef<Pick<Plan, 'rooms' | 'doors' | 'furniture' | 'markers' | 'stairs' | 'lights'> | null>(null)
@@ -295,7 +305,7 @@ export default function Page() {
         <div className="tools">
           {/* Desktop: full set of tool buttons */}
           <div className="seg desktop-only">
-            <button className={`seg-btn${mode === 'select' ? ' on' : ''}`} onClick={() => setMode('select')}>
+            <button className={`seg-btn${mode === 'select' ? ' on' : ''}`} onClick={goSelect}>
               ↖ Select
             </button>
             <button className={`seg-btn${mode === 'room' ? ' on' : ''}`} onClick={() => setMode('room')}>
@@ -446,6 +456,7 @@ export default function Page() {
             onOpenSettings={() => setSettingsOpen(true)}
             onDeleteSelected={deleteSelection}
             compactHandles={isMobile}
+            resetSignal={resetSignal}
           />
           <p className={`hint${mode === 'select' ? ' hint-select' : ''}`}>
             {mode === 'room' && 'Tap the grid to drop a room — or drag to size it. Then drag to move, or use the handles to resize.'}
@@ -479,7 +490,7 @@ export default function Page() {
 
       {/* Mobile bottom tab bar — always-visible primary actions. */}
       <nav className="mobile-tabbar">
-        <button className={`tab-btn${mode === 'select' && !addOpen && !invOpen ? ' on' : ''}`} onClick={() => { setMode('select'); setAddOpen(false); setInvOpen(false) }}>
+        <button className={`tab-btn${mode === 'select' && !addOpen && !invOpen ? ' on' : ''}`} onClick={goSelect}>
           <span className="tab-ico">↖</span>
           Select
         </button>
