@@ -69,6 +69,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
   // Two-finger pinch-to-zoom (touch). Tracks active pointers; 2 down = pinch.
   const pointers = useRef<Map<number, { x: number; y: number }>>(new Map())
   const pinchDist = useRef<number | null>(null)
+  const pinchMid = useRef<{ x: number; y: number } | null>(null) // last two-finger midpoint (for pan)
   // Long-press (touch) toggles an object in/out of a multi-selection.
   const longPress = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lpStart = useRef<{ x: number; y: number } | null>(null)
@@ -127,6 +128,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
   useEffect(() => {
     pointers.current.clear()
     pinchDist.current = null
+    pinchMid.current = null
     drag.current = null
     clearLongPress()
     setDraft(null)
@@ -211,6 +213,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
         setMarquee(null)
         const [a, b] = [...pointers.current.values()]
         pinchDist.current = Math.hypot(a.x - b.x, a.y - b.y)
+        pinchMid.current = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
         return
       }
     }
@@ -596,8 +599,18 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
       pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
       if (pinchDist.current !== null && pointers.current.size >= 2) {
         const [a, b] = [...pointers.current.values()]
+        const mx = (a.x + b.x) / 2
+        const my = (a.y + b.y) / 2
         const dist = Math.hypot(a.x - b.x, a.y - b.y)
-        if (pinchDist.current > 0 && dist > 0) zoomAt((a.x + b.x) / 2, (a.y + b.y) / 2, dist / pinchDist.current)
+        // Two-finger pan: follow the midpoint's movement (maps-style pinch+drag).
+        if (pinchMid.current) {
+          const sc = viewRef.current.scale || scale
+          const dxp = mx - pinchMid.current.x
+          const dyp = my - pinchMid.current.y
+          if (dxp || dyp) setView({ x: viewRef.current.x - dxp / sc, y: viewRef.current.y - dyp / sc, scale: sc })
+        }
+        pinchMid.current = { x: mx, y: my }
+        if (pinchDist.current > 0 && dist > 0) zoomAt(mx, my, dist / pinchDist.current)
         pinchDist.current = dist
         return
       }
@@ -793,7 +806,10 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     clearLongPress()
     if (e.pointerType === 'touch') {
       pointers.current.delete(e.pointerId)
-      if (pointers.current.size < 2) pinchDist.current = null
+      if (pointers.current.size < 2) {
+        pinchDist.current = null
+        pinchMid.current = null
+      }
     }
     const d = drag.current
     // Recompute the final rect from the event (don't depend on React state,
@@ -882,7 +898,10 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     clearLongPress()
     if (e.pointerType === 'touch') {
       pointers.current.delete(e.pointerId)
-      if (pointers.current.size < 2) pinchDist.current = null
+      if (pointers.current.size < 2) {
+        pinchDist.current = null
+        pinchMid.current = null
+      }
     }
     drag.current = null
     setDraft(null)
