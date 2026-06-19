@@ -1128,6 +1128,10 @@ textarea.field {
     gap: 8px;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
+    /* The strip is pinned right, so Undo/Redo/Reset overflow off the left.
+       Fade the left edge to signal there's more to scroll to. */
+    -webkit-mask-image: linear-gradient(to right, transparent 0, #000 34px);
+    mask-image: linear-gradient(to right, transparent 0, #000 34px);
   }
   .tools::-webkit-scrollbar {
     display: none;
