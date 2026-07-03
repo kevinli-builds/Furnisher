@@ -16,6 +16,10 @@ export function setApiKey(k: string): void {
   if (typeof window === 'undefined') return
   window.localStorage.setItem(KEY, k.trim())
 }
+export function clearApiKey(): void {
+  if (typeof window === 'undefined') return
+  window.localStorage.removeItem(KEY)
+}
 export function hasApiKey(): boolean {
   return getApiKey().length > 0
 }

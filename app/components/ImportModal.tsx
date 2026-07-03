@@ -8,6 +8,7 @@ import { FURNITURE_META } from '../lib/furniture'
 import {
   getApiKey,
   setApiKey,
+  clearApiKey,
   hasApiKey,
   readBlueprint,
   readFurniture,
@@ -47,6 +48,13 @@ export default function ImportModal({ mode, setPlan, onClose }: Props) {
     setApiKey(keyInput)
     setKeySaved(hasApiKey())
     setEditingKey(false)
+  }
+
+  function removeKey() {
+    clearApiKey()
+    setKeyInput('')
+    setKeySaved(false)
+    setEditingKey(true)
   }
 
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -160,6 +168,10 @@ export default function ImportModal({ mode, setPlan, onClose }: Props) {
                 </a>
                 .
               </p>
+              <p className="sect-note">
+                Kept in this browser’s local storage — any script running on this page could read it. Use a key with limited spend,
+                and remove it below when you’re done on a shared device.
+              </p>
               <input
                 className="field"
                 type="password"
@@ -167,13 +179,22 @@ export default function ImportModal({ mode, setPlan, onClose }: Props) {
                 value={keyInput}
                 onChange={(e) => setKeyInput(e.target.value)}
               />
-              <button className="btn" onClick={saveKey} disabled={!keyInput.trim()}>
-                Save key
-              </button>
+              <div className="modal-actions">
+                <button className="btn" onClick={saveKey} disabled={!keyInput.trim()}>
+                  Save key
+                </button>
+                {keySaved && (
+                  <button className="btn-ghost" onClick={removeKey}>
+                    Remove saved key
+                  </button>
+                )}
+              </div>
             </section>
           ) : (
             <p className="key-line">
               Using your saved API key · <button className="link-x" onClick={() => setEditingKey(true)}>change</button>
+              {' · '}
+              <button className="link-x" onClick={removeKey}>remove</button>
             </p>
           )}
 

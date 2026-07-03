@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "next dev -p 3002",
     "build": "next build --webpack",
-    "start": "next start"
+    "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.107.0",
@@ -17,6 +19,7 @@
     "@types/node": "^20.14.0",
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
-    "typescript": "^5.5.0"
+    "typescript": "^5.5.0",
+    "vitest": "^2.1.9"
   }
 }
