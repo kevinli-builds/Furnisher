@@ -20,8 +20,10 @@ was moving. Deploys to **Vercel** (furnisher.vercel.app).
 cd app
 npm.cmd run dev        # serves on http://localhost:3002  (PowerShell: use npm.cmd)
 npx tsc --noEmit       # typecheck while iterating
+npm.cmd run test       # vitest (pure lib/* logic — trust boundary, geometry, stats)
 npm.cmd run build      # production build — NOTE: this stops a running `next dev`
 ```
+- CI (`.github/workflows/ci.yml`) runs typecheck + test + build on push/PR.
 - Prefer `tsc` during iteration; only `build` at commit time (build kills the dev
   server, forcing a restart).
 - **Testing the mobile layout is limited**: the dev/browser viewport is effectively
@@ -72,10 +74,15 @@ wire it through both. URLs go through `safeUrl()`; names are React/serializer-es
   Co-Authored-By line. `.env` is gitignored — never commit secrets.
 - Match the surrounding code's style; geometry stays in cm.
 
-## Status (Jun 2026)
-Feature-complete and in active polish. Recent work: room types w/ colour tints,
-clearance checker (off by default, bulky-furniture-only heuristic), export strips
-on-screen chrome, all add-tools revert to Select after one placement, orphan-door
-selectability, mobile pinch fixes (pointercancel cleanup + Select emergency hatch +
-two-finger pan), mobile action-strip scroll affordance. Outstanding: a real-device
-mobile pass (gestures + the gear/trash-near-right-edge case).
+## Status (Jul 2026)
+Feature-complete and in active polish. `OPUS_BRIEF.md` holds the roadmap.
+Recently shipped from it: vitest suite + CI + CSP/BYO-key hardening; a first-run
+**template gallery** (`lib/templates/` → `WelcomeModal`, opened via `normalizePlan`;
+reopen with the ✨ Templates button); **fit facts** chips in Stats (`stats.fitFacts`);
+and `lib/interactions.ts` (pure `pointHits`/`objectsInMarquee`/`cycleNext` lifted
+out of Canvas.tsx, unit-tested — the first step of the Canvas de-risk).
+Earlier: room types w/ colour tints, clearance checker (off by default,
+bulky-furniture-only heuristic), export strips on-screen chrome, add-tools revert
+to Select after one placement, orphan-door selectability, mobile pinch fixes.
+Outstanding (see brief): real-device mobile pass; continue the Canvas split
+(per-gesture hooks); P2 share links; catalog depth; D1 doorway test.
