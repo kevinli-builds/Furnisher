@@ -14,6 +14,7 @@ import SettingsPanel from './components/SettingsPanel'
 import AccountMenu from './components/AccountMenu'
 import ImportModal from './components/ImportModal'
 import WelcomeModal from './components/WelcomeModal'
+import IntroTips from './components/IntroTips'
 import ViewOptionsMenu from './components/ViewOptionsMenu'
 import StatsPanel from './components/StatsPanel'
 import { exportPng } from './lib/exportImage'
@@ -33,6 +34,8 @@ export default function Page() {
   const [isMobile, setIsMobile] = useState(false)
   const [resetSignal, setResetSignal] = useState(0) // bump → Canvas clears stuck multi-touch/drag state
   const [showWelcome, setShowWelcome] = useState(false) // first-run template chooser (also reopenable)
+  const [showTips, setShowTips] = useState(false) // first-run coach tips (after the welcome closes)
+  const firstRunRef = useRef(false) // true only for a brand-new visitor this load
 
   // Drop to Select and clear any stuck interaction state (the emergency hatch for
   // a touch gesture that left the canvas thinking fingers are still down).
@@ -51,9 +54,28 @@ export default function Page() {
   // blank canvas — the P1 activation flow.
   useEffect(() => {
     if (hasSavedPlan()) replace(loadPlan())
-    else setShowWelcome(true)
+    else {
+      setShowWelcome(true)
+      firstRunRef.current = true
+    }
     setMounted(true)
   }, [replace])
+
+  // After a brand-new visitor makes their welcome choice, run the coach tips
+  // once (localStorage 'furnisher.tourSeen'; Display → Show tips reopens them).
+  function maybeStartTips() {
+    if (!firstRunRef.current) return
+    try {
+      if (!localStorage.getItem('furnisher.tourSeen')) setShowTips(true)
+    } catch {}
+  }
+
+  function dismissTips() {
+    setShowTips(false)
+    try {
+      localStorage.setItem('furnisher.tourSeen', '1')
+    } catch {}
+  }
 
   // Track phone-width so selection can be drag-first (settings via a gear) there.
   useEffect(() => {
@@ -449,7 +471,7 @@ export default function Page() {
 
         <div className="canvas-wrap">
           <div className="display-fab">
-            <ViewOptionsMenu plan={plan} setPlan={setPlan} />
+            <ViewOptionsMenu plan={plan} setPlan={setPlan} onShowTips={() => setShowTips(true)} />
           </div>
           {showStats && (
             <StatsPanel
@@ -529,19 +551,27 @@ export default function Page() {
             replace(p)
             setSel([])
             setShowWelcome(false)
+            maybeStartTips()
           }}
           onBlank={() => {
             replace(defaultPlan())
             setSel([])
             setShowWelcome(false)
+            maybeStartTips()
           }}
           onImport={() => {
             setShowWelcome(false)
             setImportMode('blueprint')
+            maybeStartTips()
           }}
-          onClose={() => setShowWelcome(false)}
+          onClose={() => {
+            setShowWelcome(false)
+            maybeStartTips()
+          }}
         />
       )}
+
+      {showTips && !showWelcome && !importMode && <IntroTips onClose={dismissTips} />}
     </div>
   )
 }

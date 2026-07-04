@@ -8,9 +8,10 @@ import { formatHour } from '../lib/sun'
 interface Props {
   plan: Plan
   setPlan: React.Dispatch<React.SetStateAction<Plan>>
+  onShowTips?: () => void
 }
 
-export default function ViewOptionsMenu({ plan, setPlan }: Props) {
+export default function ViewOptionsMenu({ plan, setPlan, onShowTips }: Props) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -170,6 +171,19 @@ export default function ViewOptionsMenu({ plan, setPlan }: Props) {
               </a>
             )}
           </div>
+          {onShowTips && (
+            <div className="opts-row">
+              <button
+                className="btn-ghost"
+                onClick={() => {
+                  setOpen(false)
+                  onShowTips()
+                }}
+              >
+                💡 Show tips
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
