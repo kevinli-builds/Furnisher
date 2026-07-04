@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { Plan, Mode, Selection, SelItem, Door, Pt } from '../lib/types'
-import { snap, uid, snapDoorToWalls, bboxHalf, snapBBox, alignBBox, faceSnap, overlaps, gridStep, roomCorners, bboxOf, resizeRect, MIN_ROOM, type Box } from '../lib/geometry'
+import { snap, uid, snapDoorToWalls, bboxHalf, snapBBox, alignBBox, faceSnap, gridStep, roomCorners, bboxOf, resizeRect, MIN_ROOM, type Box } from '../lib/geometry'
 import { useViewport } from '../lib/useViewport'
 import { DOOR_LEN, swingForCursor, doorBox, doorGeom } from '../lib/door'
+import { pointHits, objectsInMarquee, cycleNext } from '../lib/interactions'
 import { sunAt, sunColor, formatHour, windowCones, lampGlows } from '../lib/sun'
 import { computeWarnings, computeClearance } from '../lib/warnings'
 import { inRoom } from '../lib/stats'
@@ -140,21 +141,6 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
   }, [resetSignal])
 
   // Every object whose box contains a point, front-most first.
-  function pointHits(p: { x: number; y: number }): { item: SelItem; label: string }[] {
-    const inBox = (x: number, y: number, w: number, h: number) => p.x >= x && p.x <= x + w && p.y >= y && p.y <= y + h
-    const res: { item: SelItem; label: string }[] = []
-    for (const l of plan.lights) if (inBox(l.x - 16, l.y - 16, 32, 32)) res.push({ item: { type: 'light', id: l.id }, label: 'Ceiling light' })
-    for (const f of plan.furniture) if (inBox(f.x, f.y, f.w, f.h)) res.push({ item: { type: 'furniture', id: f.id }, label: `Furniture · ${f.name}` })
-    for (const s of plan.stairs) if (inBox(s.x, s.y, s.w, s.h)) res.push({ item: { type: 'stair', id: s.id }, label: `Stairs · ${s.role}` })
-    for (const dd of plan.doors) {
-      const b = doorBox(dd)
-      if (inBox(b.x, b.y, b.w, b.h)) res.push({ item: { type: 'door', id: dd.id }, label: `${dd.type ?? 'swing'} opening` })
-    }
-    for (const r of plan.rooms) if (inBox(r.x, r.y, r.w, r.h)) res.push({ item: { type: 'room', id: r.id }, label: `Room · ${r.name}` })
-    for (const m of plan.markers) if (inBox(m.x, m.y, m.w, m.h)) res.push({ item: { type: 'marker', id: m.id }, label: `${(m.style ?? 'frame') === 'closet' ? 'Closet' : 'Marker'} · ${m.name}` })
-    return res
-  }
-
   // Drag a template from the Inventory panel onto the plan.
   function onDragOver(e: React.DragEvent) {
     if (e.dataTransfer.types.includes('application/furnisher-item')) {
@@ -193,7 +179,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
   }
 
   function onContextMenu(e: React.MouseEvent) {
-    const items = pointHits(toCm(e))
+    const items = pointHits(plan, toCm(e))
     if (items.length === 0) return // let the native menu show on empty space
     e.preventDefault()
     const host = hostRef.current!.getBoundingClientRect()
@@ -854,14 +840,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
       if (box.w < 5 && box.h < 5) {
         setSel([]) // a plain click on empty space clears the selection
       } else {
-        const hits: SelItem[] = []
-        for (const m of plan.markers) if (overlaps(box, { x: m.x, y: m.y, w: m.w, h: m.h })) hits.push({ type: 'marker', id: m.id })
-        for (const r of plan.rooms) if (overlaps(box, { x: r.x, y: r.y, w: r.w, h: r.h })) hits.push({ type: 'room', id: r.id })
-        for (const f of plan.furniture) if (overlaps(box, { x: f.x, y: f.y, w: f.w, h: f.h })) hits.push({ type: 'furniture', id: f.id })
-        for (const s of plan.stairs) if (overlaps(box, { x: s.x, y: s.y, w: s.w, h: s.h })) hits.push({ type: 'stair', id: s.id })
-        for (const l of plan.lights) if (overlaps(box, { x: l.x - 8, y: l.y - 8, w: 16, h: 16 })) hits.push({ type: 'light', id: l.id })
-        for (const dd of plan.doors) if (overlaps(box, doorBox(dd))) hits.push({ type: 'door', id: dd.id })
-        setSel(hits)
+        setSel(objectsInMarquee(plan, box))
       }
       setMarquee(null)
     } else if (d?.kind === 'pan' && !d.moved && (d.tapSelect || d.deselect)) {
@@ -878,12 +857,10 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     ) {
       // A no-move click on a stack of overlapping objects: advance the selection
       // to the next object underneath the one that was selected before the press.
-      const hits = pointHits(toCm(e))
-      if (hits.length > 1) {
-        const prev = prevSelRef.current.length === 1 ? prevSelRef.current[0] : null
-        const idx = prev ? hits.findIndex((h) => h.item.type === prev.type && h.item.id === prev.id) : -1
-        if (idx >= 0) setSel([hits[(idx + 1) % hits.length].item])
-      }
+      const hits = pointHits(plan, toCm(e))
+      const prev = prevSelRef.current.length === 1 ? prevSelRef.current[0] : null
+      const next = cycleNext(hits, prev)
+      if (next) setSel([next])
     }
     drag.current = null
     setSnapGuide(null)
