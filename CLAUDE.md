@@ -79,10 +79,13 @@ Feature-complete and in active polish. `OPUS_BRIEF.md` holds the roadmap.
 Recently shipped from it: vitest suite + CI + CSP/BYO-key hardening; a first-run
 **template gallery** (`lib/templates/` → `WelcomeModal`, opened via `normalizePlan`;
 reopen with the ✨ Templates button); **fit facts** chips in Stats (`stats.fitFacts`);
-and `lib/interactions.ts` (pure `pointHits`/`objectsInMarquee`/`cycleNext` lifted
-out of Canvas.tsx, unit-tested — the first step of the Canvas de-risk).
+`lib/interactions.ts` (pure `pointHits`/`objectsInMarquee`/`cycleNext` lifted out of
+Canvas.tsx, unit-tested — the first step of the Canvas de-risk); and the **Doorway
+Test** — an opt-in "🚪 Move-in check" in Stats (`warnings.moveInCheck`: room-graph
++ widest-path bottleneck vs each rigid piece's smallest cross-section).
 Earlier: room types w/ colour tints, clearance checker (off by default,
 bulky-furniture-only heuristic), export strips on-screen chrome, add-tools revert
 to Select after one placement, orphan-door selectability, mobile pinch fixes.
 Outstanding (see brief): real-device mobile pass; continue the Canvas split
-(per-gesture hooks); P2 share links; catalog depth; D1 doorway test.
+(per-gesture hooks); P2 share links; catalog depth; Doorway Test v2 (rotation /
+corridor-turn sweep).
