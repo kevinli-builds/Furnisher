@@ -160,3 +160,28 @@ render with a clip path.
 Sprinkle computed one-liners into `StatsPanel`: "Seats for 7 guests · 62% clear
 floor · 14m of walkable path." Trivial math over existing furniture metadata;
 gives the plan a personality and a reason to screenshot it.
+
+---
+
+## 5. First-visit cold open (user-requested 2026-07-04 — build next)
+
+The WelcomeModal template gallery now covers the "intro"; add the "tutorial":
+a non-blocking, 3-tip coach sequence for first-time visitors.
+
+- New `components/IntroTips.tsx`: a small card pinned bottom-center of the
+  canvas (above the `.hint` line, `z-index` above canvas but below modals),
+  showing one tip at a time with "Next" / "Skip tour" and a 1/3 dot indicator:
+  1. **Draw your space** — "Pick ▭ Draw room in the toolbar (or ＋ Add on
+     mobile) and drag out your first room. Real dimensions — everything is
+     to scale."
+  2. **Furnish it** — "Open the Inventory for sofas, beds and tables with
+     real sizes — or build a custom piece. Drag to move, handles to rotate."
+  3. **Check the fit** — "Turn on warnings and clearance under Display, see
+     areas in 📊 Stats, then export a PNG/PDF to share."
+- Trigger: when the first-run WelcomeModal closes (any of onPick/onBlank/
+  onImport) AND `localStorage['furnisher.tourSeen']` is unset. Set the flag on
+  Skip/finish. Never show for returning users (`hasSavedPlan()` true at mount).
+- Reopen: a "Show tips" item in `ViewOptionsMenu`.
+- Style with the earthy vars (`--panel`, `--accent`, `--ink`); keep it ~320px
+  wide, `prefers-reduced-motion`-safe (no animation needed at all).
+- Mobile: same card, sits above the tab bar (respect safe-area inset).
