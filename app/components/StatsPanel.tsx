@@ -1,7 +1,7 @@
 'use client'
 
 import type { Plan } from '../lib/types'
-import { computeStats, formatArea, formatPrice } from '../lib/stats'
+import { computeStats, formatArea, formatPrice, fitFacts } from '../lib/stats'
 
 interface Props {
   plan: Plan
@@ -16,6 +16,7 @@ export default function StatsPanel({ plan, setPlan, onClose }: Props) {
   const budget = plan.budget
   const remaining = budget != null ? budget - s.totalCost : 0
   const over = budget != null && remaining < 0
+  const facts = fitFacts(plan)
   return (
     <div className="stats-panel">
       <div className="stats-head">
@@ -25,6 +26,15 @@ export default function StatsPanel({ plan, setPlan, onClose }: Props) {
         </button>
       </div>
       <div className="stats-body">
+        {facts.length > 0 && (
+          <div className="fit-facts">
+            {facts.map((f) => (
+              <span key={f} className="fit-chip">
+                {f}
+              </span>
+            ))}
+          </div>
+        )}
         <div className="stats-row stats-total">
           <span>Total floor</span>
           <strong>{formatArea(s.totalArea, u)}</strong>

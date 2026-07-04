@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { roomArea, inRoom, computeStats, formatArea } from '../stats'
+import { roomArea, inRoom, computeStats, formatArea, fitFacts } from '../stats'
 import { defaultPlan } from '../storage'
 import type { Plan, Room } from '../types'
 
@@ -49,6 +49,39 @@ describe('computeStats', () => {
       furniture: [{ id: 'f', name: 'F', type: 'sofa', x: 10, y: 10, w: 20, h: 20, rotation: 0, color: '#b5714e', price: 999 }],
     }
     expect(computeStats(plan).totalCost).toBe(999)
+  })
+})
+
+describe('fitFacts', () => {
+  const room = { id: 'r', name: 'R', x: 0, y: 0, w: 1000, h: 1000 }
+  it('counts sofa + chair seating', () => {
+    const plan: Plan = {
+      ...defaultPlan(),
+      rooms: [room],
+      furniture: [
+        { id: 's', name: 'Sofa', type: 'sofa', x: 0, y: 0, w: 210, h: 90, rotation: 0, color: '#b5714e' }, // 3
+        { id: 'c', name: 'Chair', type: 'chair', x: 300, y: 0, w: 60, h: 60, rotation: 0, color: '#b5714e' }, // 1
+      ],
+    }
+    expect(fitFacts(plan)).toContain('Seats 4')
+  })
+
+  it('reports sleeps from bed width and piece count (excluding rugs)', () => {
+    const plan: Plan = {
+      ...defaultPlan(),
+      rooms: [room],
+      furniture: [
+        { id: 'b', name: 'Bed', type: 'bed', x: 0, y: 0, w: 150, h: 200, rotation: 0, color: '#b5714e' }, // sleeps 2
+        { id: 'rug', name: 'Rug', type: 'rug', x: 0, y: 0, w: 200, h: 140, rotation: 0, color: '#b5714e' }, // not a piece
+      ],
+    }
+    const facts = fitFacts(plan)
+    expect(facts).toContain('Sleeps 2')
+    expect(facts).toContain('1 piece placed')
+  })
+
+  it('is empty for a plan with no furniture and no rooms', () => {
+    expect(fitFacts({ ...defaultPlan(), rooms: [], furniture: [] })).toEqual([])
   })
 })
 

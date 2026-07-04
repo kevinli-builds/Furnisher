@@ -67,6 +67,33 @@ export function computeStats(plan: Plan): Stats {
   return { totalArea, furnArea, freePct, totalCost, rooms }
 }
 
+// ── Fit facts ─────────────────────────────────────────────────
+// Playful one-liners computed from the furniture already in the plan — the kind
+// of thing that gives a layout personality and a reason to screenshot it. All
+// derived from real footprints/types, so they stay honest.
+export function fitFacts(plan: Plan): string[] {
+  const t = (f: { type: string }) => furnitureType(f.type)
+  const seatCap = (f: { type: string; w: number }): number => {
+    const ty = t(f)
+    if (ty === 'sofa') return Math.max(2, Math.round(f.w / 70)) // ~70cm per seat
+    if (ty === 'chair') return 1 // armchair / dining / office
+    return 0
+  }
+  const seats = plan.furniture.reduce((a, f) => a + seatCap(f), 0)
+  const sleeps = plan.furniture.filter((f) => t(f) === 'bed').reduce((a, f) => a + (f.w >= 140 ? 2 : 1), 0)
+  const diningSeats = plan.furniture.filter((f) => t(f) === 'diningTable').reduce((a, f) => a + Math.max(2, Math.round((f.w * f.h) / 3600)), 0)
+  const pieces = plan.furniture.filter((f) => t(f) !== 'rug').length
+
+  const facts: string[] = []
+  if (seats > 0) facts.push(`Seats ${seats}`)
+  if (sleeps > 0) facts.push(`Sleeps ${sleeps}`)
+  if (diningSeats > 0) facts.push(`Dines ${diningSeats}`)
+  const stats = computeStats(plan)
+  if (stats.totalArea > 0) facts.push(`${stats.freePct}% clear floor`)
+  if (pieces > 0) facts.push(`${pieces} piece${pieces === 1 ? '' : 's'} placed`)
+  return facts
+}
+
 // Format a price as a currency-ish string (e.g. $1,250).
 export function formatPrice(n: number): string {
   return `$${Math.round(n).toLocaleString()}`
