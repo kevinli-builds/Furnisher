@@ -368,6 +368,73 @@ body {
   background: var(--line);
   margin: 4px 0;
 }
+.movein-btn {
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--accent-soft);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.movein-btn:hover,
+.movein-btn.on {
+  border-color: var(--accent);
+}
+.movein-results {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 2px;
+}
+.movein-ok {
+  color: #4c7a52;
+  font-weight: 600;
+}
+.movein-issue {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--line-strong);
+  background: var(--panel);
+  cursor: pointer;
+  border-left-width: 3px;
+}
+.movein-issue.wont {
+  border-left-color: var(--danger);
+}
+.movein-issue.tight {
+  border-left-color: #c8922e;
+}
+.movein-issue:hover {
+  border-color: var(--accent);
+}
+.movein-verdict {
+  font-size: 12px;
+  font-weight: 700;
+}
+.movein-issue.wont .movein-verdict {
+  color: var(--danger);
+}
+.movein-issue.tight .movein-verdict {
+  color: #b07d1f;
+}
+.movein-detail {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.movein-note {
+  margin-top: 2px;
+  font-size: 11px;
+}
 .stats-room {
   display: flex;
   align-items: baseline;

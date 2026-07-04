@@ -451,7 +451,14 @@ export default function Page() {
           <div className="display-fab">
             <ViewOptionsMenu plan={plan} setPlan={setPlan} />
           </div>
-          {showStats && <StatsPanel plan={plan} setPlan={setPlan} onClose={() => setShowStats(false)} />}
+          {showStats && (
+            <StatsPanel
+              plan={plan}
+              setPlan={setPlan}
+              onClose={() => setShowStats(false)}
+              onSelectPiece={(id) => setSel([{ type: 'furniture', id }])}
+            />
+          )}
           <Canvas
             plan={plan}
             setPlan={setPlan}

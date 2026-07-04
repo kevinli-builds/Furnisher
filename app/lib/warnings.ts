@@ -3,7 +3,7 @@
 
 import type { Plan, Door } from './types'
 import { furnitureType } from './furniture'
-import { overlaps, type Box } from './geometry'
+import { overlaps, roomAtPoint, type Box } from './geometry'
 import { inRoom } from './stats'
 
 // A too-narrow walkway between two facing edges. Drawn as a red dimension line.
@@ -116,4 +116,130 @@ export function computeClearance(plan: Plan): ClearanceGap[] {
     }
   }
   return gaps
+}
+
+// ── The Doorway Test (opt-in "Move-in check") ─────────────────
+// "Can the sofa actually get IN?" A piece must pass through a doorway to reach
+// the room it's placed in — and through every doorway on the route from the
+// entry. v1 heuristic: compare each piece's smallest cross-section (min(w,h) —
+// the narrowest way you can turn it through an opening) against the narrowest
+// doorway on the *widest available route* from outside to its room. Honest about
+// certainty: "won't fit" only when it can't clear the best route's tightest
+// door; "might be tight" when it just barely does. A full piano-mover's rotation
+// / corridor-turn sweep is v2.
+
+const OUTSIDE = '__outside__'
+const TIGHT_MARGIN = 5 // cm of slack below which a doorway reads as "tight"
+const EPS = 12 // cm off a wall to sample which room sits on each side of a door
+
+export interface MoveInIssue {
+  id: string // furniture id
+  name: string
+  cross: number // smallest cross-section (cm)
+  doorway: number // narrowest doorway on the best route (cm)
+  verdict: 'wont' | 'tight'
+}
+
+interface DoorEdge {
+  a: string // room id or OUTSIDE
+  b: string
+  w: number // clear opening width (cm)
+}
+
+// Which two spaces a (non-window) door connects: two rooms, or a room and the
+// OUTSIDE. Sampled just off each side of the opening's midpoint.
+function doorEdges(plan: Plan): DoorEdge[] {
+  const edges: DoorEdge[] = []
+  for (const d of plan.doors) {
+    if ((d.type ?? 'swing') === 'window') continue // you don't carry a couch through a window
+    let p1: { x: number; y: number }
+    let p2: { x: number; y: number }
+    if (d.orientation === 'h') {
+      const mx = d.x + d.length / 2
+      p1 = { x: mx, y: d.y - EPS }
+      p2 = { x: mx, y: d.y + EPS }
+    } else {
+      const my = d.y + d.length / 2
+      p1 = { x: d.x - EPS, y: my }
+      p2 = { x: d.x + EPS, y: my }
+    }
+    const a = roomAtPoint(p1.x, p1.y, plan.rooms)?.id
+    const b = roomAtPoint(p2.x, p2.y, plan.rooms)?.id
+    if (a && b && a !== b) edges.push({ a, b, w: d.length })
+    else if (a && !b) edges.push({ a, b: OUTSIDE, w: d.length })
+    else if (!a && b) edges.push({ a: b, b: OUTSIDE, w: d.length })
+    // both sides in the same room (or both outside) → not a connecting door
+  }
+  return edges
+}
+
+// Widest-path (maximin) from OUTSIDE: for each room, the largest doorway width
+// you're guaranteed on the *best* route in — i.e. maximise the route's minimum
+// door. Rooms unreachable from outside are absent from the map.
+function widestRouteFromOutside(edges: DoorEdge[]): Map<string, number> {
+  const adj = new Map<string, { to: string; w: number }[]>()
+  const link = (a: string, b: string, w: number) => {
+    if (!adj.has(a)) adj.set(a, [])
+    adj.get(a)!.push({ to: b, w })
+  }
+  for (const e of edges) {
+    link(e.a, e.b, e.w)
+    link(e.b, e.a, e.w)
+  }
+  const best = new Map<string, number>()
+  if (!adj.has(OUTSIDE)) return best
+  best.set(OUTSIDE, Infinity)
+  const visited = new Set<string>()
+  // Prim/Dijkstra-style: repeatedly settle the reachable node with the widest
+  // bottleneck, relaxing its neighbours by min(bottleneck-so-far, door width).
+  for (;;) {
+    let u: string | null = null
+    let uv = -Infinity
+    for (const [node, v] of best) if (!visited.has(node) && v > uv) ((uv = v), (u = node))
+    if (u === null) break
+    visited.add(u)
+    for (const { to, w } of adj.get(u) ?? []) {
+      const nd = Math.min(best.get(u)!, w)
+      if (nd > (best.get(to) ?? -Infinity)) best.set(to, nd)
+    }
+  }
+  best.delete(OUTSIDE)
+  return best
+}
+
+// Only rigid, carried-upright pieces where the footprint's narrow side is an
+// honest hard constraint. Excludes beds (mattresses tilt, frames knock down),
+// thin/deformable or small items, and anything that disassembles — checking
+// those would produce false "won't fit" alarms and erode trust in the feature.
+const MOVE_BULKY: ReadonlySet<string> = new Set(['sofa', 'diningTable', 'desk', 'dresser', 'wardrobe', 'bookshelf', 'fridge', 'bathtub'])
+
+export function moveInCheck(plan: Plan): MoveInIssue[] {
+  const edges = doorEdges(plan)
+  if (edges.length === 0) return [] // no doorways to reason about
+
+  const routeWidth = widestRouteFromOutside(edges)
+  // Fallback for rooms with no route from outside in our graph: a piece must
+  // still enter through one of that room's own doors, so the room's *widest*
+  // door is a valid necessary bound (best case it uses that one).
+  const roomWidestDoor = new Map<string, number>()
+  for (const e of edges) {
+    for (const node of [e.a, e.b]) {
+      if (node === OUTSIDE) continue
+      roomWidestDoor.set(node, Math.max(roomWidestDoor.get(node) ?? 0, e.w))
+    }
+  }
+
+  const issues: MoveInIssue[] = []
+  for (const f of plan.furniture) {
+    if (!MOVE_BULKY.has(furnitureType(f.type))) continue // only rigid bulky pieces
+    const room = plan.rooms.find((r) => inRoom(f.x + f.w / 2, f.y + f.h / 2, r))
+    if (!room) continue // not inside any room → nothing to route to
+    const doorway = routeWidth.get(room.id) ?? roomWidestDoor.get(room.id)
+    if (doorway == null || !Number.isFinite(doorway)) continue // can't assess this room
+    const cross = Math.min(f.w, f.h)
+    if (cross > doorway) issues.push({ id: f.id, name: f.name, cross, doorway, verdict: 'wont' })
+    else if (doorway - cross <= TIGHT_MARGIN) issues.push({ id: f.id, name: f.name, cross, doorway, verdict: 'tight' })
+  }
+  // Worst offenders first.
+  return issues.sort((a, b) => (a.verdict === b.verdict ? b.cross - b.doorway - (a.cross - a.doorway) : a.verdict === 'wont' ? -1 : 1))
 }
