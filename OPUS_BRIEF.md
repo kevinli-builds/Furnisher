@@ -185,3 +185,46 @@ a non-blocking, 3-tip coach sequence for first-time visitors.
 - Style with the earthy vars (`--panel`, `--accent`, `--ink`); keep it ~320px
   wide, `prefers-reduced-motion`-safe (no animation needed at all).
 - Mobile: same card, sits above the tab bar (respect safe-area inset).
+
+---
+
+## 6. Wave 2 — after the cold open (written 2026-07-04)
+
+_State at writing: templates/welcome chooser, Doorway Test v1 (D1), fit
+facts (D5), interactions extraction + tests, and the coach tips (section 5)
+are LIVE. Verify state before building._
+
+### W1 — Real-device mobile pass (still the outstanding gate)
+Unchanged from section 1: synthetic-touch testing + a physical checklist for
+the user. Everything else in this wave benefits from it landing first.
+
+### W2 — Doorway Test v2 (the differentiator, deepened)
+v1 checks cross-sections against openings. v2:
+- Rotation sweep ("piano mover") for the tight-corner case — pure geometry,
+  perfect for the tested `lib/` pattern.
+- Multi-floor: route through linked stairs (stairs carry width).
+- A "delivery path" overlay drawn on the canvas for a failing piece — seeing
+  the blocked corridor is the wow.
+
+### W3 — Remaining delights, in value order
+D2 sunlight time-lapse (sun.ts exists; animation plumbing) →
+D4 before/after slider (usePlanHistory snapshots + clip-path) →
+D3 robot-vacuum reachability (flood-fill; funny + useful) →
+housewarming poster (extends exportImage.ts).
+
+### W4 — Share loop
+Read-only `?view=<id>` viewer per section 1 P2 (no toolbars, fit-to-content,
+"open a copy" CTA). All loads through normalizePlan — the rule stands.
+
+### W5 — Listing-to-plan pipeline (far-reaching, tentative)
+Paste an apartment-listing URL → fetch floor-plan image → existing AI
+blueprint import builds the plan. CORS means the fetch needs a tiny proxy or
+"save image, drop it here" UX — start with drag-drop (no proxy, no new
+infra) and a "from a listing?" hint in ImportModal. Pairs with the
+apartment-hunt project idea in C:\Users\snoww\PROJECT_IDEAS.md.
+
+### Tentative / parked
+- AI layout suggestions ("arrange this for me") — cute, after share loop.
+- Print-at-scale paper cutouts (print furniture shapes at 1:24 to cut out
+  and push around a printed plan — delightfully analog, zero risk).
+- Affiliate links on catalog items — only if traffic ever warrants.
