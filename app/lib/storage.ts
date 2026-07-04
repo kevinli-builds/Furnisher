@@ -79,6 +79,17 @@ export function loadPlan(): Plan {
   }
 }
 
+// True on a brand-new visit — nothing saved yet. Drives the first-run chooser
+// (template gallery vs blank canvas vs AI import).
+export function hasSavedPlan(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    return !!window.localStorage.getItem(KEY)
+  } catch {
+    return false
+  }
+}
+
 export function savePlan(plan: Plan): void {
   if (typeof window === 'undefined') return
   try {

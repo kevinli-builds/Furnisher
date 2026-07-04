@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { Plan, Mode, Selection } from './lib/types'
-import { loadPlan, savePlan, defaultPlan } from './lib/storage'
+import { loadPlan, savePlan, defaultPlan, hasSavedPlan } from './lib/storage'
 import { usePlanHistory } from './lib/usePlanHistory'
 import { useCollab } from './lib/collab'
 import { uid, snap, SNAP } from './lib/geometry'
@@ -13,6 +13,7 @@ import InventoryPanel from './components/InventoryPanel'
 import SettingsPanel from './components/SettingsPanel'
 import AccountMenu from './components/AccountMenu'
 import ImportModal from './components/ImportModal'
+import WelcomeModal from './components/WelcomeModal'
 import ViewOptionsMenu from './components/ViewOptionsMenu'
 import StatsPanel from './components/StatsPanel'
 import { exportPng } from './lib/exportImage'
@@ -31,6 +32,7 @@ export default function Page() {
   const [settingsOpen, setSettingsOpen] = useState(false) // mobile: settings sheet opened via the gear
   const [isMobile, setIsMobile] = useState(false)
   const [resetSignal, setResetSignal] = useState(0) // bump → Canvas clears stuck multi-touch/drag state
+  const [showWelcome, setShowWelcome] = useState(false) // first-run template chooser (also reopenable)
 
   // Drop to Select and clear any stuck interaction state (the emergency hatch for
   // a touch gesture that left the canvas thinking fingers are still down).
@@ -44,9 +46,12 @@ export default function Page() {
   const { peers, onPointer } = useCollab(collabId, plan, applyRemote)
   const clipboard = useRef<Pick<Plan, 'rooms' | 'doors' | 'furniture' | 'markers' | 'stairs' | 'lights'> | null>(null)
 
-  // Load from localStorage after mount (avoids SSR/hydration mismatch).
+  // Load from localStorage after mount (avoids SSR/hydration mismatch). A
+  // brand-new visitor (nothing saved) meets the template chooser instead of a
+  // blank canvas — the P1 activation flow.
   useEffect(() => {
-    replace(loadPlan())
+    if (hasSavedPlan()) replace(loadPlan())
+    else setShowWelcome(true)
     setMounted(true)
   }, [replace])
 
@@ -352,6 +357,10 @@ export default function Page() {
             Reset
           </button>
 
+          <button className="seg-btn solo" onClick={() => setShowWelcome(true)} title="Open an example plan / template gallery">
+            ✨ Templates
+          </button>
+
           <button className={`seg-btn solo${showStats ? ' on' : ''}`} onClick={() => setShowStats((s) => !s)} title="Room areas & free floor space">
             📊 Stats
           </button>
@@ -505,6 +514,27 @@ export default function Page() {
       </nav>
 
       {importMode && <ImportModal mode={importMode} setPlan={setPlan} onClose={() => setImportMode(null)} />}
+
+      {showWelcome && (
+        <WelcomeModal
+          dismissable={hasSavedPlan()}
+          onPick={(p) => {
+            replace(p)
+            setSel([])
+            setShowWelcome(false)
+          }}
+          onBlank={() => {
+            replace(defaultPlan())
+            setSel([])
+            setShowWelcome(false)
+          }}
+          onImport={() => {
+            setShowWelcome(false)
+            setImportMode('blueprint')
+          }}
+          onClose={() => setShowWelcome(false)}
+        />
+      )}
     </div>
   )
 }
