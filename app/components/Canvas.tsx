@@ -85,6 +85,10 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
   // Selection as it was *before* the current press — lets a no-move click on a
   // stack of overlapping objects cycle to the next one underneath (see onUp).
   const prevSelRef = useRef<Selection>([])
+  // Last polygon-vertex press (id+idx+time) — used to detect a double-click /
+  // double-tap ourselves, since the SVG-level pointer capture steals the native
+  // dblclick from the vertex circle (and this also gives us touch double-tap).
+  const lastNodeTap = useRef<{ id: string; idx: number; t: number } | null>(null)
 
   const { viewMode, units } = plan
   const schematic = viewMode === 'schematic'
@@ -389,10 +393,29 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
 
   function onNodeDown(e: React.PointerEvent, id: string, idx: number) {
     e.stopPropagation()
+    if (e.button === 2) return // right-click is handled by onContextMenu → deleteNode
+    // Double-click / double-tap the same corner → remove it. Detected here (not
+    // via a native onDoubleClick) because capture() redirects the dblclick to the
+    // SVG root, so the vertex never sees it. Works for mouse and touch alike.
+    const now = e.timeStamp
+    const last = lastNodeTap.current
+    if (last && last.id === id && last.idx === idx && now - last.t < 350) {
+      lastNodeTap.current = null
+      removeNode(id, idx)
+      return
+    }
+    lastNodeTap.current = { id, idx, t: now }
     const p = toCm(e)
     drag.current = { kind: 'move-node', id, idx, sx: p.x, sy: p.y }
     setSel([{ type: 'room', id }])
     capture(e)
+  }
+
+  // Drop a polygon corner, keeping at least a triangle.
+  function removeNode(id: string, idx: number) {
+    const r = plan.rooms.find((r) => r.id === id)
+    if (!r?.points || r.points.length <= 3) return
+    setRoomPoints(id, r.points.filter((_, i) => i !== idx))
   }
 
   function insertNode(e: React.PointerEvent, id: string, edge: number) {
@@ -406,11 +429,11 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     setSel([{ type: 'room', id }])
   }
 
+  // Right-click (or the native dblclick, when it does land) on a corner → remove.
   function deleteNode(e: React.MouseEvent, id: string, idx: number) {
+    e.preventDefault()
     e.stopPropagation()
-    const r = plan.rooms.find((r) => r.id === id)
-    if (!r?.points || r.points.length <= 3) return
-    setRoomPoints(id, r.points.filter((_, i) => i !== idx))
+    removeNode(id, idx)
   }
 
   function onFurnDown(e: React.PointerEvent, id: string) {
@@ -1046,6 +1069,7 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
               showLabel={plan.roomLabels === 'always' || active || hoverRoom === r.id}
               above={spaceAbove(r)}
               units={units}
+              showEdgeLengths={!!plan.edgeLengths}
               showHandles={active && sel.length === 1}
               onEnter={setHoverRoom}
               onLeave={(id) => setHoverRoom((h) => (h === id ? null : h))}

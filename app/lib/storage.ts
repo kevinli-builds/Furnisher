@@ -40,6 +40,7 @@ export function normalizePlan(parsed: Partial<Plan> | null | undefined): Plan {
     roomLabels: parsed.roomLabels === 'always' ? 'always' : 'hover',
     furnitureLabels: parsed.furnitureLabels === 'hover' ? 'hover' : 'always',
     showGrid: parsed.showGrid !== false,
+    edgeLengths: parsed.edgeLengths === true,
     lighting: parsed.lighting === true,
     northDeg: typeof parsed.northDeg === 'number' ? parsed.northDeg : 0,
     sunTime: typeof parsed.sunTime === 'number' ? parsed.sunTime : 12,

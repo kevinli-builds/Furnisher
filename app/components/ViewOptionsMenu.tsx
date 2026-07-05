@@ -73,6 +73,14 @@ export default function ViewOptionsMenu({ plan, setPlan, onShowTips }: Props) {
               Hide
             </Seg>
           </Row>
+          <Row label="Edge lengths">
+            <Seg on={!!plan.edgeLengths} onClick={() => set({ edgeLengths: true })}>
+              Show
+            </Seg>
+            <Seg on={!plan.edgeLengths} onClick={() => set({ edgeLengths: false })}>
+              Hide
+            </Seg>
+          </Row>
           <Row label="Auto-snap (all)">
             <Seg on={!!plan.snapAll} onClick={() => set({ snapAll: true })}>
               On

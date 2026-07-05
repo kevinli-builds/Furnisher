@@ -155,6 +155,7 @@ export interface Plan {
   roomLabels: RoomLabels
   furnitureLabels?: RoomLabels // 'always' | 'hover' (default always)
   showGrid: boolean
+  edgeLengths?: boolean // label every wall of a non-rectangular room with its length
   lighting?: boolean // sun/light overlay on/off
   northDeg?: number // compass direction the top of the plan faces (0 = north up)
   sunTime?: number // hour of day for the sun sim (0–24)
