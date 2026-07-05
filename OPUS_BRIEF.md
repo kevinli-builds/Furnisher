@@ -228,3 +228,42 @@ apartment-hunt project idea in C:\Users\snoww\PROJECT_IDEAS.md.
 - Print-at-scale paper cutouts (print furniture shapes at 1:24 to cut out
   and push around a printed plan — delightfully analog, zero risk).
 - Affiliate links on catalog items — only if traffic ever warrants.
+
+---
+
+## 7. Fable design notes — Doorway Test v2 (algorithm, 2026-07-04)
+
+_Design guidance for W2 so the implementing session does not reach for a
+closed-form corner formula that does not exist for our general case._
+
+**Recommendation: numeric configuration-space search, not geometry-paper
+math.** Rooms are axis-aligned but compositions (corner turns via two
+openings, mid-corridor radiators/markers) defeat closed forms. We already
+own exact collision machinery — use it.
+
+- **State space:** poses `(x, y, θ)` of the piece rectangle. Grid: 5 cm
+  translation, 15° rotation (12 headings; symmetry halves it for
+  rectangles). Restrict the region to the rooms on the v1 path (v1 already
+  computes room-to-room paths) plus a 1-piece-length margin around each
+  opening.
+- **Search:** BFS/A* from the entry-door pose set to any pose overlapping
+  the target position; neighbors = ±1 grid step in x/y/θ. Feasibility test
+  per pose = piece rect (rotated) fully inside the room union, minus wall
+  segments, with openings treated as gaps of their true width — reuse the
+  collision predicates from `lib/interactions.ts` / `warnings.ts`.
+- **Cost control:** run v2 ONLY when v1 returns "might be tight"
+  (cross-section fits every opening but a corner is involved). Typical
+  region ≈ 2 rooms ≈ 30 m² → ~12k cells × 12 headings = ~150k states,
+  trivially fast in a worker or chunked loop. Cap states; on cap, report
+  "too tight to verify" honestly.
+- **Output for W2's overlay:** the found path (decimated pose list) →
+  polyline for the "delivery path" rendering; on failure, the frontier's
+  best-progress pose marks the bottleneck — draw the blocked opening in
+  the warning copy ("stuck at the bathroom door").
+- **Pure lib first:** `lib/moveIn.ts` with fixture tests BEFORE any UI:
+  (a) straight corridor pass/fail at exact widths; (b) the classic
+  L-corner case where the cross-section fits both corridors but the turn
+  fails; (c) rotation-required doorway (piece longer than corridor is
+  wide, fits only diagonally). These three fixtures pin the semantics.
+- **Multi-floor:** treat linked stairs as an opening of the stair width
+  connecting the two poses; do not path across floors in v2 beyond that.
