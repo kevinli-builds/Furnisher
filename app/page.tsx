@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Plan, Mode, Selection } from './lib/types'
 import { loadPlan, savePlan, defaultPlan, hasSavedPlan } from './lib/storage'
+import { emptyLibrary, loadLibrary, saveLibrary, fetchCloudLibrary, pushCloudLibrary, mergeLibraries, type Library } from './lib/library'
+import { useAuth } from './lib/auth'
 import { usePlanHistory } from './lib/usePlanHistory'
 import { useCollab } from './lib/collab'
 import { uid, snap, SNAP } from './lib/geometry'
@@ -17,14 +19,18 @@ import WelcomeModal from './components/WelcomeModal'
 import IntroTips from './components/IntroTips'
 import ViewOptionsMenu from './components/ViewOptionsMenu'
 import StatsPanel from './components/StatsPanel'
+import TrackerView from './components/TrackerView'
 import { exportPng } from './lib/exportImage'
 import { printPlan } from './lib/print'
 
 export default function Page() {
   const { plan, setPlan, applyRemote, undo, redo, replace, canUndo, canRedo } = usePlanHistory(defaultPlan())
   const [mode, setMode] = useState<Mode>('select')
+  const [view, setView] = useState<'planner' | 'tracker'>('planner') // top-level tab
   const [sel, setSel] = useState<Selection>([])
   const [mounted, setMounted] = useState(false)
+  const [library, setLibrary] = useState<Library>(emptyLibrary()) // personal furniture library (cross-plan)
+  const { user } = useAuth()
   const [importMode, setImportMode] = useState<'blueprint' | 'furniture' | null>(null)
   const [showStats, setShowStats] = useState(false)
   const [invOpen, setInvOpen] = useState(false) // mobile inventory bottom-sheet
@@ -95,9 +101,49 @@ export default function Page() {
     if (mounted) savePlan(plan)
   }, [plan, mounted])
 
+  // Load the personal furniture library. First run (no library saved yet) seeds
+  // it from the current plan's inventory so existing users keep their pieces.
+  useEffect(() => {
+    const saved = loadLibrary()
+    if (saved) {
+      setLibrary(saved)
+    } else {
+      const inv = loadPlan().inventory
+      setLibrary({ furniture: inv.furniture, groups: inv.groups ?? ['General'] })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Persist the library locally on every change (independent of the open plan).
+  useEffect(() => {
+    if (mounted) saveLibrary(library)
+  }, [library, mounted])
+
+  // When signed in: pull the cloud copy once and merge it into the local library…
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    fetchCloudLibrary().then((cloud) => {
+      if (!cancelled && cloud) setLibrary((local) => mergeLibraries(local, cloud))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [user])
+
+  // …and push local changes back up (debounced), so the library follows devices.
+  useEffect(() => {
+    if (!user || !mounted) return
+    const t = setTimeout(() => {
+      pushCloudLibrary(library)
+    }, 1200)
+    return () => clearTimeout(t)
+  }, [library, user, mounted])
+
   // Keyboard: undo/redo + delete the selection.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      if (view !== 'planner') return // tracker view manages its own inputs
       const t = e.target as HTMLElement | null
       const typing =
         !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)
@@ -222,7 +268,7 @@ export default function Page() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [sel, plan, undo, redo, setPlan])
+  }, [sel, plan, undo, redo, setPlan, view])
 
   // Centre of existing content (fallback to plan centre) — for click-to-place.
   function contentCenter() {
@@ -329,9 +375,18 @@ export default function Page() {
           <span className="tag">Plan your space before you move in</span>
         </div>
 
+        <div className="seg view-switch">
+          <button className={`seg-btn${view === 'planner' ? ' on' : ''}`} onClick={() => setView('planner')} title="Apartment planner">
+            🛋 Planner
+          </button>
+          <button className={`seg-btn${view === 'tracker' ? ' on' : ''}`} onClick={() => setView('tracker')} title="Track movies, restaurants, lists…">
+            📋 Tracker
+          </button>
+        </div>
+
         <div className="tools">
-          {/* Desktop: full set of tool buttons */}
-          <div className="seg desktop-only">
+          {/* Desktop: full set of tool buttons (planner only) */}
+          <div className={`seg desktop-only${view === 'tracker' ? ' hidden' : ''}`}>
             <button className={`seg-btn${mode === 'select' ? ' on' : ''}`} onClick={goSelect}>
               ↖ Select
             </button>
@@ -367,6 +422,8 @@ export default function Page() {
             </button>
           </div>
 
+          {view === 'planner' && (
+          <>
           <button
             className="seg-btn solo"
             onClick={() => {
@@ -408,6 +465,8 @@ export default function Page() {
           >
             🖨 PDF
           </button>
+          </>
+          )}
 
           {peers.length > 0 && (
             <div className="presence" title={`${peers.length} collaborator${peers.length === 1 ? '' : 's'} online`}>
@@ -431,6 +490,10 @@ export default function Page() {
         </div>
       </header>
 
+      {view === 'tracker' ? (
+        <TrackerView plan={plan} setPlan={setPlan} />
+      ) : (
+      <>
       <main className="workspace">
         {(invOpen || addOpen) && <div className="sheet-backdrop" onClick={() => { setInvOpen(false); setAddOpen(false) }} />}
 
@@ -461,6 +524,8 @@ export default function Page() {
             key={!isMobile || invMode === 'add' ? 'inv-add' : 'inv-browse'}
             plan={plan}
             setPlan={setPlan}
+            library={library}
+            setLibrary={setLibrary}
             onPlaceFurniture={placeFurnitureTemplate}
             onPlaceRoom={placeRoomTemplate}
             onPlaceMarker={placeMarkerTemplate}
@@ -572,6 +637,8 @@ export default function Page() {
       )}
 
       {showTips && !showWelcome && !importMode && <IntroTips onClose={dismissTips} />}
+      </>
+      )}
     </div>
   )
 }

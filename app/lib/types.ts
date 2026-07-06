@@ -120,6 +120,29 @@ export interface Light {
   kelvin?: number // colour temperature (2700 warm … 6500 cool); unset = warm default
 }
 
+// ── Tracker ──────────────────────────────────────────────────────
+// A lightweight table for logging life things (movies watched, restaurants,
+// favourite celebrities…). Columns are user-editable so one shape covers both
+// dated logs and static lists. Values are plain strings rendered as escaped
+// React text — no colour/CSS/url sinks, so no sanitize wiring is needed.
+export type TrackerColumnType = 'text' | 'date' | 'number'
+export interface TrackerColumn {
+  id: string
+  name: string
+  type: TrackerColumnType
+}
+export interface TrackerEntry {
+  id: string
+  values: Record<string, string> // columnId -> value
+}
+export interface Tracker {
+  id: string
+  name: string
+  icon?: string // emoji shown in the rail
+  columns: TrackerColumn[]
+  entries: TrackerEntry[]
+}
+
 export type StairRole = 'entry' | 'exit'
 
 // Stairs come as an entry+exit pair sharing a `link`; a dashed line is drawn
@@ -195,6 +218,7 @@ export interface Plan {
   markers: Marker[]
   stairs: Stair[]
   lights: Light[]
+  trackers: Tracker[]
 }
 
 export interface SelItem {

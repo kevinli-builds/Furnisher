@@ -9,3 +9,5 @@ dist
 .vercel
 .claude
 next-env.d.ts
+
+.vercel

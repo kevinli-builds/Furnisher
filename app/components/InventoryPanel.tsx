@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import type { Plan, FurnTemplate, RoomTemplate, MarkerTemplate, MarkerStyle } from '../lib/types'
+import type { Library } from '../lib/library'
+import { supabaseEnabled } from '../lib/supabase'
 import { uid, snap } from '../lib/geometry'
 import { inputUnit, toCm, fromCm, formatSize } from '../lib/units'
 import { SWATCHES } from '../lib/palette'
@@ -11,6 +13,10 @@ import { CATALOG, type CatalogItem } from '../lib/catalog'
 interface Props {
   plan: Plan
   setPlan: React.Dispatch<React.SetStateAction<Plan>>
+  // The user's personal furniture library (persists across every plan) — furniture
+  // templates + groups live here, not on the plan. Rooms/markers stay plan-scoped.
+  library: Library
+  setLibrary: React.Dispatch<React.SetStateAction<Library>>
   onPlaceFurniture: (t: FurnTemplate) => void
   onPlaceRoom: (t: RoomTemplate) => void
   onPlaceMarker: (t: MarkerTemplate) => void
@@ -18,12 +24,12 @@ interface Props {
   showAdd?: boolean // false = browse-only (mobile Inventory tab); adding lives behind the Add button
 }
 
-export default function InventoryPanel({ plan, setPlan, onPlaceFurniture, onPlaceRoom, onPlaceMarker, onImport, showAdd = true }: Props) {
+export default function InventoryPanel({ plan, setPlan, library, setLibrary, onPlaceFurniture, onPlaceRoom, onPlaceMarker, onImport, showAdd = true }: Props) {
   const { units } = plan
   const u = inputUnit(units)
   const [tab, setTab] = useState<'furniture' | 'rooms' | 'markers'>('furniture')
 
-  const groups = plan.inventory.groups?.length ? plan.inventory.groups : ['General']
+  const groups = library.groups?.length ? library.groups : ['General']
   const effGroup = (g?: string) => (g && groups.includes(g) ? g : groups[0])
 
   // ── Furniture template form ───────────────────────────────────
@@ -52,18 +58,18 @@ export default function InventoryPanel({ plan, setPlan, onPlaceFurniture, onPlac
     if (w < 10 || h < 10) return
     const priceN = parseFloat(fprice)
     const t: FurnTemplate = { id: uid(), name: fname.trim() || FURNITURE_META[ftype].label, type: ftype, w, h, color: fcolor, group: effGroup(fgroup), shape: fround ? 'round' : undefined, price: Number.isFinite(priceN) && priceN > 0 ? priceN : undefined }
-    setPlan((p) => ({ ...p, inventory: { ...p.inventory, furniture: [...p.inventory.furniture, t] } }))
+    setLibrary((l) => ({ ...l, furniture: [...l.furniture, t] }))
   }
 
   function addGroup() {
     const name = (window.prompt('New group name (e.g. Kitchen):') || '').trim()
     if (!name || groups.includes(name)) return
-    setPlan((p) => ({ ...p, inventory: { ...p.inventory, groups: [...groups, name] } }))
+    setLibrary((l) => ({ ...l, groups: [...groups, name] }))
     setFgroup(name)
   }
 
   function reassignGroup(id: string, group: string) {
-    setPlan((p) => ({ ...p, inventory: { ...p.inventory, furniture: p.inventory.furniture.map((t) => (t.id === id ? { ...t, group } : t)) } }))
+    setLibrary((l) => ({ ...l, furniture: l.furniture.map((t) => (t.id === id ? { ...t, group } : t)) }))
   }
 
   // ── Room template form ────────────────────────────────────────
@@ -93,8 +99,12 @@ export default function InventoryPanel({ plan, setPlan, onPlaceFurniture, onPlac
     setPlan((p) => ({ ...p, inventory: { ...p.inventory, markers: [...p.inventory.markers, t] } }))
   }
 
-  function removeFrom(key: 'furniture' | 'rooms' | 'markers', id: string) {
+  function removeFrom(key: 'rooms' | 'markers', id: string) {
     setPlan((p) => ({ ...p, inventory: { ...p.inventory, [key]: p.inventory[key].filter((t) => t.id !== id) } }))
+  }
+
+  function removeFurn(id: string) {
+    setLibrary((l) => ({ ...l, furniture: l.furniture.filter((t) => t.id !== id) }))
   }
 
   function dragStart(e: React.DragEvent, kind: 'furniture' | 'room' | 'marker', template: object) {
@@ -118,7 +128,7 @@ export default function InventoryPanel({ plan, setPlan, onPlaceFurniture, onPlac
         <span className="dot" style={{ background: t.color }} />
         <span className="item-name">{t.name}</span>
         <span className="item-size">{formatSize(t.w, t.h, units)}</span>
-        <button className="proj-act danger" onClick={(e) => { e.stopPropagation(); removeFrom('furniture', t.id) }} title="Remove">
+        <button className="proj-act danger" onClick={(e) => { e.stopPropagation(); removeFurn(t.id) }} title="Remove">
           ✕
         </button>
       </div>
@@ -208,13 +218,14 @@ export default function InventoryPanel({ plan, setPlan, onPlaceFurniture, onPlac
               </button>
             )}
           </div>
+          {showAdd && library.furniture.length > 0 && <p className="inv-hint subtle">🗄 Your furniture library — kept across every plan{supabaseEnabled ? ' and synced to your account when signed in' : ''}.</p>}
 
           <div className="list">
-            {plan.inventory.furniture.length === 0 && <p className="empty sm">No saved furniture yet.</p>}
+            {library.furniture.length === 0 && <p className="empty sm">No saved furniture yet.</p>}
             {groups.length <= 1
-              ? plan.inventory.furniture.map(furnCard)
+              ? library.furniture.map(furnCard)
               : groups.map((g) => {
-                  const items = plan.inventory.furniture.filter((t) => effGroup(t.group) === g)
+                  const items = library.furniture.filter((t) => effGroup(t.group) === g)
                   return (
                     <div
                       key={g}
