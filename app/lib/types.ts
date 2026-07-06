@@ -73,6 +73,26 @@ export interface Furniture {
 // Footprint outline of a piece. Absent = rectangular.
 export type FurnShape = 'rect' | 'round'
 
+// Where a box's text label sits and how it reads.
+//   pos    — which edge/position of the box the label anchors to
+//   inside — for an edge position, sit inside the box vs. just outside it
+//   align  — horizontal text alignment (top/bottom/center/custom); edge sides
+//            (left/right) derive their anchor from inside/outside instead
+//   wrap   — wrap long text to the box width vs. one line
+//   dx/dy  — offset from the box's top-left (cm) when pos === 'custom'
+//   hide   — don't render the label at all
+export type LabelPos = 'top' | 'bottom' | 'left' | 'right' | 'center' | 'custom'
+export type LabelAlign = 'left' | 'center' | 'right'
+export interface LabelConfig {
+  hide?: boolean
+  wrap?: boolean
+  pos?: LabelPos
+  inside?: boolean
+  align?: LabelAlign
+  dx?: number
+  dy?: number
+}
+
 // A labelled box drawn behind everything — e.g. to frame a floor (frame) or to
 // indicate a closet (closet = diagonal-hatched shading).
 export type MarkerStyle = 'frame' | 'shaded' | 'closet'
@@ -85,6 +105,7 @@ export interface Marker {
   w: number
   h: number
   snap?: boolean // auto-snap to walls / other objects when dragged
+  label?: LabelConfig // text-label placement / wrapping (default: top-left, inside)
 }
 
 // A ceiling / roof light: a point fixture that takes no floor space but emits a

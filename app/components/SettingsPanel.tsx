@@ -1,6 +1,6 @@
 'use client'
 
-import type { Plan, Selection, SelItem, Rotation } from '../lib/types'
+import type { Plan, Selection, SelItem, Rotation, LabelConfig, LabelPos, LabelAlign } from '../lib/types'
 import { snap } from '../lib/geometry'
 import { inputUnit, toCm, fromCm, formatLength } from '../lib/units'
 import { SWATCHES } from '../lib/palette'
@@ -43,6 +43,10 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
   function patchMarker(patch: Partial<NonNullable<typeof marker>>) {
     setPlan((p) => ({ ...p, markers: p.markers.map((m) => (m.id === sel.id ? { ...m, ...patch } : m)) }))
   }
+  // Merge a partial LabelConfig onto the selected marker's label.
+  function patchLabel(patch: Partial<LabelConfig>) {
+    setPlan((p) => ({ ...p, markers: p.markers.map((m) => (m.id === sel.id ? { ...m, label: { ...m.label, ...patch } } : m)) }))
+  }
   function patchStair(patch: Partial<NonNullable<typeof stair>>) {
     setPlan((p) => ({ ...p, stairs: p.stairs.map((s) => (s.id === sel.id ? { ...s, ...patch } : s)) }))
   }
@@ -66,10 +70,13 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
     setSel([])
   }
 
-  // size input → snapped cm (with a sensible floor)
+  // size input → snapped cm. A blank/invalid entry keeps the current size; any
+  // real positive value is clamped UP to the floor (never silently reverted, so
+  // the box always visibly responds — even to small numbers).
   const sizeCm = (v: string, fallback: number, min: number) => {
-    const cm = snap(toCm(parseFloat(v) || 0, units))
-    return cm < min ? fallback : cm
+    const n = parseFloat(v)
+    if (!Number.isFinite(n) || n <= 0) return fallback
+    return Math.max(snap(toCm(n, units)), min)
   }
 
   const openingLabel = door ? (door.type === 'window' ? 'Window' : door.type === 'sliding' ? 'Sliding door' : 'Door') : ''
@@ -113,7 +120,7 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
                     room
                       ? patchRoom({ w: sizeCm(e.target.value, room.w, 50) })
                       : marker
-                        ? patchMarker({ w: sizeCm(e.target.value, marker.w, 50) })
+                        ? patchMarker({ w: sizeCm(e.target.value, marker.w, 10) })
                         : stair
                           ? patchStair({ w: sizeCm(e.target.value, stair.w, 30) })
                           : patchFurn({ w: sizeCm(e.target.value, furn!.w, 10) })
@@ -130,7 +137,7 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
                     room
                       ? patchRoom({ h: sizeCm(e.target.value, room.h, 50) })
                       : marker
-                        ? patchMarker({ h: sizeCm(e.target.value, marker.h, 50) })
+                        ? patchMarker({ h: sizeCm(e.target.value, marker.h, 10) })
                         : stair
                           ? patchStair({ h: sizeCm(e.target.value, stair.h, 30) })
                           : patchFurn({ h: sizeCm(e.target.value, furn!.h, 10) })
@@ -511,6 +518,97 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
             </div>
           </section>
         )}
+
+        {/* Text label — placement / alignment / wrap / hide (markers) */}
+        {marker && (() => {
+          const L = marker.label ?? {}
+          const pos: LabelPos = L.pos ?? 'top'
+          const align: LabelAlign = L.align ?? 'left'
+          const isEdge = pos === 'top' || pos === 'bottom' || pos === 'left' || pos === 'right'
+          const POSITIONS: { key: LabelPos; label: string }[] = [
+            { key: 'top', label: 'Top' },
+            { key: 'bottom', label: 'Bottom' },
+            { key: 'left', label: 'Left' },
+            { key: 'right', label: 'Right' },
+            { key: 'center', label: 'Center' },
+            { key: 'custom', label: 'Custom' },
+          ]
+          return (
+            <section className="sect">
+              <label className="sect-label">Text label</label>
+              <div className="seg full">
+                <button className={`seg-btn${!L.hide ? ' on' : ''}`} onClick={() => patchLabel({ hide: false })}>
+                  Show
+                </button>
+                <button className={`seg-btn${L.hide ? ' on' : ''}`} onClick={() => patchLabel({ hide: true })}>
+                  Hide
+                </button>
+              </div>
+              {!L.hide && (
+                <>
+                  <label className="sect-label" style={{ marginTop: 10 }}>
+                    Placement
+                  </label>
+                  <div className="label-grid">
+                    {POSITIONS.map((p) => (
+                      <button key={p.key} className={`seg-btn${pos === p.key ? ' on' : ''}`} onClick={() => patchLabel({ pos: p.key })}>
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                  {pos === 'custom' ? (
+                    <p className="sect-note">Drag the label on the plan to place it anywhere.</p>
+                  ) : (
+                    isEdge && (
+                      <>
+                        <label className="sect-label" style={{ marginTop: 10 }}>
+                          Side
+                        </label>
+                        <div className="seg full">
+                          <button className={`seg-btn${(L.inside ?? true) ? ' on' : ''}`} onClick={() => patchLabel({ inside: true })}>
+                            Inside
+                          </button>
+                          <button className={`seg-btn${!(L.inside ?? true) ? ' on' : ''}`} onClick={() => patchLabel({ inside: false })}>
+                            Outside
+                          </button>
+                        </div>
+                      </>
+                    )
+                  )}
+                  {pos !== 'left' && pos !== 'right' && (
+                    <>
+                      <label className="sect-label" style={{ marginTop: 10 }}>
+                        Alignment
+                      </label>
+                      <div className="seg full">
+                        <button className={`seg-btn${align === 'left' ? ' on' : ''}`} onClick={() => patchLabel({ align: 'left' })}>
+                          Left
+                        </button>
+                        <button className={`seg-btn${align === 'center' ? ' on' : ''}`} onClick={() => patchLabel({ align: 'center' })}>
+                          Middle
+                        </button>
+                        <button className={`seg-btn${align === 'right' ? ' on' : ''}`} onClick={() => patchLabel({ align: 'right' })}>
+                          Right
+                        </button>
+                      </div>
+                    </>
+                  )}
+                  <label className="sect-label" style={{ marginTop: 10 }}>
+                    Text wrap
+                  </label>
+                  <div className="seg full">
+                    <button className={`seg-btn${L.wrap ? ' on' : ''}`} onClick={() => patchLabel({ wrap: true })}>
+                      Wrap
+                    </button>
+                    <button className={`seg-btn${!L.wrap ? ' on' : ''}`} onClick={() => patchLabel({ wrap: false })}>
+                      No wrap
+                    </button>
+                  </div>
+                </>
+              )}
+            </section>
+          )
+        })()}
 
         {light && (
           <>

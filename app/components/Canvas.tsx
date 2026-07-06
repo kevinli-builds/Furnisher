@@ -16,6 +16,7 @@ import CeilingLight from './CeilingLight'
 import Handles from './Handles'
 import FurniturePiece from './FurniturePiece'
 import RoomShape from './RoomShape'
+import BoxLabel from './BoxLabel'
 import Stairs from './Stairs'
 import LightingLayer from './LightingLayer'
 import PeerCursors from './PeerCursors'
@@ -47,6 +48,7 @@ type Drag =
   | { kind: 'move-room'; id: string; sx: number; sy: number; ox: number; oy: number; pts?: Pt[]; moved?: boolean }
   | { kind: 'resize'; otype: 'room' | 'furniture' | 'marker' | 'stair'; id: string; hx: number; hy: number; sx: number; sy: number; ox: number; oy: number; ow: number; oh: number; rot: number }
   | { kind: 'move-node'; id: string; idx: number; sx: number; sy: number }
+  | { kind: 'move-label'; id: string; sx: number; sy: number; odx: number; ody: number }
   | { kind: 'move-furniture' | 'move-door' | 'move-marker' | 'move-stair' | 'move-light'; id: string; sx: number; sy: number; ox: number; oy: number; moved?: boolean }
   | { kind: 'resize-door'; id: string; orient: 'h' | 'v'; fixed: number }
   | { kind: 'rotate'; otype: 'furniture' | 'stair'; id: string; cx: number; cy: number }
@@ -475,6 +477,17 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     })
   }
 
+  // Drag a marker's label (only offered when its placement is 'custom').
+  function onLabelDown(e: React.PointerEvent, id: string) {
+    e.stopPropagation()
+    const m = plan.markers.find((m) => m.id === id)
+    if (!m) return
+    const p = toCm(e)
+    drag.current = { kind: 'move-label', id, sx: p.x, sy: p.y, odx: m.label?.dx ?? 0, ody: m.label?.dy ?? 0 }
+    setSel([{ type: 'marker', id }])
+    capture(e)
+  }
+
   function onStairDown(e: React.PointerEvent, id: string) {
     onObjDown(e, { type: 'stair', id }, () => {
       const st = plan.stairs.find((s) => s.id === id)!
@@ -765,6 +778,11 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
           return { ...r, points: np, ...bboxOf(np) }
         }),
       }))
+    } else if (d.kind === 'move-label') {
+      setPlan((pl) => ({
+        ...pl,
+        markers: pl.markers.map((m) => (m.id === d.id ? { ...m, label: { ...m.label, pos: 'custom', dx: snap(d.odx + dx), dy: snap(d.ody + dy) } } : m)),
+      }))
     } else if (d.kind === 'resize') {
       const nb = resizeRect(d.ox, d.oy, d.ow, d.oh, d.rot, d.hx, d.hy, p.x, p.y, d.otype === 'furniture' ? 10 : 30, e.shiftKey)
       setPlan((pl) => {
@@ -1050,9 +1068,15 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
                 style={{ cursor: 'move' }}
                 onPointerDown={(e) => onMarkerDown(e, m.id)}
               />
-              <text x={m.x + 12} y={m.y + 22} fontSize={style === 'frame' ? 18 : 14} fill="#b3a488" fontWeight={700} pointerEvents="none">
-                {m.name}
-              </text>
+              <BoxLabel
+                box={{ x: m.x, y: m.y, w: m.w, h: m.h }}
+                text={m.name}
+                cfg={m.label}
+                fontSize={style === 'frame' ? 18 : 14}
+                color="#b3a488"
+                fontWeight={700}
+                onLabelDown={active && sel.length === 1 && m.label?.pos === 'custom' ? (e) => onLabelDown(e, m.id) : undefined}
+              />
               {active && sel.length === 1 && <Handles otype="marker" id={m.id} x={m.x} y={m.y} w={m.w} h={m.h} scale={scale} compact={compactHandles} onResizeStart={onResizeStart} />}
             </g>
           )
