@@ -5,7 +5,6 @@ import type { Plan } from './types'
 import { supabase } from './supabase'
 import { useAuth } from './auth'
 import { safeColorField } from './sanitize'
-import { normalizeTrackers } from './tracker'
 
 // ── Operation model ───────────────────────────────────────────
 // Live edits are broadcast as small per-object ops (not the whole plan), so two
@@ -27,7 +26,6 @@ const META_KEYS: (keyof Plan)[] = [
   'width',
   'height',
   'inventory',
-  'trackers',
 ]
 
 type Entity = { id: string }
@@ -84,8 +82,6 @@ export function sanitizeOps(raw: unknown): Op[] {
       for (const k of META_KEYS) {
         if (k in (op.fields as object)) (clean as Record<string, unknown>)[k] = (op.fields as Record<string, unknown>)[k]
       }
-      // Trackers arrive from a semi-trusted peer — coerce to a valid shape.
-      if ('trackers' in clean) clean.trackers = normalizeTrackers(clean.trackers)
       out.push({ t: 'meta', fields: clean })
     }
   }

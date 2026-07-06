@@ -1,6 +1,5 @@
 import type { Plan } from './types'
 import { safeColorField } from './sanitize'
-import { normalizeTrackers } from './tracker'
 
 const KEY = 'furnisher.plan.v1'
 
@@ -25,7 +24,6 @@ export function defaultPlan(): Plan {
     markers: [],
     stairs: [],
     lights: [],
-    trackers: [],
     inventory: { furniture: [], rooms: [], markers: [], groups: ['General'] },
   }
 }
@@ -62,7 +60,6 @@ export function normalizePlan(parsed: Partial<Plan> | null | undefined): Plan {
     markers: parsed.markers ?? [],
     stairs: parsed.stairs ?? [],
     lights: parsed.lights ?? [],
-    trackers: normalizeTrackers(parsed.trackers),
     inventory: {
       furniture: (parsed.inventory?.furniture ?? []).map(safeColorField),
       rooms: parsed.inventory?.rooms ?? [],
