@@ -287,3 +287,67 @@ pinch-zoom vs two-finger pan discrimination, long-press timing feel, the
 gear/trash-near-right-edge case from CLAUDE.md, and export/print from
 mobile Safari. That checklist is unchanged — but the chrome layer above it
 can come off the list.
+
+---
+
+## 9. Depth roadmap — serving the current user (2026-07-05)
+
+_Direction change from the user: depth for existing users over reach. For
+Furnisher that means **insight layers** over the plan they already built.
+The plan model knows real geometry, types, prices, sun, lights, stairs —
+almost none of that knowledge is currently reflected back as insight._
+
+### First: build the layer spine (architecture, do before any layer)
+A `lib/layers/` registry: each layer = `{ id, label, compute(plan): {
+overlays, panelRows, warnings } }` where compute is PURE (testable) and
+overlays are simple primitives (polygon/heat-cell/path/badge) rendered by
+one generic `InsightLayer` SVG component. Display menu grows a "Layers"
+section listing the registry. Canvas stays dumb. Every layer below is then
+a self-contained ~day of work.
+
+### L1 — Functional clearance zones (S) ⭐
+Beyond collision: per-type ergonomic aprons — bed sides 60cm, desk chair
+pushback 75cm, dining seats 60cm, wardrobe/appliance door-swing arcs
+(doors already have swing geometry as precedent). Tinted aprons on the
+canvas; violations listed with the standard cited. A data table
+(`lib/layers/clearanceStandards.ts`) drives it — easy to extend.
+
+### L2 — Flow & desire paths (M) ⭐
+Walkability graph over free floor (reuse Doorway-Test grid machinery §7):
+compute daily routes (bed→bathroom, entry→kitchen, sofa→fridge), show them
+as worn-path lines with lengths; highlight pinch points under 70cm. "Your
+morning route squeezes past the dining table" is the layer version of the
+Doorway Test insight.
+
+### L3 — Sun-hours heatmap + seasons (M)
+sun.ts already models position; accumulate per-floor-cell direct-light
+minutes across a day → heatmap ("the plant map"), with solstice/equinox
+presets. Pairs with §4 D2 time-lapse; glare-on-TV warning falls out free
+(sun vector vs TV facing).
+
+### L4 — Budget & move-day layer (S)
+Furniture has `price`: bill of materials per room, owned-vs-planned flag
+per piece ("still to buy: $1,840"), total cubic volume → truck-size
+estimate ("fits a 10ft box truck"). CSV export. Zero new geometry.
+
+### L5 — Sightlines & privacy (M)
+Ray-casts from entry door and windows: what is visible (bed/toilet visible
+from the front door is a real apartment-hunting criterion); TV viewing
+distance/angle check from seating (screen size on the TV piece).
+
+### L6 — Accessibility layer (M, high-heart)
+Wheelchair mode: 150cm turning circles in key rooms, 81cm door minimums,
+step-free path verification (stairs flagged). Reuses L2 grid. For anyone
+planning for a parent or friend, this is the most caring feature the app
+could ship.
+
+### L7 — Electrical/outlet layer (S, tentative)
+Outlet markers + "needs power" flag on pieces; nearest-outlet distance per
+device, extension-run warnings. Simple, weirdly useful; marker type exists.
+
+### L8 — Layout diff/ghost (S)
+Overlay a second saved plan at 40% opacity ("plan B ghost") with moved
+pieces arrowed. The analytical sibling of §4 D4's slider.
+
+### Explicitly not: acoustics simulation, HVAC/airflow — physics theater
+without trustworthy inputs. Keep layers honest or skip them.
