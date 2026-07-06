@@ -267,3 +267,23 @@ own exact collision machinery — use it.
   wide, fits only diagonally). These three fixtures pin the semantics.
 - **Multi-floor:** treat linked stairs as an opening of the stair width
   connecting the two poses; do not path across floors in v2 beyond that.
+
+---
+
+## 8. Mobile & web experience scan (measured 2026-07-05, 375x812 viewport)
+
+_Live-tested — NOTE: the preview harness here CAN apply the max-width:760px
+media query (window.innerWidth reports 375), so much of section 1's
+"real-device pass" chrome portion is now pre-verified:_
+
+**Verified good on mobile:** welcome/template chooser fits (335x715, cards
+227px tall and comfortably tappable); coach tips card clears the tab bar
+(bottom 736 vs bar top 756); mobile tab bar buttons 121x47; Add sheet is
+full-width with 75px grid buttons; no horizontal overflow; topbar collapses
+correctly (desktop tool segment hidden).
+
+**Still needs a physical device** (the part a browser cannot prove):
+pinch-zoom vs two-finger pan discrimination, long-press timing feel, the
+gear/trash-near-right-edge case from CLAUDE.md, and export/print from
+mobile Safari. That checklist is unchanged — but the chrome layer above it
+can come off the list.
