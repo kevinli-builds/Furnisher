@@ -7,6 +7,12 @@ for mobile testing). Verify current state before implementing._
 
 ---
 
+## 0. Status ledger (2026-07-05) + how to pick up
+
+**Shipped ✓** — template/welcome chooser + blank/AI-import first-run; Doorway Test v1 (D1); fit facts (D5); `lib/interactions.ts` extraction + tests; first-run coach tips (§5); edge-length labels, marker text labels, polygon corner-delete fixes. (A stray "Tracker" tab was added then removed — it belongs in the Tracker app.)
+**Next → (highest value first)** — the **real-device mobile pass** (P1 — §8 pre-verified the chrome; only gestures/pinch/export remain); the §9 **layer spine** then L1 clearance-zones ⭐ + L2 flow/desire-paths ⭐; §7 Doorway Test v2 (config-space search); §9 L6 accessibility layer.
+**Infra gap** — only `lib/interactions.ts` has tests; §3 wants a vitest setup + CI before the layer work lands.
+
 ## 1. Product roadmap (PM)
 
 Furnisher is feature-complete as a **tool**; the growth problem is that a new
