@@ -125,8 +125,8 @@ export function computeClearance(plan: Plan): ClearanceGap[] {
 // the narrowest way you can turn it through an opening) against the narrowest
 // doorway on the *widest available route* from outside to its room. Honest about
 // certainty: "won't fit" only when it can't clear the best route's tightest
-// door; "might be tight" when it just barely does. A full piano-mover's rotation
-// / corridor-turn sweep is v2.
+// door; "might be tight" when it just barely does. v2 (below) adds the
+// corridor-turn sweep: pieces that clear every door but can't make a bend.
 
 const OUTSIDE = '__outside__'
 const TIGHT_MARGIN = 5 // cm of slack below which a doorway reads as "tight"
@@ -137,13 +137,18 @@ export interface MoveInIssue {
   name: string
   cross: number // smallest cross-section (cm)
   doorway: number // narrowest doorway on the best route (cm)
-  verdict: 'wont' | 'tight'
+  verdict: 'wont' | 'tight' | 'turn' // turn = clears every door but can't make a bend (v2)
+  roomName?: string // (turn) the destination room
+  length?: number // (turn) the piece's long side (cm)
+  maxLength?: number // (turn) longest piece of this width that CAN reach the room, carried flat
 }
 
 interface DoorEdge {
   a: string // room id or OUTSIDE
   b: string
   w: number // clear opening width (cm)
+  id: string // door id
+  o: 'h' | 'v' // wall the opening sits on (drives travel direction through it)
 }
 
 // Which two spaces a (non-window) door connects: two rooms, or a room and the
@@ -165,9 +170,9 @@ function doorEdges(plan: Plan): DoorEdge[] {
     }
     const a = roomAtPoint(p1.x, p1.y, plan.rooms)?.id
     const b = roomAtPoint(p2.x, p2.y, plan.rooms)?.id
-    if (a && b && a !== b) edges.push({ a, b, w: d.length })
-    else if (a && !b) edges.push({ a, b: OUTSIDE, w: d.length })
-    else if (!a && b) edges.push({ a: b, b: OUTSIDE, w: d.length })
+    if (a && b && a !== b) edges.push({ a, b, w: d.length, id: d.id, o: d.orientation })
+    else if (a && !b) edges.push({ a, b: OUTSIDE, w: d.length, id: d.id, o: d.orientation })
+    else if (!a && b) edges.push({ a: b, b: OUTSIDE, w: d.length, id: d.id, o: d.orientation })
     // both sides in the same room (or both outside) → not a connecting door
   }
   return edges
@@ -207,6 +212,131 @@ function widestRouteFromOutside(edges: DoorEdge[]): Map<string, number> {
   return best
 }
 
+// ── v2: corner turns (the corridor-turn sweep) ──────────────────
+// v1 answers "is the piece narrower than every door on the way in?" —
+// necessary but not sufficient: a long rigid piece can clear every doorway
+// yet be impossible to TURN where the route bends (the piano-mover's corner).
+//
+// Model (2D, carried flat): the piece is a rigid a×b rectangle (a = min(w,h)).
+// Moving along a corridor "leg" it is either ALIGNED (long axis along travel —
+// presents a at doors and across the leg) or SIDEWAYS (presents b). At a
+// right-angle bend it can either
+//   • rotate through the corner staying aligned — feasible iff b ≤ the classic
+//     "longest rod of width a around a right-angle corner" bound, or
+//   • translate around the bend without rotating (its orientation relative to
+//     travel flips) — what lets square-ish pieces round roomy corners that the
+//     rotation bound alone would wrongly flag.
+// A room's legs are approximated by its bounding box: a door on a horizontal
+// wall implies vertical travel in a leg as wide as the room's x-extent, and
+// vice versa. Honest limitations, stated rather than papered over: polygon
+// rooms are treated as their bbox (draw an elbow as two rooms + a door to
+// model its corner), and 3D escapes (standing a piece on end, tilting) are
+// deliberately not modelled — the UI copy suggests them instead.
+
+// Longest rigid piece of cross-section `a` that can round a right-angle bend
+// between corridors of widths c1 and c2, ending aligned with the new corridor.
+// min over θ∈(0,π/2) of (c1 − a·cosθ)/sinθ + (c2 − a·sinθ)/cosθ — the standard
+// ladder-around-a-corner result generalised to a rod of nonzero width. Sampled
+// densely rather than solved (the minimum is interior and flat; 720 steps puts
+// the error far below a centimetre).
+export function cornerAllowedLength(c1: number, c2: number, a: number): number {
+  if (a >= c1 || a >= c2) return 0
+  let best = Infinity
+  const N = 720
+  for (let i = 1; i < N; i++) {
+    const t = (Math.PI / 2) * (i / N)
+    const s = Math.sin(t)
+    const c = Math.cos(t)
+    const v = (c1 - a * c) / s + (c2 - a * s) / c
+    if (v < best) best = v
+  }
+  return best
+}
+
+// Can an a×b piece reach `target` from outside, doors AND corners considered?
+// BFS over states (door entered through, room entered, orientation). Feasibility
+// is monotone in b (every constraint is "b ≤ something" or b-independent), which
+// maxTurnLength relies on.
+function reachableWithTurns(
+  target: string,
+  aDim: number,
+  bDim: number,
+  doors: DoorEdge[],
+  roomsById: Map<string, { w: number; h: number }>,
+): boolean {
+  const dim = (sideways: boolean) => (sideways ? bDim : aDim)
+  // Width of the corridor leg served by a door of orientation o inside a room:
+  // h-wall door → vertical travel → leg width = room x-extent, and vice versa.
+  const legW = (roomId: string, o: 'h' | 'v') => {
+    const r = roomsById.get(roomId)
+    return r ? (o === 'h' ? r.w : r.h) : Infinity
+  }
+  const fits = (sideways: boolean, d: DoorEdge, roomId: string) =>
+    dim(sideways) <= d.w && dim(sideways) <= legW(roomId, d.o)
+
+  const seen = new Set<string>()
+  const queue: { d: DoorEdge; room: string; sideways: boolean }[] = []
+  const push = (d: DoorEdge, room: string, sideways: boolean) => {
+    const k = `${d.id}|${room}|${sideways}`
+    if (seen.has(k)) return
+    seen.add(k)
+    queue.push({ d, room, sideways })
+  }
+  // Entry states: any door with the outside on one side.
+  for (const d of doors) {
+    const inward = d.a === OUTSIDE ? d.b : d.b === OUTSIDE ? d.a : null
+    if (!inward) continue
+    for (const sideways of [false, true]) if (fits(sideways, d, inward)) push(d, inward, sideways)
+  }
+  for (let i = 0; i < queue.length; i++) {
+    const { d, room, sideways } = queue[i]
+    if (room === target) return true
+    for (const d2 of doors) {
+      if (d2.id === d.id) continue
+      const next = d2.a === room ? d2.b : d2.b === room ? d2.a : null
+      if (next === null || next === OUTSIDE) continue
+      if (d2.o === d.o) {
+        // Straight run across the room — orientation unchanged.
+        if (fits(sideways, d2, next)) push(d2, next, sideways)
+      } else {
+        // Rotate through the bend (stays aligned): the corner lives inside the
+        // current room, between its two legs.
+        if (
+          !sideways &&
+          fits(false, d2, next) &&
+          bDim <= cornerAllowedLength(legW(room, d.o), legW(room, d2.o), aDim)
+        )
+          push(d2, next, false)
+        // Translate around the bend (orientation flips): the long side must fit
+        // the corner region of the current room and the receiving leg + door.
+        if (dim(!sideways) <= legW(room, d2.o) && fits(!sideways, d2, next)) push(d2, next, !sideways)
+      }
+    }
+  }
+  return false
+}
+
+// Longest piece of cross-section `a` that can still reach the room, carried
+// flat — binary search on the monotone feasibility above. 0 when even a
+// square a×a piece can't make it (an intermediate leg is narrower than a).
+function maxTurnLength(
+  target: string,
+  aDim: number,
+  upper: number,
+  doors: DoorEdge[],
+  roomsById: Map<string, { w: number; h: number }>,
+): number {
+  if (!reachableWithTurns(target, aDim, aDim, doors, roomsById)) return 0
+  let lo = aDim // feasible
+  let hi = upper // infeasible (caller only asks when the piece itself failed)
+  for (let i = 0; i < 20; i++) {
+    const mid = (lo + hi) / 2
+    if (reachableWithTurns(target, aDim, mid, doors, roomsById)) lo = mid
+    else hi = mid
+  }
+  return Math.floor(lo)
+}
+
 // Only rigid, carried-upright pieces where the footprint's narrow side is an
 // honest hard constraint. Excludes beds (mattresses tilt, frames knock down),
 // thin/deformable or small items, and anything that disassembles — checking
@@ -229,6 +359,7 @@ export function moveInCheck(plan: Plan): MoveInIssue[] {
     }
   }
 
+  const roomsById = new Map(plan.rooms.map((r) => [r.id, { w: r.w, h: r.h }]))
   const issues: MoveInIssue[] = []
   for (const f of plan.furniture) {
     if (!MOVE_BULKY.has(furnitureType(f.type))) continue // only rigid bulky pieces
@@ -237,9 +368,29 @@ export function moveInCheck(plan: Plan): MoveInIssue[] {
     const doorway = routeWidth.get(room.id) ?? roomWidestDoor.get(room.id)
     if (doorway == null || !Number.isFinite(doorway)) continue // can't assess this room
     const cross = Math.min(f.w, f.h)
-    if (cross > doorway) issues.push({ id: f.id, name: f.name, cross, doorway, verdict: 'wont' })
-    else if (doorway - cross <= TIGHT_MARGIN) issues.push({ id: f.id, name: f.name, cross, doorway, verdict: 'tight' })
+    const length = Math.max(f.w, f.h)
+    if (cross > doorway) {
+      issues.push({ id: f.id, name: f.name, cross, doorway, verdict: 'wont' })
+      continue
+    }
+    // v2 corner pass — only when the room is genuinely routed from outside (the
+    // widest-door fallback has no route to walk, so corners are unknowable).
+    if (routeWidth.has(room.id) && !reachableWithTurns(room.id, cross, length, edges, roomsById)) {
+      issues.push({
+        id: f.id,
+        name: f.name,
+        cross,
+        doorway,
+        verdict: 'turn',
+        roomName: room.name,
+        length,
+        maxLength: maxTurnLength(room.id, cross, length, edges, roomsById),
+      })
+      continue // a turn failure outranks a mere width "tight"
+    }
+    if (doorway - cross <= TIGHT_MARGIN) issues.push({ id: f.id, name: f.name, cross, doorway, verdict: 'tight' })
   }
-  // Worst offenders first.
-  return issues.sort((a, b) => (a.verdict === b.verdict ? b.cross - b.doorway - (a.cross - a.doorway) : a.verdict === 'wont' ? -1 : 1))
+  // Worst offenders first: hard blockers, then turn blockers, then tight fits.
+  const RANK: Record<MoveInIssue['verdict'], number> = { wont: 0, turn: 1, tight: 2 }
+  return issues.sort((a, b) => RANK[a.verdict] - RANK[b.verdict] || b.cross - b.doorway - (a.cross - a.doorway))
 }

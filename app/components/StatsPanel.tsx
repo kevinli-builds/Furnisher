@@ -108,17 +108,24 @@ export default function StatsPanel({ plan, setPlan, onClose, onSelectPiece }: Pr
               issues.map((it) => (
                 <button
                   key={it.id}
-                  className={`movein-issue${it.verdict === 'wont' ? ' wont' : ' tight'}`}
+                  className={`movein-issue${it.verdict === 'tight' ? ' tight' : ' wont'}`}
                   onClick={() => onSelectPiece?.(it.id)}
                 >
-                  <span className="movein-verdict">{it.verdict === 'wont' ? "Won't fit" : 'Might be tight'}</span>
+                  <span className="movein-verdict">
+                    {it.verdict === 'wont' ? "Won't fit" : it.verdict === 'turn' ? "Won't make the turn" : 'Might be tight'}
+                  </span>
                   <span className="movein-detail">
-                    {it.name} ({formatLength(it.cross, u)}) {it.verdict === 'wont' ? 'is wider than' : 'barely clears'} the {formatLength(it.doorway, u)} doorway on the way in.
+                    {it.verdict === 'turn'
+                      ? `${it.name} (${formatLength(it.length ?? it.cross, u)}) clears the doors but can't turn through ${it.roomName ?? 'the route'} carried flat` +
+                        (it.maxLength && it.maxLength >= it.cross
+                          ? ` — about ${formatLength(it.maxLength, u)} is the longest that can. Standing it on end may still work.`
+                          : `. Standing it on end may still work.`)
+                      : `${it.name} (${formatLength(it.cross, u)}) ${it.verdict === 'wont' ? 'is wider than' : 'barely clears'} the ${formatLength(it.doorway, u)} doorway on the way in.`}
                   </span>
                 </button>
               ))
             )}
-            <p className="sect-note movein-note">Checks each piece’s narrowest side against the doorways on its route. A tight-corner sweep isn’t modelled yet — treat “tight” as “measure twice.”</p>
+            <p className="sect-note movein-note">Checks each piece’s narrowest side against the doorways on its route, plus whether long pieces can rotate through right-angle bends (rooms are treated as their bounding box; standing pieces on end isn’t modelled). Treat “tight” as “measure twice.”</p>
           </div>
         )}
       </div>

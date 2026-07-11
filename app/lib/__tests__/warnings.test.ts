@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeWarnings, computeClearance, moveInCheck } from '../warnings'
+import { computeWarnings, computeClearance, moveInCheck, cornerAllowedLength } from '../warnings'
 import { defaultPlan } from '../storage'
 import type { Plan } from '../types'
 
@@ -152,5 +152,105 @@ describe('moveInCheck (the Doorway Test)', () => {
       furniture: [{ id: 'wd', name: 'Wardrobe', type: 'wardrobe', x: 150, y: 200, w: 120, h: 75, rotation: 0, color: '#b5714e' }], // cross 75 > 70
     }
     expect(moveInCheck(plan)[0]).toMatchObject({ id: 'wd', verdict: 'wont' })
+  })
+})
+
+describe('cornerAllowedLength', () => {
+  it('reduces to the classic ladder-around-a-corner bound at zero width', () => {
+    // max ladder length = (c1^(2/3) + c2^(2/3))^(3/2)
+    const closed = (c1: number, c2: number) => Math.pow(Math.pow(c1, 2 / 3) + Math.pow(c2, 2 / 3), 3 / 2)
+    expect(cornerAllowedLength(100, 100, 0)).toBeCloseTo(closed(100, 100), 0) // ≈ 282.8
+    expect(cornerAllowedLength(100, 200, 0)).toBeCloseTo(closed(100, 200), 0) // ≈ 416.1
+  })
+
+  it('matches the symmetric closed form 2√2·c − 2a', () => {
+    // For c1 = c2 = c the minimum is at 45°: f = 2√2·c − 2a.
+    expect(cornerAllowedLength(120, 120, 95)).toBeCloseTo(2 * Math.SQRT2 * 120 - 190, 0) // ≈ 149.4
+    expect(cornerAllowedLength(110, 110, 105)).toBeCloseTo(2 * Math.SQRT2 * 110 - 210, 0) // ≈ 101.1
+  })
+
+  it('is zero when the piece cannot even sit in a corridor', () => {
+    expect(cornerAllowedLength(90, 120, 90)).toBe(0)
+    expect(cornerAllowedLength(120, 90, 95)).toBe(0)
+  })
+
+  it('shrinks as the piece gets wider', () => {
+    const c = (a: number) => cornerAllowedLength(120, 120, a)
+    expect(c(50)).toBeGreaterThan(c(80))
+    expect(c(80)).toBeGreaterThan(c(110))
+  })
+})
+
+describe('moveInCheck v2 — corner turns', () => {
+  // An L route: front door → narrow hall (120×120) → 90° bend → bedroom.
+  // Hall: (0,0)-(120,120). Front door on its LEFT (vertical) wall → horizontal
+  // travel. Bedroom door on its BOTTOM (horizontal) wall → vertical travel.
+  const hall = { id: 'H', name: 'Hall', x: 0, y: 0, w: 120, h: 120 }
+  const bedroom = { id: 'B', name: 'Bedroom', x: 0, y: 120, w: 300, h: 300 }
+  const lPlan = (doorLen: number): Plan => ({
+    ...defaultPlan(),
+    rooms: [hall, bedroom],
+    doors: [
+      { id: 'front', type: 'swing', x: 0, y: 10, length: doorLen, orientation: 'v', swing: 1, hinge: 1 }, // outside → Hall
+      { id: 'inner', type: 'swing', x: 10, y: 120, length: doorLen, orientation: 'h', swing: 1, hinge: 1 }, // Hall → Bedroom
+    ],
+    furniture: [],
+  })
+
+  it('flags a long sofa that clears every door but cannot turn the hall corner', () => {
+    const plan = lPlan(100)
+    plan.furniture = [{ id: 's', name: 'Sofa', type: 'sofa', x: 10, y: 200, w: 220, h: 95, rotation: 0, color: '#b5714e' }]
+    const issues = moveInCheck(plan)
+    expect(issues).toHaveLength(1)
+    expect(issues[0]).toMatchObject({ id: 's', verdict: 'turn', roomName: 'Bedroom', cross: 95, length: 220 })
+    // Longest piece of width 95 that makes a 120/120 bend ≈ 2√2·120 − 190 ≈ 149.
+    expect(issues[0].maxLength).toBeGreaterThan(145)
+    expect(issues[0].maxLength).toBeLessThan(152)
+  })
+
+  it('passes a piece short enough to rotate through the same corner', () => {
+    const plan = lPlan(100)
+    plan.furniture = [{ id: 'd', name: 'Dresser', type: 'dresser', x: 10, y: 200, w: 140, h: 50, rotation: 0, color: '#b5714e' }]
+    expect(moveInCheck(plan)).toHaveLength(0) // corner allows ~262 for width 50
+  })
+
+  it('lets a square-ish piece translate around a corner the rotation bound alone would flag', () => {
+    // Hall 110×110, doors 115: rotation bound for a 105-wide piece is ~101 (< 105),
+    // but a 105×105 piece rounds the bend by translating without rotating.
+    const plan: Plan = {
+      ...defaultPlan(),
+      rooms: [{ id: 'H', name: 'Hall', x: 0, y: 0, w: 110, h: 110 }, { ...bedroom }],
+      doors: [
+        { id: 'front', type: 'swing', x: 0, y: 2, length: 106, orientation: 'v', swing: 1, hinge: 1 },
+        { id: 'inner', type: 'swing', x: 2, y: 120, length: 106, orientation: 'h', swing: 1, hinge: 1 },
+      ],
+      furniture: [{ id: 'sq', name: 'Table', type: 'diningTable', x: 10, y: 200, w: 105, h: 105, rotation: 0, color: '#b5714e' }],
+    }
+    // Would be 'turn' without the translation path; it is only width-'tight' (106 − 105 ≤ 5).
+    const issues = moveInCheck(plan)
+    expect(issues).toHaveLength(1)
+    expect(issues[0]).toMatchObject({ id: 'sq', verdict: 'tight' })
+  })
+
+  it('does not invent corners on a straight-through route', () => {
+    // Both doors on horizontal walls → straight run, no bend: a long sofa is fine.
+    const plan: Plan = {
+      ...defaultPlan(),
+      rooms: [{ id: 'H', name: 'Hall', x: 0, y: 0, w: 120, h: 120 }, { ...bedroom }],
+      doors: [
+        { id: 'front', type: 'swing', x: 10, y: 0, length: 110, orientation: 'h', swing: 1, hinge: 1 }, // outside → Hall (top)
+        { id: 'inner', type: 'swing', x: 10, y: 120, length: 110, orientation: 'h', swing: 1, hinge: 1 }, // Hall → Bedroom (bottom)
+      ],
+      furniture: [{ id: 's', name: 'Sofa', type: 'sofa', x: 10, y: 200, w: 220, h: 95, rotation: 0, color: '#b5714e' }],
+    }
+    expect(moveInCheck(plan)).toHaveLength(0)
+  })
+
+  it('reports the turn failure instead of a mere width-"tight"', () => {
+    const plan = lPlan(100)
+    plan.furniture = [{ id: 's', name: 'Sofa', type: 'sofa', x: 10, y: 200, w: 220, h: 97, rotation: 0, color: '#b5714e' }] // 100−97 ≤ 5 → tight by width, but the corner is the real story
+    const issues = moveInCheck(plan)
+    expect(issues).toHaveLength(1)
+    expect(issues[0].verdict).toBe('turn')
   })
 })

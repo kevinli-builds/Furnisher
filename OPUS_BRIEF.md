@@ -9,8 +9,9 @@ for mobile testing). Verify current state before implementing._
 
 ## 0. Status ledger (2026-07-05) + how to pick up
 
-**Shipped ✓** — template/welcome chooser + blank/AI-import first-run; Doorway Test v1 (D1); fit facts (D5); `lib/interactions.ts` extraction + tests; first-run coach tips (§5); edge-length labels, marker text labels, polygon corner-delete fixes. (A stray "Tracker" tab was added then removed — it belongs in the Tracker app.)
-**Next → (highest value first)** — the **real-device mobile pass** (P1 — §8 pre-verified the chrome; only gestures/pinch/export remain); the §9 **layer spine** then L1 clearance-zones ⭐ + L2 flow/desire-paths ⭐; §7 Doorway Test v2 (config-space search); §9 L6 accessibility layer.
+**Shipped ✓** — template/welcome chooser + blank/AI-import first-run; Doorway Test v1 (D1); **Doorway Test v2 (2026-07-11: corner-turn sweep — `cornerAllowedLength` rod-around-a-corner bound + orientation-aware route BFS with a translation path for square-ish pieces; new `turn` verdict rendered in Stats; fixture-tested)**; fit facts (D5); `lib/interactions.ts` extraction + tests; first-run coach tips (§5); edge-length labels, marker text labels, polygon corner-delete fixes. (A stray "Tracker" tab was added then removed — it belongs in the Tracker app.)
+**Next → (highest value first)** — the **real-device mobile pass** (P1 — §8 pre-verified the chrome; only gestures/pinch/export remain); the §9 **layer spine** then L1 clearance-zones ⭐ + L2 flow/desire-paths ⭐; §9 L6 accessibility layer. Doorway v3 candidates if ever wanted: per-corner blame in the issue copy, polygon rooms decomposed instead of bbox'd, tilt/on-end 3D escapes.
+**Sibling project note (2026-07-11)** — `C:\Users\snoww\MoveDay` (new repo, `FABLE_BRIEF.md`) specs a small Furnisher PR: `#import=` URL-fragment plan import + "Copy share link" — it would ship this repo's parked P2 share-links feature; see that brief's §4 for the exact spec.
 **Infra gap** — only `lib/interactions.ts` has tests; §3 wants a vitest setup + CI before the layer work lands.
 
 ## 1. Product roadmap (PM)
