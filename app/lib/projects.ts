@@ -60,8 +60,13 @@ export async function enableSharing(id: string): Promise<string> {
   return token
 }
 
+// Owner revokes sharing. Clears the share token AND removes everyone who already
+// joined, so turning off the link actually cuts off access (a bare token-null
+// left existing project_members with read+edit forever). Atomic + owner-checked in
+// the `revoke_sharing` SECURITY DEFINER function (project_members has no client
+// DELETE policy, by design — this RPC is the only way to remove members).
 export async function disableSharing(id: string): Promise<void> {
-  const { error } = await client().from('projects').update({ share_token: null }).eq('id', id)
+  const { error } = await client().rpc('revoke_sharing', { p_project_id: id })
   if (error) throw error
 }
 

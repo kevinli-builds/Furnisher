@@ -57,9 +57,15 @@ create policy "delete own plans" on public.projects for delete using (auth.uid()
 
 ## 4. Collaboration (sharing)
 
+> **Canonical source:** the full, runnable, idempotent version of everything in
+> sections 2 + 4 now lives in **`supabase/projects.sql`** — apply that file and you
+> get projects RLS, membership, and the share functions in one shot. The blocks
+> below are kept for readability and must stay in sync with that file.
+
 Run this once to enable share-links + collaborator sync. It adds a members
 table, a share token, the policies that let collaborators read/edit a shared
-plan, and the `join_project` redemption function:
+plan, the `join_project` redemption function, and `revoke_sharing` (owner turns a
+link off — clears the token **and** removes existing collaborators):
 
 ```sql
 -- share token on each project
@@ -99,6 +105,18 @@ begin
   return pid;
 end; $$;
 grant execute on function public.join_project(uuid) to authenticated;
+
+-- revoke sharing → clear the token AND remove existing members (owner-checked)
+create or replace function public.revoke_sharing(p_project_id uuid)
+  returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not exists (select 1 from public.projects where id = p_project_id and user_id = auth.uid()) then
+    raise exception 'Only the owner can revoke sharing';
+  end if;
+  update public.projects set share_token = null where id = p_project_id;
+  delete from public.project_members where project_id = p_project_id;
+end; $$;
+grant execute on function public.revoke_sharing(uuid) to authenticated;
 ```
 
 Then enable **Realtime** so collaborators' saves stream live:

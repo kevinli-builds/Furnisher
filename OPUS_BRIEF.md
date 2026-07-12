@@ -12,6 +12,10 @@ for mobile testing). Verify current state before implementing._
 **Shipped ✓** — template/welcome chooser + blank/AI-import first-run; Doorway Test v1 (D1); **Doorway Test v2 (2026-07-11: corner-turn sweep — `cornerAllowedLength` rod-around-a-corner bound + orientation-aware route BFS with a translation path for square-ish pieces; new `turn` verdict rendered in Stats; fixture-tested)**; fit facts (D5); `lib/interactions.ts` extraction + tests; first-run coach tips (§5); edge-length labels, marker text labels, polygon corner-delete fixes. (A stray "Tracker" tab was added then removed — it belongs in the Tracker app.)
 **Next → (highest value first)** — the **real-device mobile pass** (P1 — §8 pre-verified the chrome; only gestures/pinch/export remain); the §9 **layer spine** then L1 clearance-zones ⭐ + L2 flow/desire-paths ⭐; §9 L6 accessibility layer. Doorway v3 candidates if ever wanted: per-corner blame in the issue copy, polygon rooms decomposed instead of bbox'd, tilt/on-end 3D escapes.
 **Share links SHIPPED (2026-07-11)** — P2 share links + the MoveDay-handoff receiving half in one: `lib/share.ts` (lz-string fragment payloads, 30k size guard, tested), `#import=` handled on mount in `page.tsx` (confirm → `stashPlanBackup()` → `normalizePlan` trust boundary → adopt, hash cleared), 🔗 copy-share-link button in the Stats panel head. Backup slot `furnisher.plan.backup.v1` has no restore UI yet — cheap follow-up if ever wanted. Sender side lives in `C:\Users\snoww\MoveDay` (`FABLE_BRIEF.md` §4).
+**Security ✅ (2026-07-12)** — F1 (revoke-share now purges collaborators via the new
+`revoke_sharing` RPC) + F2 (schema moved into `supabase/projects.sql`) both shipped; see
+the §"Security & code-quality audit" entries. ⚠️ Run `supabase/projects.sql` in Supabase
+so the `revoke_sharing` function exists.
 **Infra gap** — only `lib/interactions.ts` has tests; §3 wants a vitest setup + CI before the layer work lands.
 
 ## 1. Product roadmap (PM)
@@ -372,23 +376,24 @@ untrusted-plan color-sanitization trust boundary (`safeColorField`/`SAFE_COLOR` 
 both `normalizePlan` and the collab path) is a sophisticated, correct defense
 against `url(...)`-in-CSS exfiltration. Nice work._
 
-**F1 — "Revoke sharing" is incomplete (the one real gap).** `disableSharing()`
-sets `share_token = null`, which stops NEW people from redeeming the link — but it
-does **not** delete existing `project_members` rows. Anyone who already joined via
-the old token keeps read+edit access forever, with no UI to see or remove
-collaborators. For a "share my apartment layout" feature that's probably fine, but
-it violates the natural expectation that turning off a share link cuts off access.
-Fix when you build out sharing (P2): on disable, also `delete from project_members
-where project_id = ?`, and/or add a collaborator list with per-member remove.
+**F1 — "Revoke sharing" now cuts off existing collaborators — ✅ SHIPPED (2026-07-12).**
+`disableSharing()` used to only null the `share_token`, leaving already-joined
+`project_members` with read+edit forever. It now calls a new `revoke_sharing(p_project_id)`
+SECURITY DEFINER RPC that (owner-checked, atomically) clears the token **and** deletes
+every `project_members` row for the project. `project_members` deliberately has no
+client DELETE policy, so the RPC is the only membership-removal path. Test:
+`app/lib/__tests__/projects.test.ts` (asserts the RPC path, not a bare token-null).
+⚠️ **Deploy step:** run the new `supabase/projects.sql` (or just the `revoke_sharing`
+block) in the Supabase SQL editor — the RPC must exist before the button works.
+_Optional future nicety:_ a collaborator list with per-member remove (this fix covers
+the "turn the link off = access off" expectation without it).
 
-**F2 — the projects/collab schema lives only in `SUPABASE_SETUP.md`, not in
-`supabase/`.** `supabase/` contains just `furniture_library.sql`; the `projects`
-table, `project_members`, the RLS policies, and the two functions are SQL blocks
-inside the markdown setup guide. That's a reproducibility footgun — someone
-applying the `supabase/` folder gets library RLS but NOT projects RLS, leaving that
-table open on a fresh project. Move those blocks into `supabase/projects.sql` so the
-folder is the complete, runnable source of truth (and add a one-line "also verify
-RLS is enabled on the live project" to setup).
+**F2 — projects/collab schema now in `supabase/` — ✅ SHIPPED (2026-07-12).** Created
+`supabase/projects.sql` as the canonical, idempotent, runnable source (projects table +
+own-row RLS, `project_members` + membership RLS, `is_project_member`, `join_project`,
+`revoke_sharing`, the owner-column guard trigger, and the realtime publication add).
+`SUPABASE_SETUP.md` now points at it as the source of truth. Fixed alongside F1 (the
+`revoke_sharing` function had to land in that file anyway).
 
 **Quality — low priority:**
 - `Canvas.tsx` remains the "large, delicate" god-file (acknowledged in CLAUDE.md);
