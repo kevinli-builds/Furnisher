@@ -99,3 +99,18 @@ export function savePlan(plan: Plan): void {
     /* quota / private mode — ignore */
   }
 }
+
+// One-slot safety net used by the share-link import: before an imported plan
+// replaces the current one, the current plan is stashed here. Not surfaced in
+// the UI (yet) — it exists so an accidental import is never a data loss.
+const BACKUP_KEY = 'furnisher.plan.backup.v1'
+
+export function stashPlanBackup(): void {
+  if (typeof window === 'undefined') return
+  try {
+    const raw = window.localStorage.getItem(KEY)
+    if (raw) window.localStorage.setItem(BACKUP_KEY, raw)
+  } catch {
+    /* ignore */
+  }
+}

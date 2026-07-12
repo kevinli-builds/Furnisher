@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { Plan, Mode, Selection } from './lib/types'
-import { loadPlan, savePlan, defaultPlan, hasSavedPlan } from './lib/storage'
+import { loadPlan, savePlan, defaultPlan, hasSavedPlan, normalizePlan, stashPlanBackup } from './lib/storage'
+import { parseImportHash } from './lib/share'
 import { emptyLibrary, loadLibrary, saveLibrary, fetchCloudLibrary, pushCloudLibrary, mergeLibraries, type Library } from './lib/library'
 import { useAuth } from './lib/auth'
 import { usePlanHistory } from './lib/usePlanHistory'
@@ -56,7 +57,26 @@ export default function Page() {
   // Load from localStorage after mount (avoids SSR/hydration mismatch). A
   // brand-new visitor (nothing saved) meets the template chooser instead of a
   // blank canvas — the P1 activation flow.
+  //
+  // A #import= fragment (share link / MoveDay handoff) takes precedence: the
+  // payload is untrusted, so it goes through normalizePlan (colour sanitizing)
+  // and is adopted only after an explicit confirm; the previous plan is stashed
+  // to a backup slot so an import is never a data loss. The hash is cleared
+  // either way so refresh doesn't re-prompt.
   useEffect(() => {
+    const imported = parseImportHash(window.location.hash)
+    if (imported) {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search)
+      const from = imported.source === 'moveday' ? ' from MoveDay' : ''
+      if (window.confirm(`Import "${imported.name}"${from}? Your current plan will be replaced (a backup is kept on this device).`)) {
+        stashPlanBackup()
+        const plan = normalizePlan(imported.plan)
+        replace(plan)
+        savePlan(plan)
+        setMounted(true)
+        return
+      }
+    }
     if (hasSavedPlan()) replace(loadPlan())
     else {
       setShowWelcome(true)

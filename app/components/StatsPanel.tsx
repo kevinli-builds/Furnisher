@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { Plan } from '../lib/types'
 import { computeStats, formatArea, formatPrice, fitFacts } from '../lib/stats'
 import { moveInCheck } from '../lib/warnings'
+import { buildShareUrl } from '../lib/share'
 import { formatLength } from '../lib/units'
 
 interface Props {
@@ -28,6 +29,21 @@ export default function StatsPanel({ plan, setPlan, onClose, onSelectPiece }: Pr
     <div className="stats-panel">
       <div className="stats-head">
         <span className="stats-title">Plan stats</span>
+        <button
+          className="settings-x"
+          aria-label="Copy share link"
+          title="Copy a link that opens this plan for anyone (or in MoveDay's fit-check flow)"
+          onClick={() => {
+            const url = buildShareUrl(window.location.origin, plan, plan.rooms[0]?.name ? `${plan.rooms[0].name} plan` : 'Shared plan')
+            if (!url) return void alert('This plan is too large for a link — use PNG/PDF export instead.')
+            navigator.clipboard?.writeText(url).then(
+              () => alert('Share link copied — anyone who opens it gets a copy of this plan.'),
+              () => window.prompt('Copy the share link:', url),
+            )
+          }}
+        >
+          🔗
+        </button>
         <button className="settings-x" onClick={onClose} aria-label="Close stats">
           ✕
         </button>
