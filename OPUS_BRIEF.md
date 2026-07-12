@@ -358,3 +358,40 @@ pieces arrowed. The analytical sibling of §4 D4's slider.
 
 ### Explicitly not: acoustics simulation, HVAC/airflow — physics theater
 without trustworthy inputs. Keep layers honest or skip them.
+
+---
+
+## Security & code-quality audit (2026-07-12, Fable portfolio pass)
+
+_Public repo; no sensitive/exploitable findings this pass, so all notes stay
+in-repo. The Supabase security model is genuinely well-built — verified: `projects`
+and `furniture_library` have own-row RLS; the collaboration path
+(`join_project` → `project_members` → `is_project_member()`-gated read/update) is
+correct, and BOTH SECURITY DEFINER functions pin `search_path = public`. The
+untrusted-plan color-sanitization trust boundary (`safeColorField`/`SAFE_COLOR` in
+both `normalizePlan` and the collab path) is a sophisticated, correct defense
+against `url(...)`-in-CSS exfiltration. Nice work._
+
+**F1 — "Revoke sharing" is incomplete (the one real gap).** `disableSharing()`
+sets `share_token = null`, which stops NEW people from redeeming the link — but it
+does **not** delete existing `project_members` rows. Anyone who already joined via
+the old token keeps read+edit access forever, with no UI to see or remove
+collaborators. For a "share my apartment layout" feature that's probably fine, but
+it violates the natural expectation that turning off a share link cuts off access.
+Fix when you build out sharing (P2): on disable, also `delete from project_members
+where project_id = ?`, and/or add a collaborator list with per-member remove.
+
+**F2 — the projects/collab schema lives only in `SUPABASE_SETUP.md`, not in
+`supabase/`.** `supabase/` contains just `furniture_library.sql`; the `projects`
+table, `project_members`, the RLS policies, and the two functions are SQL blocks
+inside the markdown setup guide. That's a reproducibility footgun — someone
+applying the `supabase/` folder gets library RLS but NOT projects RLS, leaving that
+table open on a fresh project. Move those blocks into `supabase/projects.sql` so the
+folder is the complete, runnable source of truth (and add a one-line "also verify
+RLS is enabled on the live project" to setup).
+
+**Quality — low priority:**
+- `Canvas.tsx` remains the "large, delicate" god-file (acknowledged in CLAUDE.md);
+  the `lib/interactions.ts` extraction was the right first move — keep peeling
+  per-gesture logic into pure, tested helpers as you touch it.
+- Good `lib/` test coverage already (trust boundary, geometry, stats). Maintain it.
