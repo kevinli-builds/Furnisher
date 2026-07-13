@@ -16,6 +16,11 @@ for mobile testing). Verify current state before implementing._
 `revoke_sharing` RPC) + F2 (schema moved into `supabase/projects.sql`) both shipped; see
 the §"Security & code-quality audit" entries. ⚠️ Run `supabase/projects.sql` in Supabase
 so the `revoke_sharing` function exists.
+**Usability pass ✓ (2026-07-12)** — tall dropdowns (`.account-menu`/Display opts) now scroll
+via max-height instead of clipping on short phones; the right-click object picker clamps to
+the canvas host so it can't be cut off by `overflow:hidden` near an edge. Audit found the
+rest already touch-clean: always-visible project actions, manual double-tap vertex delete,
+mobile trash/multi-select bars, left-anchored opts menu fits 375px.
 **Infra gap** — only `lib/interactions.ts` has tests; §3 wants a vitest setup + CI before the layer work lands.
 
 ## 1. Product roadmap (PM)
