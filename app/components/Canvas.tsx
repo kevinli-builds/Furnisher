@@ -189,7 +189,11 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
     if (items.length === 0) return // let the native menu show on empty space
     e.preventDefault()
     const host = hostRef.current!.getBoundingClientRect()
-    setMenu({ x: e.clientX - host.left, y: e.clientY - host.top, items })
+    // Clamp inside the host (overflow:hidden would clip a menu opened near an
+    // edge). 180×(34·n+12) approximates the rendered menu box.
+    const x = Math.max(0, Math.min(e.clientX - host.left, host.width - 180))
+    const y = Math.max(0, Math.min(e.clientY - host.top, host.height - (items.length * 34 + 12)))
+    setMenu({ x, y, items })
   }
 
   // ── Capture phase: pan (space / middle mouse), measure, or door placement ─

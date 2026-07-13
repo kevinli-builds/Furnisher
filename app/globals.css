@@ -656,6 +656,9 @@ select.field {
   right: 0;
   z-index: 80;
   width: 280px;
+  /* Tall menus (Display options) must scroll on short screens, not clip. */
+  max-height: min(72dvh, 560px);
+  overflow-y: auto;
   background: var(--panel);
   border: 1px solid var(--line-strong);
   border-radius: 14px;
