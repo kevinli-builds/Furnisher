@@ -4,7 +4,11 @@ The app works fully locally with no account. Configuring Supabase adds Google
 sign-in and per-user cloud-saved plans. Everything stays client-side — the app
 is still a static site; Supabase's row-level security protects each user's rows.
 
-Project: `qkwdjvoeganggqntzeya` → `https://qkwdjvoeganggqntzeya.supabase.co`
+Project: **"Central DB"** — the Supabase project shared with MapCrowd + Tracker,
+ref `tmycdgnofvmbyrmpqohw` → `https://tmycdgnofvmbyrmpqohw.supabase.co`.
+(Furnisher migrated here from its own project `qkwdjvoeganggqntzeya` in July 2026;
+see the `unified-backend/` repo in the Mapper-Tracker workspace. The old project
+is kept paused for rollback until teardown.)
 
 ## 1. Environment variables
 
@@ -12,8 +16,8 @@ Create `.env.local` (and add the same two vars in Vercel → Project → Setting
 Environment Variables):
 
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://qkwdjvoeganggqntzeya.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<your anon public key>
+NEXT_PUBLIC_SUPABASE_URL=https://tmycdgnofvmbyrmpqohw.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<the shared project's anon public key>
 ```
 
 Find the anon key in Supabase → **Project Settings → API → Project API keys →
@@ -48,7 +52,8 @@ create policy "delete own plans" on public.projects for delete using (auth.uid()
 
 1. **Google Cloud Console** → create an OAuth 2.0 **Web** client (or reuse one).
    Add this Authorized redirect URI:
-   `https://qkwdjvoeganggqntzeya.supabase.co/auth/v1/callback`
+   `https://tmycdgnofvmbyrmpqohw.supabase.co/auth/v1/callback`
+   (already configured — Tracker/MapCrowd use the same callback)
 2. **Supabase → Authentication → Providers → Google** → enable, paste the Google
    client ID + secret, save.
 3. **Supabase → Authentication → URL Configuration**:

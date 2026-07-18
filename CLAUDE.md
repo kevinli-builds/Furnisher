@@ -21,13 +21,18 @@ was moving. Deploys to **Vercel** (furnisher.vercel.app).
   danger `#a8463c`).
 - **Supabase** (optional): auth, cloud-save, realtime collaboration. App runs fully
   local if its env vars are unset. Anon key is safe to ship (RLS); never service_role.
+  Since July 2026 this is the **shared "Central DB" project** (ref
+  `tmycdgnofvmbyrmpqohw`, shared with MapCrowd + Tracker, per-user RLS per app) —
+  migration artifacts live in the `unified-backend/` repo in the Mapper-Tracker
+  workspace. The old dedicated project (`qkwdjvoeganggqntzeya`) is paused pending
+  teardown; `.env.local` keeps its values commented for rollback.
 - **Claude API**, bring-your-own-key (kept only in `localStorage`, sent directly to
   Anthropic) — powers AI import of blueprints / furniture.
 - All geometry is stored in **centimetres** (canonical); ft·in ⇄ m·cm is display-only.
 
 ## Run / dev
 ```
-cd app
+# run from the repo root — package.json lives here (app/ is just the App Router dir)
 npm.cmd run dev        # serves on http://localhost:3002  (PowerShell: use npm.cmd)
 npx tsc --noEmit       # typecheck while iterating
 npm.cmd run test       # vitest (pure lib/* logic — trust boundary, geometry, stats)
