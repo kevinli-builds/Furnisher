@@ -4,7 +4,7 @@ import { useState } from 'react'
 import type { Plan } from '../lib/types'
 import { computeStats, formatArea, formatPrice, fitFacts } from '../lib/stats'
 import { moveInCheck } from '../lib/warnings'
-import { buildShareUrl } from '../lib/share'
+import { buildShareUrl, buildMovedayUrl, MOVEDAY_LISTING_KEY } from '../lib/share'
 import { formatLength } from '../lib/units'
 
 interface Props {
@@ -43,6 +43,23 @@ export default function StatsPanel({ plan, setPlan, onClose, onSelectPiece }: Pr
           }}
         >
           🔗
+        </button>
+        <button
+          className="settings-x"
+          aria-label="Send to MoveDay"
+          title="Send this arranged plan back to MoveDay to attach to a listing"
+          onClick={() => {
+            let listingId: string | undefined
+            try {
+              listingId = localStorage.getItem(MOVEDAY_LISTING_KEY) || undefined
+            } catch {}
+            const name = plan.rooms[0]?.name ? `${plan.rooms[0].name} plan` : 'Furnished plan'
+            const url = buildMovedayUrl(plan, name, listingId)
+            if (!url) return void alert('This plan is too large for a link — use PNG/PDF export instead.')
+            window.open(url, '_blank', 'noopener')
+          }}
+        >
+          📦
         </button>
         <button className="settings-x" onClick={onClose} aria-label="Close stats">
           ✕

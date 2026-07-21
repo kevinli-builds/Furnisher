@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Plan, Mode, Selection } from './lib/types'
 import { loadPlan, savePlan, defaultPlan, hasSavedPlan, normalizePlan, stashPlanBackup } from './lib/storage'
-import { parseImportHash } from './lib/share'
+import { parseImportHash, MOVEDAY_LISTING_KEY } from './lib/share'
 import { emptyLibrary, loadLibrary, saveLibrary, fetchCloudLibrary, pushCloudLibrary, mergeLibraries, type Library } from './lib/library'
 import { useAuth } from './lib/auth'
 import { usePlanHistory } from './lib/usePlanHistory'
@@ -73,6 +73,15 @@ export default function Page() {
         const plan = normalizePlan(imported.plan)
         replace(plan)
         savePlan(plan)
+        // Remember a MoveDay Fit-check's listing so "Send to MoveDay" can
+        // re-attach the arranged plan to it; clear it for any other import.
+        try {
+          if (imported.source === 'moveday' && imported.listingId) {
+            localStorage.setItem(MOVEDAY_LISTING_KEY, imported.listingId)
+          } else {
+            localStorage.removeItem(MOVEDAY_LISTING_KEY)
+          }
+        } catch {}
         setMounted(true)
         return
       }

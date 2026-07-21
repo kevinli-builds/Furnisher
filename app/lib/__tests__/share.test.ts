@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { compressToEncodedURIComponent } from 'lz-string'
-import { packShare, unpackShare, buildShareUrl, parseImportHash, MAX_PACKED_LENGTH } from '../share'
+import { packShare, unpackShare, buildShareUrl, buildMovedayUrl, parseImportHash, MOVEDAY_ORIGIN, MAX_PACKED_LENGTH } from '../share'
 import { defaultPlan, normalizePlan } from '../storage'
 
 const plan = {
@@ -50,5 +50,21 @@ describe('share pack/unpack', () => {
 
   it('a default plan packs far under the URL budget', () => {
     expect(packShare(defaultPlan(), 'X').length).toBeLessThan(MAX_PACKED_LENGTH / 10)
+  })
+
+  it('buildMovedayUrl targets the MoveDay #plan= route and threads listingId', () => {
+    const url = buildMovedayUrl(normalizePlan(plan), 'Maple St 2BR', 'listing-42')
+    expect(url).toMatch(new RegExp(`^${MOVEDAY_ORIGIN.replace(/\//g, '\\/')}\\/#plan=`))
+    // The receiver (MoveDay unpackHandoff) reads the same SharePayload shape;
+    // Furnisher's own unpackShare round-trips it, incl. the listingId.
+    const packed = url!.split('#plan=')[1]
+    const back = unpackShare(packed)!
+    expect(back).toMatchObject({ v: 1, source: 'furnisher', name: 'Maple St 2BR', listingId: 'listing-42' })
+  })
+
+  it('buildMovedayUrl omits listingId for a fresh plan (MoveDay picks the listing)', () => {
+    const url = buildMovedayUrl(normalizePlan(plan), 'Fresh plan')
+    const back = unpackShare(url!.split('#plan=')[1])!
+    expect(back.listingId).toBeUndefined()
   })
 })

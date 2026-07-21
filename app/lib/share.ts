@@ -35,6 +35,23 @@ export function buildShareUrl(origin: string, plan: Plan, name = 'Shared plan'):
   return `${origin}/#import=${packed}`
 }
 
+// ── Return trip to MoveDay ──────────────────────────────────────────────────
+export const MOVEDAY_ORIGIN = 'https://move-day.vercel.app'
+// Set when a plan arrives via a MoveDay Fit-check (#import= with a listingId);
+// read by the "Send to MoveDay" action so the return trip re-attaches to the
+// right listing. localStorage key, so it survives the round-trip inside the tab.
+export const MOVEDAY_LISTING_KEY = 'furnisher.movedayListingId'
+
+// Build a link that hands this plan back to MoveDay (its #plan= inbound route).
+// listingId threads a Fit-check round-trip so MoveDay re-attaches to the source
+// listing; omit it for a fresh plan (MoveDay then shows a listing picker).
+export function buildMovedayUrl(plan: Partial<Plan>, name: string, listingId?: string): string | null {
+  const payload: SharePayload = { v: 1, source: 'furnisher', name, listingId, plan }
+  const packed = compressToEncodedURIComponent(JSON.stringify(payload))
+  if (packed.length > MAX_PACKED_LENGTH) return null
+  return `${MOVEDAY_ORIGIN}/#plan=${packed}`
+}
+
 export function unpackShare(packed: string): SharePayload | null {
   if (!packed || packed.length > MAX_PACKED_LENGTH) return null
   try {
