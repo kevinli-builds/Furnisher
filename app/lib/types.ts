@@ -185,6 +185,7 @@ export interface Plan {
   warnings?: boolean // show collision warnings: overlaps, out-of-room, blocked doors (default on)
   clearance?: boolean // show too-narrow-walkway warnings between bulky furniture (default OFF — noisy)
   layers?: string[] // active insight-layer ids (lib/layers registry); default none
+  sunSeason?: 'summer' | 'equinox' | 'winter' // season preset for the sun-hours layer (default equinox)
   budget?: number // optional spend target — Stats shows remaining / over-budget
   blueprintUrl?: string // optional link to the listing / source blueprint
   inventory: Inventory

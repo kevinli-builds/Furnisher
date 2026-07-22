@@ -195,6 +195,15 @@ export default function ViewOptionsMenu({ plan, setPlan, onShowTips }: Props) {
                       </div>
                     </div>
                     <p className="layer-desc">{l.desc}</p>
+                    {l.id === 'sun-hours' && on && (
+                      <div className="seg full layer-subcontrol">
+                        {(['summer', 'equinox', 'winter'] as const).map((s) => (
+                          <Seg key={s} on={(plan.sunSeason ?? 'equinox') === s} onClick={() => set({ sunSeason: s })}>
+                            {s === 'summer' ? 'Summer' : s === 'winter' ? 'Winter' : 'Equinox'}
+                          </Seg>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )
               })}

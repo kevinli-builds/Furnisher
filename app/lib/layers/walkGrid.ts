@@ -105,10 +105,13 @@ function subtractSpans(lo: number, hi: number, spans: Array<[number, number]>): 
   return out
 }
 
-// Room edges with door openings cut out. Windows stay solid (you can't walk
-// through a window); diagonal edges are kept whole (doors never snap to them).
-export function solidWalls(plan: Plan): Seg[] {
-  const doors = plan.doors.filter((d) => (d.type ?? 'swing') !== 'window')
+// Room edges with a chosen set of openings cut out. Diagonal edges are kept
+// whole (openings never snap to them).
+function wallSegments(plan: Plan, cutDoors: boolean, cutWindows: boolean): Seg[] {
+  const doors = plan.doors.filter((d) => {
+    const t = d.type ?? 'swing'
+    return t === 'window' ? cutWindows : cutDoors
+  })
   const segs: Seg[] = []
   for (const room of plan.rooms) {
     const cs = roomCorners(room)
@@ -137,6 +140,15 @@ export function solidWalls(plan: Plan): Seg[] {
     }
   }
   return segs
+}
+
+// For walking: door openings are gaps, windows stay solid (can't walk through).
+export function solidWalls(plan: Plan): Seg[] {
+  return wallSegments(plan, true, false)
+}
+// For light: both doors and windows are gaps (sunlight passes through either).
+export function lightWalls(plan: Plan): Seg[] {
+  return wallSegments(plan, true, true)
 }
 
 // Distance from a world point to the nearest obstacle edge — a solid wall or a

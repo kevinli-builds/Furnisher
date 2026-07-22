@@ -50,6 +50,7 @@ export function normalizePlan(parsed: Partial<Plan> | null | undefined): Plan {
     warnings: parsed.warnings !== false,
     clearance: parsed.clearance === true,
     layers: validateLayerIds(parsed.layers),
+    sunSeason: parsed.sunSeason === 'summer' || parsed.sunSeason === 'winter' ? parsed.sunSeason : 'equinox',
     budget: typeof parsed.budget === 'number' && parsed.budget > 0 ? parsed.budget : undefined,
     blueprintUrl: typeof parsed.blueprintUrl === 'string' ? parsed.blueprintUrl : undefined,
     width: parsed.width || 1200,
