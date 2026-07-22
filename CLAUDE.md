@@ -102,9 +102,11 @@ Newest: the **insight-layer system** — a pure `lib/layers/` registry (`compute
 → {overlays, panelRows, warnings}`) rendered by a generic `InsightLayer` SVG comp,
 toggled under Display → "Insight layers", persisted in `plan.layers`. First layer =
 **L1 clearance zones** (ergonomic aprons from `clearanceStandards.ts`, SAT-tested vs
-footprints) + **L2 flow/desire-paths** (`walkGrid.ts` wall-aware grid + Dijkstra → daily
-routes as worn lines + <70cm pinch points; `walkGrid` is reusable, L6 accessibility will
-share it). Add a layer = append to `lib/layers/registry.ts`; next up is L6 accessibility.
+footprints), **L2 flow/desire-paths** (`walkGrid.ts` wall-aware grid + Dijkstra → daily
+routes as worn lines + <70cm pinch points), and **L6 accessibility** (a separate optional
+layer: 150cm turning circles via `walkGrid.clearanceAt`, 81cm door minimums, stairs flagged
+step-free). Overlay primitives: polygon/rect/path/circle/badge. Add a layer = append to
+`lib/layers/registry.ts` (Display menu + Stats read-out wire up automatically).
 Earlier: room types w/ colour tints, clearance checker (off by default,
 bulky-furniture-only heuristic), export strips on-screen chrome, add-tools revert
 to Select after one placement, orphan-door selectability, mobile pinch fixes.
