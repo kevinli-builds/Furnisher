@@ -56,6 +56,20 @@ export default function InsightLayer({ overlays, scale }: { overlays: Overlay[];
                 strokeLinecap="round"
               />
             )
+          case 'circle':
+            return (
+              <circle
+                key={i}
+                cx={o.cx}
+                cy={o.cy}
+                r={o.r}
+                fill={o.fill ?? 'none'}
+                stroke={o.stroke ?? 'none'}
+                strokeWidth={1}
+                opacity={o.opacity ?? 1}
+                vectorEffect="non-scaling-stroke"
+              />
+            )
           case 'badge':
             return (
               <text

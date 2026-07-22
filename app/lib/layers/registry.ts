@@ -7,8 +7,9 @@ import type { Plan } from '../types'
 import type { InsightLayer, LayerResult } from './types'
 import { clearanceLayer } from './clearance'
 import { flowLayer } from './flow'
+import { accessibilityLayer } from './accessibility'
 
-export const LAYERS: InsightLayer[] = [clearanceLayer, flowLayer]
+export const LAYERS: InsightLayer[] = [clearanceLayer, flowLayer, accessibilityLayer]
 
 export function getLayer(id: string): InsightLayer | undefined {
   return LAYERS.find((l) => l.id === id)

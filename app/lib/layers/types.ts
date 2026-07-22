@@ -39,6 +39,15 @@ export interface PathOverlay {
   dash?: string
   opacity?: number
 }
+export interface CircleOverlay {
+  kind: 'circle'
+  cx: number
+  cy: number
+  r: number
+  fill?: string
+  stroke?: string
+  opacity?: number
+}
 export interface BadgeOverlay {
   kind: 'badge'
   x: number
@@ -46,7 +55,7 @@ export interface BadgeOverlay {
   text: string
   color?: string
 }
-export type Overlay = PolygonOverlay | RectOverlay | PathOverlay | BadgeOverlay
+export type Overlay = PolygonOverlay | RectOverlay | PathOverlay | CircleOverlay | BadgeOverlay
 
 // One line in the layer's read-out (shown in the Stats panel's Layers section).
 export interface PanelRow {

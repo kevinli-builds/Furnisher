@@ -139,6 +139,22 @@ export function solidWalls(plan: Plan): Seg[] {
   return segs
 }
 
+// Distance from a world point to the nearest obstacle edge — a solid wall or a
+// non-rug furniture footprint. The radius of the largest empty circle centred
+// there; used for wheelchair turning-circle checks (L6).
+export function clearanceAt(g: WalkGrid, x: number, y: number): number {
+  let d = Infinity
+  for (const w of g.walls) {
+    const dw = distPointToSeg(x, y, w)
+    if (dw < d) d = dw
+  }
+  for (const f of g.obstacles) {
+    const df = distPointToFurniture(x, y, f)
+    if (df < d) d = df
+  }
+  return d
+}
+
 export function idx(g: WalkGrid, cx: number, cy: number): number {
   return cy * g.cols + cx
 }
