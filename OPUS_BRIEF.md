@@ -11,7 +11,8 @@ for mobile testing). Verify current state before implementing._
 
 **Shipped ✓** — template/welcome chooser + blank/AI-import first-run; Doorway Test v1 (D1); **Doorway Test v2 (2026-07-11: corner-turn sweep — `cornerAllowedLength` rod-around-a-corner bound + orientation-aware route BFS with a translation path for square-ish pieces; new `turn` verdict rendered in Stats; fixture-tested)**; fit facts (D5); `lib/interactions.ts` extraction + tests; first-run coach tips (§5); edge-length labels, marker text labels, polygon corner-delete fixes. (A stray "Tracker" tab was added then removed — it belongs in the Tracker app.)
 **Layer spine + L1 SHIPPED (2026-07-22)** — the §9 `lib/layers/` registry landed: each layer is a PURE `compute(plan) → {overlays, panelRows, warnings}` rendered by one generic `<InsightLayer>` SVG component (Canvas stays dumb); a "Insight layers" section in `ViewOptionsMenu`; active ids persist in `Plan.layers`, validated in `normalizePlan` against the registry (`validateLayerIds`). First layer = **L1 clearance zones ⭐**: per-type ergonomic aprons (chair pushback, door swing, bedside/foot access) from the `clearanceStandards.ts` data table; rotated apron polygons tested vs other footprints by SAT (`convexOverlap`); flat pieces (rug/lamp) and intended neighbours (chair↔desk/table, nightstand↔bed) excluded so it's not noisy; blocked aprons tint red + list in Stats (click a row → selects the piece). 17 fixture tests (119 total); build green; verified E2E in-app (aprons render under furniture, wardrobe blocked / desk clear via the neighbour rule, toggle on/off).
-**Next → (highest value first)** — **L2 flow/desire-paths ⭐** (next layer: walkability graph over free floor reusing the Doorway-Test grid §7 — bed→bath, entry→kitchen routes as worn lines, pinch-points <70cm); the **real-device mobile pass** (P1 — §8 pre-verified the chrome; only gestures/pinch/export remain); §9 L6 accessibility layer (reuses L2's grid). Doorway v3 candidates if ever wanted: per-corner blame in the issue copy, polygon rooms decomposed instead of bbox'd, tilt/on-end 3D escapes.
+**L2 flow/desire-paths SHIPPED (2026-07-22)** ⭐ — second layer. New reusable `lib/layers/walkGrid.ts` (which L6 will share): a **wall-aware** occupancy grid — cells walkable when in-room + clear of furniture; a step is passable only if it doesn't cross a SOLID wall segment (`solidWalls` = room edges minus door openings), so inter-room travel goes through doorways not walls. Adaptive cell size (~2500 cells any plan), precomputed 8-neighbour adjacency (no corner-cutting), Dijkstra `findPath`, `nearestWalkable`; memoised by plan identity. `flow.ts` resolves route endpoints (bed→bath, entry→kitchen, sofa→kitchen, bed→entry, entry→sofa, desk→coffee), paths them, and — KEY — measures the **perpendicular corridor WIDTH** at each point (bounded both sides), NOT distance-to-nearest-wall, so a path merely hugging one wall isn't a false pinch; doorways + the route's own endpoint pieces are excluded; pinches <70cm name the squeezing piece. Auto-wired via the registry (Display + Stats). 10 tests (129 total); verified E2E (5 routes bend through doorways, 3 cross-room ones flag "65cm past Shelf B").
+**Next → (highest value first)** — §9 **L6 accessibility layer** ⭐ (reuses `walkGrid` — 150cm turning circles, 81cm door minimums, step-free path check; high-heart); more layers per §9 (L3 sun-hours heatmap, L4 budget/move-day, L5 sightlines); the **real-device mobile pass** (P1 — §8 pre-verified the chrome; only gestures/pinch/export remain). Doorway v3 candidates if ever wanted: per-corner blame in the issue copy, polygon rooms decomposed instead of bbox'd, tilt/on-end 3D escapes.
 **Share links SHIPPED (2026-07-11)** — P2 share links + the MoveDay-handoff receiving half in one: `lib/share.ts` (lz-string fragment payloads, 30k size guard, tested), `#import=` handled on mount in `page.tsx` (confirm → `stashPlanBackup()` → `normalizePlan` trust boundary → adopt, hash cleared), 🔗 copy-share-link button in the Stats panel head. Backup slot `furnisher.plan.backup.v1` has no restore UI yet — cheap follow-up if ever wanted. Sender side lives in `C:\Users\snoww\MoveDay` (`FABLE_BRIEF.md` §4).
 **MoveDay return trip SHIPPED (2026-07-18)** — the other half of the fit-check round trip (MoveDay M4). `lib/share.ts` gains `buildMovedayUrl()` (packs a `source:'furnisher'` payload → `move-day.vercel.app/#plan=`, same 30k guard) + `MOVEDAY_LISTING_KEY`. The `#import=` effect now stashes a MoveDay Fit-check's `listingId` to localStorage (cleared for any other import) so the return trip re-attaches to the source listing. StatsPanel head gains a 📦 "Send to MoveDay" button → opens the arranged plan in MoveDay's inbound `#plan=` handler. 2 new share tests (102 total). Verified E2E: 📦 produced a valid MoveDay URL carrying the plan + threaded listingId, decoded cleanly by MoveDay's `unpackHandoff`.
 **Security ✅ (2026-07-12)** — F1 (revoke-share now purges collaborators via the new
@@ -335,12 +336,17 @@ intended neighbours (chair↔desk/table, nightstand↔bed) — mirrors the
 warnings.ts anti-noise reasoning. Wall-obstruction detection deliberately
 left out of v1 (beds against walls are normal); furniture obstructions only._
 
-### L2 — Flow & desire paths (M) ⭐
-Walkability graph over free floor (reuse Doorway-Test grid machinery §7):
-compute daily routes (bed→bathroom, entry→kitchen, sofa→fridge), show them
-as worn-path lines with lengths; highlight pinch points under 70cm. "Your
-morning route squeezes past the dining table" is the layer version of the
-Doorway Test insight.
+### L2 — Flow & desire paths (M) ⭐ — ✅ SHIPPED 2026-07-22
+Walkability graph over free floor, daily routes as worn-path lines with
+lengths + pinch points under 70cm. _Built in `walkGrid.ts` (reusable,
+wall-aware grid + Dijkstra) + `flow.ts`. Two design decisions worth knowing:
+(1) the wall model = a step may not cross a `solidWalls` segment (room edge
+minus door gaps), which is what keeps routes going through doorways; (2)
+pinch = perpendicular corridor WIDTH bounded on both sides, NOT distance to
+the nearest wall — otherwise every path hugging a wall false-flags. Doorways
++ endpoint pieces are excluded from pinch detection. Honest limits: routes
+use a curated endpoint set, one piece per role (first fridge/sink/stove =
+"kitchen"), and clearance is grid/march-approximate (±a few cm)._
 
 ### L3 — Sun-hours heatmap + seasons (M)
 sun.ts already models position; accumulate per-floor-cell direct-light
