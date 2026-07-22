@@ -444,6 +444,88 @@ body {
   margin-top: 2px;
   font-size: 11px;
 }
+
+/* ── Insight layers ─────────────────────────────── */
+.opts-sep {
+  height: 1px;
+  background: var(--line-strong);
+  margin: 8px 0 6px;
+  opacity: 0.7;
+}
+.opts-group-label {
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 10.5px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.layer-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+}
+.layer-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.layer-desc {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--muted);
+}
+.layer-readout {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.layer-readout-title {
+  font-weight: 700;
+  font-size: 12.5px;
+  color: var(--ink);
+}
+.layer-row-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--line-strong);
+  border-left-width: 3px;
+  background: var(--panel);
+}
+button.layer-row-item {
+  cursor: pointer;
+}
+button.layer-row-item:hover {
+  border-color: var(--accent);
+}
+.layer-row-item.tone-ok {
+  border-left-color: #7a8a5f;
+}
+.layer-row-item.tone-warn {
+  border-left-color: #c8922e;
+}
+.layer-row-item.tone-bad {
+  border-left-color: var(--danger);
+}
+.layer-row-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.layer-row-item.tone-bad .layer-row-label {
+  color: var(--danger);
+}
+.layer-row-detail {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+}
 .stats-room {
   display: flex;
   align-items: baseline;

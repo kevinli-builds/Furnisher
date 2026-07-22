@@ -1,5 +1,6 @@
 import type { Plan } from './types'
 import { safeColorField } from './sanitize'
+import { validateLayerIds } from './layers/registry'
 
 const KEY = 'furnisher.plan.v1'
 
@@ -48,6 +49,7 @@ export function normalizePlan(parsed: Partial<Plan> | null | undefined): Plan {
     snapAll: parsed.snapAll === true,
     warnings: parsed.warnings !== false,
     clearance: parsed.clearance === true,
+    layers: validateLayerIds(parsed.layers),
     budget: typeof parsed.budget === 'number' && parsed.budget > 0 ? parsed.budget : undefined,
     blueprintUrl: typeof parsed.blueprintUrl === 'string' ? parsed.blueprintUrl : undefined,
     width: parsed.width || 1200,

@@ -19,6 +19,8 @@ import RoomShape from './RoomShape'
 import BoxLabel from './BoxLabel'
 import Stairs from './Stairs'
 import LightingLayer from './LightingLayer'
+import InsightLayer from './InsightLayer'
+import { computeActiveLayers } from '../lib/layers/registry'
 import PeerCursors from './PeerCursors'
 import Opening from './Opening'
 
@@ -1010,6 +1012,8 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
   const glows = plan.lighting ? lampGlows(plan, sun) : []
   const warn = plan.warnings === false ? null : computeWarnings(plan)
   const gaps = plan.clearance ? computeClearance(plan) : []
+  // Insight-layer overlays (clearance zones, …) — drawn beneath the furniture.
+  const layerOverlays = plan.layers?.length ? computeActiveLayers(plan).flatMap((l) => l.result.overlays) : []
 
   const bgCursor = spaceHeld ? 'grab' : mode === 'room' || mode === 'marker' || mode === 'measure' ? 'crosshair' : mode === 'door' || mode === 'window' ? 'copy' : 'grab'
 
@@ -1151,6 +1155,9 @@ export default function Canvas({ plan, setPlan, mode, setMode, sel, setSel, peer
             </g>
           )
         })()}
+
+        {/* Insight-layer overlays (e.g. clearance zones) — under the furniture */}
+        {layerOverlays.length > 0 && <InsightLayer overlays={layerOverlays} scale={scale} />}
 
         {/* Furniture */}
         {plan.furniture.map((f) => {

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { Plan } from '../lib/types'
 import { computeStats, formatArea, formatPrice, fitFacts } from '../lib/stats'
 import { moveInCheck } from '../lib/warnings'
+import { computeActiveLayers } from '../lib/layers/registry'
 import { buildShareUrl, buildMovedayUrl, MOVEDAY_LISTING_KEY } from '../lib/share'
 import { formatLength } from '../lib/units'
 
@@ -25,6 +26,7 @@ export default function StatsPanel({ plan, setPlan, onClose, onSelectPiece }: Pr
   const [showMoveIn, setShowMoveIn] = useState(false)
   const hasDoorway = plan.doors.some((d) => (d.type ?? 'swing') !== 'window')
   const issues = showMoveIn ? moveInCheck(plan) : []
+  const activeLayers = plan.layers?.length ? computeActiveLayers(plan) : []
   return (
     <div className="stats-panel">
       <div className="stats-head">
@@ -161,6 +163,27 @@ export default function StatsPanel({ plan, setPlan, onClose, onSelectPiece }: Pr
             <p className="sect-note movein-note">Checks each piece’s narrowest side against the doorways on its route, plus whether long pieces can rotate through right-angle bends (rooms are treated as their bounding box; standing pieces on end isn’t modelled). Treat “tight” as “measure twice.”</p>
           </div>
         )}
+
+        {activeLayers.map((l) => (
+          <div key={l.id} className="layer-readout">
+            <div className="stats-divider" />
+            <span className="layer-readout-title">{l.label}</span>
+            {l.result.panelRows.map((row) => {
+              const clickable = !!row.targetId
+              const Tag = clickable ? 'button' : 'div'
+              return (
+                <Tag
+                  key={row.id}
+                  className={`layer-row-item tone-${row.tone ?? 'ok'}`}
+                  {...(clickable ? { onClick: () => onSelectPiece?.(row.targetId as string) } : {})}
+                >
+                  <span className="layer-row-label">{row.label}</span>
+                  {row.detail && <span className="layer-row-detail">{row.detail}</span>}
+                </Tag>
+              )
+            })}
+          </div>
+        ))}
       </div>
     </div>
   )

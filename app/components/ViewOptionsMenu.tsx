@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Plan } from '../lib/types'
 import { safeUrl } from '../lib/url'
 import { formatHour } from '../lib/sun'
+import { LAYERS } from '../lib/layers/registry'
 
 interface Props {
   plan: Plan
@@ -25,6 +26,13 @@ export default function ViewOptionsMenu({ plan, setPlan, onShowTips }: Props) {
   }, [open])
 
   const set = (patch: Partial<Plan>) => setPlan((p) => ({ ...p, ...patch }))
+
+  const activeLayers = plan.layers ?? []
+  const toggleLayer = (id: string, on: boolean) =>
+    setPlan((p) => {
+      const cur = (p.layers ?? []).filter((l) => l !== id)
+      return { ...p, layers: on ? [...cur, id] : cur }
+    })
 
   return (
     <div className="account" ref={ref}>
@@ -162,6 +170,35 @@ export default function ViewOptionsMenu({ plan, setPlan, onShowTips }: Props) {
                   📍 Use my location
                 </button>
               </div>
+            </>
+          )}
+          {LAYERS.length > 0 && (
+            <>
+              <div className="opts-sep" />
+              <span className="sect-label opts-group-label">Insight layers</span>
+              {LAYERS.map((l) => {
+                const on = activeLayers.includes(l.id)
+                return (
+                  <div key={l.id} className="opts-row layer-row">
+                    <div className="layer-row-head">
+                      <span className="sect-label">
+                        {l.icon ? `${l.icon} ` : ''}
+                        {l.label}
+                      </span>
+                      <div className="seg">
+                        <Seg on={on} onClick={() => toggleLayer(l.id, true)}>
+                          On
+                        </Seg>
+                        <Seg on={!on} onClick={() => toggleLayer(l.id, false)}>
+                          Off
+                        </Seg>
+                      </div>
+                    </div>
+                    <p className="layer-desc">{l.desc}</p>
+                  </div>
+                )
+              })}
+              <div className="opts-sep" />
             </>
           )}
           <div className="opts-row">
