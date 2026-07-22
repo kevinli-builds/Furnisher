@@ -10,7 +10,8 @@ for mobile testing). Verify current state before implementing._
 ## 0. Status ledger (2026-07-05) + how to pick up
 
 **Shipped ✓** — template/welcome chooser + blank/AI-import first-run; Doorway Test v1 (D1); **Doorway Test v2 (2026-07-11: corner-turn sweep — `cornerAllowedLength` rod-around-a-corner bound + orientation-aware route BFS with a translation path for square-ish pieces; new `turn` verdict rendered in Stats; fixture-tested)**; fit facts (D5); `lib/interactions.ts` extraction + tests; first-run coach tips (§5); edge-length labels, marker text labels, polygon corner-delete fixes. (A stray "Tracker" tab was added then removed — it belongs in the Tracker app.)
-**Next → (highest value first)** — the **real-device mobile pass** (P1 — §8 pre-verified the chrome; only gestures/pinch/export remain); the §9 **layer spine** then L1 clearance-zones ⭐ + L2 flow/desire-paths ⭐; §9 L6 accessibility layer. Doorway v3 candidates if ever wanted: per-corner blame in the issue copy, polygon rooms decomposed instead of bbox'd, tilt/on-end 3D escapes.
+**Layer spine + L1 SHIPPED (2026-07-22)** — the §9 `lib/layers/` registry landed: each layer is a PURE `compute(plan) → {overlays, panelRows, warnings}` rendered by one generic `<InsightLayer>` SVG component (Canvas stays dumb); a "Insight layers" section in `ViewOptionsMenu`; active ids persist in `Plan.layers`, validated in `normalizePlan` against the registry (`validateLayerIds`). First layer = **L1 clearance zones ⭐**: per-type ergonomic aprons (chair pushback, door swing, bedside/foot access) from the `clearanceStandards.ts` data table; rotated apron polygons tested vs other footprints by SAT (`convexOverlap`); flat pieces (rug/lamp) and intended neighbours (chair↔desk/table, nightstand↔bed) excluded so it's not noisy; blocked aprons tint red + list in Stats (click a row → selects the piece). 17 fixture tests (119 total); build green; verified E2E in-app (aprons render under furniture, wardrobe blocked / desk clear via the neighbour rule, toggle on/off).
+**Next → (highest value first)** — **L2 flow/desire-paths ⭐** (next layer: walkability graph over free floor reusing the Doorway-Test grid §7 — bed→bath, entry→kitchen routes as worn lines, pinch-points <70cm); the **real-device mobile pass** (P1 — §8 pre-verified the chrome; only gestures/pinch/export remain); §9 L6 accessibility layer (reuses L2's grid). Doorway v3 candidates if ever wanted: per-corner blame in the issue copy, polygon rooms decomposed instead of bbox'd, tilt/on-end 3D escapes.
 **Share links SHIPPED (2026-07-11)** — P2 share links + the MoveDay-handoff receiving half in one: `lib/share.ts` (lz-string fragment payloads, 30k size guard, tested), `#import=` handled on mount in `page.tsx` (confirm → `stashPlanBackup()` → `normalizePlan` trust boundary → adopt, hash cleared), 🔗 copy-share-link button in the Stats panel head. Backup slot `furnisher.plan.backup.v1` has no restore UI yet — cheap follow-up if ever wanted. Sender side lives in `C:\Users\snoww\MoveDay` (`FABLE_BRIEF.md` §4).
 **MoveDay return trip SHIPPED (2026-07-18)** — the other half of the fit-check round trip (MoveDay M4). `lib/share.ts` gains `buildMovedayUrl()` (packs a `source:'furnisher'` payload → `move-day.vercel.app/#plan=`, same 30k guard) + `MOVEDAY_LISTING_KEY`. The `#import=` effect now stashes a MoveDay Fit-check's `listingId` to localStorage (cleared for any other import) so the return trip re-attaches to the source listing. StatsPanel head gains a 📦 "Send to MoveDay" button → opens the arranged plan in MoveDay's inbound `#plan=` handler. 2 new share tests (102 total). Verified E2E: 📦 produced a valid MoveDay URL carrying the plan + threaded listingId, decoded cleanly by MoveDay's `unpackHandoff`.
 **Security ✅ (2026-07-12)** — F1 (revoke-share now purges collaborators via the new
@@ -314,20 +315,25 @@ Furnisher that means **insight layers** over the plan they already built.
 The plan model knows real geometry, types, prices, sun, lights, stairs —
 almost none of that knowledge is currently reflected back as insight._
 
-### First: build the layer spine (architecture, do before any layer)
+### First: build the layer spine (architecture, do before any layer) — ✅ SHIPPED 2026-07-22
 A `lib/layers/` registry: each layer = `{ id, label, compute(plan): {
 overlays, panelRows, warnings } }` where compute is PURE (testable) and
-overlays are simple primitives (polygon/heat-cell/path/badge) rendered by
-one generic `InsightLayer` SVG component. Display menu grows a "Layers"
-section listing the registry. Canvas stays dumb. Every layer below is then
-a self-contained ~day of work.
+overlays are simple primitives (polygon/rect/path/badge) rendered by
+one generic `InsightLayer` SVG component. Display menu grew an "Insight
+layers" section listing the registry. Canvas stays dumb. Every layer below
+is now a self-contained ~day of work. _Built as specified; overlay colours
+are code constants (never plan data) so the sanitize trust boundary holds._
 
-### L1 — Functional clearance zones (S) ⭐
-Beyond collision: per-type ergonomic aprons — bed sides 60cm, desk chair
-pushback 75cm, dining seats 60cm, wardrobe/appliance door-swing arcs
-(doors already have swing geometry as precedent). Tinted aprons on the
-canvas; violations listed with the standard cited. A data table
-(`lib/layers/clearanceStandards.ts`) drives it — easy to extend.
+### L1 — Functional clearance zones (S) ⭐ — ✅ SHIPPED 2026-07-22
+Beyond collision: per-type ergonomic aprons — bed sides/foot 60cm, desk chair
+pushback 75cm, dining seats 90cm, wardrobe/appliance door-swing (90–105cm).
+Tinted aprons on the canvas (sage = clear, danger = blocked); violations
+listed in Stats with the standard's purpose, click-to-select the piece. Data
+table `lib/layers/clearanceStandards.ts` drives it. _Obstruction = SAT overlap
+of the (rotated) apron vs another footprint, minus flats (rug/lamp) and
+intended neighbours (chair↔desk/table, nightstand↔bed) — mirrors the
+warnings.ts anti-noise reasoning. Wall-obstruction detection deliberately
+left out of v1 (beds against walls are normal); furniture obstructions only._
 
 ### L2 — Flow & desire paths (M) ⭐
 Walkability graph over free floor (reuse Doorway-Test grid machinery §7):

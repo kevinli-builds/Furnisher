@@ -98,6 +98,11 @@ reopen with the ✨ Templates button); **fit facts** chips in Stats (`stats.fitF
 Canvas.tsx, unit-tested — the first step of the Canvas de-risk); and the **Doorway
 Test** — an opt-in "🚪 Move-in check" in Stats (`warnings.moveInCheck`: room-graph
 + widest-path bottleneck vs each rigid piece's smallest cross-section).
+Newest: the **insight-layer system** — a pure `lib/layers/` registry (`compute(plan)
+→ {overlays, panelRows, warnings}`) rendered by a generic `InsightLayer` SVG comp,
+toggled under Display → "Insight layers", persisted in `plan.layers`. First layer =
+**L1 clearance zones** (ergonomic aprons from `clearanceStandards.ts`, SAT-tested vs
+footprints). Add a layer = append to `lib/layers/registry.ts`; next up is L2 flow paths.
 Earlier: room types w/ colour tints, clearance checker (off by default,
 bulky-furniture-only heuristic), export strips on-screen chrome, add-tools revert
 to Select after one placement, orphan-door selectability, mobile pinch fixes.
