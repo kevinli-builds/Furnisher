@@ -105,8 +105,11 @@ toggled under Display → "Insight layers", persisted in `plan.layers`. First la
 footprints), **L2 flow/desire-paths** (`walkGrid.ts` wall-aware grid + Dijkstra → daily
 routes as worn lines + <70cm pinch points), and **L6 accessibility** (a separate optional
 layer: 150cm turning circles via `walkGrid.clearanceAt`, 81cm door minimums, stairs flagged
-step-free). Overlay primitives: polygon/rect/path/circle/badge. Add a layer = append to
-`lib/layers/registry.ts` (Display menu + Stats read-out wire up automatically).
+step-free), and **L3 sun-hours heatmap** (`sunHours.ts` — hourly window beam-casting, furniture
+shadows, season presets via `plan.sunSeason` + a Display sub-control; `walkGrid.lightWalls`).
+Overlay primitives: polygon/rect/path/circle/badge. Add a layer = append to
+`lib/layers/registry.ts` (Display menu + Stats read-out wire up automatically); a layer that
+needs a control adds a plan field + a special-cased sub-control in ViewOptionsMenu (see sun-hours).
 Earlier: room types w/ colour tints, clearance checker (off by default,
 bulky-furniture-only heuristic), export strips on-screen chrome, add-tools revert
 to Select after one placement, orphan-door selectability, mobile pinch fixes.
