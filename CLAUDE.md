@@ -107,9 +107,12 @@ routes as worn lines + <70cm pinch points), and **L6 accessibility** (a separate
 layer: 150cm turning circles via `walkGrid.clearanceAt`, 81cm door minimums, stairs flagged
 step-free), and **L3 sun-hours heatmap** (`sunHours.ts` — hourly window beam-casting, furniture
 shadows, season presets via `plan.sunSeason` + a Display sub-control; `walkGrid.lightWalls`).
+and **L4 budget/move-day** (`budget.ts` — per-room bill of materials from `price` + a new
+`owned` flag, still-to-buy total, volume→truck estimate, CSV export via a Stats button).
 Overlay primitives: polygon/rect/path/circle/badge. Add a layer = append to
 `lib/layers/registry.ts` (Display menu + Stats read-out wire up automatically); a layer that
-needs a control adds a plan field + a special-cased sub-control in ViewOptionsMenu (see sun-hours).
+needs a control adds a plan field + a special-cased sub-control (ViewOptionsMenu, e.g. sun-hours)
+or action button (StatsPanel, e.g. the budget CSV).
 Earlier: room types w/ colour tints, clearance checker (off by default,
 bulky-furniture-only heuristic), export strips on-screen chrome, add-tools revert
 to Select after one placement, orphan-door selectability, mobile pinch fixes.
