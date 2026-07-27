@@ -10,8 +10,9 @@ import { flowLayer } from './flow'
 import { accessibilityLayer } from './accessibility'
 import { sunHoursLayer } from './sunHours'
 import { budgetLayer } from './budget'
+import { sightlinesLayer } from './sightlines'
 
-export const LAYERS: InsightLayer[] = [clearanceLayer, flowLayer, accessibilityLayer, sunHoursLayer, budgetLayer]
+export const LAYERS: InsightLayer[] = [clearanceLayer, flowLayer, accessibilityLayer, sunHoursLayer, budgetLayer, sightlinesLayer]
 
 export function getLayer(id: string): InsightLayer | undefined {
   return LAYERS.find((l) => l.id === id)
