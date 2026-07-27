@@ -65,6 +65,7 @@ export interface Furniture {
   snap?: boolean // when dragging, hug a nearby room wall / other furniture (auto-snap)
   face?: boolean // when snapping, also rotate so the back sits against the wall
   price?: number // optional cost — feeds the budget summary
+  owned?: boolean // budget/move-day layer: already own this piece (vs still to buy)
   brightness?: number // glow-opacity multiplier when it's a light source (1 = default)
   lightRadius?: number // glow radius in cm override when it's a light source
   kelvin?: number // colour temperature of the emitted light (2700 warm … 6500 cool)

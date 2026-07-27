@@ -386,6 +386,14 @@ export default function SettingsPanel({ plan, setPlan, sel, setSel }: Props) {
                   patchFurn({ price: Number.isFinite(v) && v > 0 ? v : undefined })
                 }}
               />
+              <div className="seg full" style={{ marginTop: 8 }}>
+                <button className={`seg-btn${!furn.owned ? ' on' : ''}`} onClick={() => patchFurn({ owned: false })}>
+                  Still to buy
+                </button>
+                <button className={`seg-btn${furn.owned ? ' on' : ''}`} onClick={() => patchFurn({ owned: true })}>
+                  Already own
+                </button>
+              </div>
             </section>
             <section className="sect">
               <label className="sect-label">Light source</label>

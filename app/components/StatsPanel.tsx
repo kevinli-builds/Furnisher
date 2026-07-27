@@ -5,6 +5,7 @@ import type { Plan } from '../lib/types'
 import { computeStats, formatArea, formatPrice, fitFacts } from '../lib/stats'
 import { moveInCheck } from '../lib/warnings'
 import { computeActiveLayers } from '../lib/layers/registry'
+import { buildBudgetCsv } from '../lib/layers/budget'
 import { buildShareUrl, buildMovedayUrl, MOVEDAY_LISTING_KEY } from '../lib/share'
 import { formatLength } from '../lib/units'
 
@@ -27,6 +28,17 @@ export default function StatsPanel({ plan, setPlan, onClose, onSelectPiece }: Pr
   const hasDoorway = plan.doors.some((d) => (d.type ?? 'swing') !== 'window')
   const issues = showMoveIn ? moveInCheck(plan) : []
   const activeLayers = plan.layers?.length ? computeActiveLayers(plan) : []
+
+  const downloadBudgetCsv = () => {
+    const csv = buildBudgetCsv(plan)
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${plan.rooms[0]?.name ? plan.rooms[0].name.replace(/\s+/g, '-').toLowerCase() : 'furnisher'}-budget.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="stats-panel">
       <div className="stats-head">
@@ -182,6 +194,11 @@ export default function StatsPanel({ plan, setPlan, onClose, onSelectPiece }: Pr
                 </Tag>
               )
             })}
+            {l.id === 'budget-move' && plan.furniture.length > 0 && (
+              <button className="btn-ghost" onClick={downloadBudgetCsv}>
+                ⬇ Download bill of materials (CSV)
+              </button>
+            )}
           </div>
         ))}
       </div>
