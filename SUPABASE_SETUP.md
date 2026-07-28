@@ -8,7 +8,7 @@ Project: **"Central DB"** — the Supabase project shared with MapCrowd + Tracke
 ref `tmycdgnofvmbyrmpqohw` → `https://tmycdgnofvmbyrmpqohw.supabase.co`.
 (Furnisher migrated here from its own project `qkwdjvoeganggqntzeya` in July 2026;
 see the `unified-backend/` repo in the Mapper-Tracker workspace. The old project
-is kept paused for rollback until teardown.)
+was deleted 2026-07-18 once the migration was verified.)
 
 ## 1. Environment variables
 

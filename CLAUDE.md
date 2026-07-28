@@ -24,8 +24,8 @@ was moving. Deploys to **Vercel** (furnisher.vercel.app).
   Since July 2026 this is the **shared "Central DB" project** (ref
   `tmycdgnofvmbyrmpqohw`, shared with MapCrowd + Tracker, per-user RLS per app) —
   migration artifacts live in the `unified-backend/` repo in the Mapper-Tracker
-  workspace. The old dedicated project (`qkwdjvoeganggqntzeya`) is paused pending
-  teardown; `.env.local` keeps its values commented for rollback.
+  workspace. The old dedicated project (`qkwdjvoeganggqntzeya`) was deleted
+  2026-07-18 once the migration was verified.
 - **Claude API**, bring-your-own-key (kept only in `localStorage`, sent directly to
   Anthropic) — powers AI import of blueprints / furniture.
 - All geometry is stored in **centimetres** (canonical); ft·in ⇄ m·cm is display-only.
